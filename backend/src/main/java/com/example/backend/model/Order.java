@@ -19,6 +19,7 @@ public class Order {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "order_id")
     private Long orderID;
 
     // Khách hàng
@@ -32,18 +33,19 @@ public class Order {
     private Coupon coupon;
 
     // Ngày đặt hàng
+    @Column(name = "order_date")
     private LocalDateTime orderDate;
 
     // Tổng tiền
-    @Column(precision = 12, scale = 2)
+    @Column(name = "total_amount", precision = 12, scale = 2)
     private BigDecimal totalAmount;
 
     // Địa chỉ giao hàng
-    @Column(length = 500)
+    @Column(name = "shipping_address", length = 500)
     private String shippingAddress;
 
     // Số điện thoại
-    @Column(length = 30)
+    @Column(name = "contact_phone", length = 30)
     private String contactPhone;
 
     // Trạng thái đơn hàng
@@ -53,18 +55,20 @@ public class Order {
     private OrderStatus status = OrderStatus.PENDING;
 
     // Phương thức thanh toán
-    @Column(length = 50)
+    @Column(name = "payment_method", length = 50)
     private String paymentMethod;
 
     // Trạng thái thanh toán
     @Builder.Default
+    @Column(name = "is_paid")
     private Boolean isPaid = false;
 
     // Số tiền giảm giá
-    @Column(precision = 12, scale = 2)
+    @Column(name = "discount_amount", precision = 12, scale = 2)
     private BigDecimal discountAmount;
 
     // Ngày giao hàng thành công
+    @Column(name = "delivered_at")
     private LocalDateTime deliveredAt;
 
     // Chi tiết đơn hàng

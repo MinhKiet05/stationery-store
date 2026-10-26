@@ -9,6 +9,7 @@ import lombok.*;
 public class Tag {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "tag_id")
     private Long tagID;
 
     @Column(nullable = false, length = 100)

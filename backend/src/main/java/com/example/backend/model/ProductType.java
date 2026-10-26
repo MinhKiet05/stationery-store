@@ -22,6 +22,7 @@ public class ProductType {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "product_type_id")
     private Long productTypeID;
 
     @Column(nullable = false, length = 100)
@@ -29,6 +30,6 @@ public class ProductType {
 
     // Trạng thái hoạt động
     @Builder.Default
-    @Column(nullable = false)
+    @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 }
