@@ -1,0 +1,9 @@
+# IntelliJ IDEA
+.idea/
+
+# Java build files
+**/target/
+
+# Environment variables
+.env
+.env.*
