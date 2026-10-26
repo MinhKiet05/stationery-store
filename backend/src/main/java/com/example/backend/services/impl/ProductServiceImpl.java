@@ -30,7 +30,7 @@ public class ProductServiceImpl implements ProductService {
     private final VendorRepository vendorRepository;
     private final TagRepository tagRepository;
 
-    // 1. Lấy danh sách sản phẩm
+    // 1. Lấy danh sách sản phẩmm
     @Override
     @Transactional(readOnly = true)
     public Page<ProductResponse> getAllProducts(Pageable pageable) {
