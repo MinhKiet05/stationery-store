@@ -10,6 +10,7 @@ import java.math.BigDecimal;
 public class OrderDetail {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "order_detail_id")
     private Long orderDetailID;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -23,9 +24,9 @@ public class OrderDetail {
     @Column(nullable = false)
     private Integer quantity;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(name = "unit_price", nullable = false, precision = 12, scale = 2)
     private BigDecimal unitPrice;
 
-    @Column(nullable = false, precision = 12, scale = 2)
+    @Column(name = "sub_total", nullable = false, precision = 12, scale = 2)
     private BigDecimal subTotal;
 }

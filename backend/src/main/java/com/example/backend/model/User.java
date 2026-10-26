@@ -12,21 +12,22 @@ import java.util.List;
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "user_id")
     private Long userID;
 
     @Column(nullable = false, unique = true, length = 80)
     private String username;
 
-    @Column(nullable = false)
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column(length = 120)
+    @Column(name = "full_name", length = 120)
     private String fullName;
 
-    @Column(length = 30)
+    @Column(name = "phone_number", length = 30)
     private String phoneNumber;
 
     @Column(length = 500)
@@ -37,9 +38,11 @@ public class User {
     @Builder.Default
     private UserRole role = UserRole.CUSTOMER;
 
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     @Builder.Default
+    @Column(name = "is_active")
     private Boolean isActive = true;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)

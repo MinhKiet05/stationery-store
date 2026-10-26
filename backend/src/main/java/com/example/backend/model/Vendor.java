@@ -9,6 +9,7 @@ import lombok.*;
 public class Vendor {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "vendor_id")
     private Long vendorID;
 
     @Column(nullable = false, length = 150)

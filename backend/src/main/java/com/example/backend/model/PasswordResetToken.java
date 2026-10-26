@@ -16,6 +16,7 @@ public class PasswordResetToken {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "token_id")
     private Long tokenID;
 
     // Người dùng yêu cầu đặt lại mật khẩu
@@ -24,11 +25,11 @@ public class PasswordResetToken {
     private User user;
 
     // Chỉ lưu hash của token
-    @Column(nullable = false, unique = true, length = 64)
+    @Column(name = "token_hash", nullable = false, unique = true, length = 64)
     private String tokenHash;
 
     // Thời gian hết hạn
-    @Column(nullable = false)
+    @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
     // Đã sử dụng hay chưa
@@ -37,7 +38,7 @@ public class PasswordResetToken {
     private Boolean used = false;
 
     // Thời gian tạo
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @PrePersist

@@ -14,6 +14,7 @@ public class ReturnRequestItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "return_item_id")
     private Long returnItemID;
 
     // Yêu cầu trả hàng

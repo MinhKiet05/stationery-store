@@ -20,6 +20,7 @@ public class Product {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "product_id")
     private Long productID;
 
     @Column(nullable = false, length = 200)
@@ -34,29 +35,29 @@ public class Product {
     @Builder.Default
     private Boolean available = true;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String description;
 
     @Column(precision = 12, scale = 2)
     private BigDecimal price;
 
-    @Column(precision = 12, scale = 2)
+    @Column(name = "price_min", precision = 12, scale = 2)
     private BigDecimal priceMin;
 
-    @Column(precision = 12, scale = 2)
+    @Column(name = "price_max", precision = 12, scale = 2)
     private BigDecimal priceMax;
 
-    @Column(precision = 12, scale = 2)
+    @Column(name = "compare_at_price", precision = 12, scale = 2)
     private BigDecimal compareAtPrice;
 
     // Điểm đánh giá trung bình
     @Builder.Default
-    @Column(nullable = false, precision = 3, scale = 2)
+    @Column(name = "rating_average", nullable = false, precision = 3, scale = 2)
     private BigDecimal ratingAverage = BigDecimal.ZERO;
 
     // Tổng số lượt đánh giá
     @Builder.Default
-    @Column(nullable = false)
+    @Column(name = "review_count", nullable = false)
     private Integer reviewCount = 0;
 
     // Danh sách hình ảnh
@@ -106,6 +107,6 @@ public class Product {
 
     // Xóa mềm
     @Builder.Default
-    @Column(nullable = false)
+    @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 }

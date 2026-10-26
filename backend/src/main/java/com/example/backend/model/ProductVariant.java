@@ -18,6 +18,7 @@ public class ProductVariant {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "variant_id")
     private Long variantID;
 
     @Column(nullable = false, length = 200)
@@ -32,7 +33,7 @@ public class ProductVariant {
     @Column(precision = 12, scale = 2)
     private BigDecimal price;
 
-    @Column(precision = 12, scale = 2)
+    @Column(name = "compare_at_price", precision = 12, scale = 2)
     private BigDecimal compareAtPrice;
 
     private String option1;
@@ -43,7 +44,7 @@ public class ProductVariant {
 
     // Số lượng tồn kho
     @Builder.Default
-    @Column(nullable = false)
+    @Column(name = "stock_quantity", nullable = false)
     private Integer stockQuantity = 0;
 
     // Kiểm soát cập nhật đồng thời

@@ -18,6 +18,7 @@ public class ReturnRequest {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "return_id")
     private Long returnID;
 
     // Đơn hàng cần trả
@@ -35,7 +36,7 @@ public class ReturnRequest {
     private String reason;
 
     // Danh sách URL hình ảnh/video minh chứng
-    @Column(columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "evidence_images", columnDefinition = "NVARCHAR(MAX)")
     private String evidenceImages;
 
     // Trạng thái yêu cầu
@@ -54,14 +55,15 @@ public class ReturnRequest {
     private List<ReturnRequestItem> items = new ArrayList<>();
 
     // Ngày tạo yêu cầu
-    @Column(nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     // Ngày xử lý yêu cầu
+    @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
     // Ghi chú của Admin
-    @Column(length = 1000)
+    @Column(name = "admin_note", length = 1000)
     private String adminNote;
 
     @PrePersist

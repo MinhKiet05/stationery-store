@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class Review {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "review_id")
     private Long reviewID;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -23,9 +24,10 @@ public class Review {
     @Column(nullable = false)
     private Integer rating;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "NVARCHAR(MAX)")
     private String comment;
 
+    @Column(name = "review_date")
     private LocalDateTime reviewDate;
 
     @PrePersist
