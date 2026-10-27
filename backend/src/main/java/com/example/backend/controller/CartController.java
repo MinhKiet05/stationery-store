@@ -1,6 +1,8 @@
 package com.example.backend.controller;
 
 import com.example.backend.dto.cart.*;
+import com.example.backend.dto.cart.MergeCartRequest;
+import com.example.backend.services.CartMergeService;
 import com.example.backend.services.CartService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -12,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class CartController {
     private final CartService service;
-
+    private final CartMergeService cartMergeService;
     @GetMapping
     public CartResponse get(Authentication auth) {
         return service.getCart(auth.getName());
@@ -33,6 +35,16 @@ public class CartController {
     @DeleteMapping("/items/{itemID}")
     public CartResponse remove(@PathVariable Long itemID, Authentication auth) {
         return service.removeItem(auth.getName(), itemID);
+    }
+    @PostMapping("/merge")
+    public CartResponse merge(
+            @Valid @RequestBody MergeCartRequest request,
+            Authentication auth
+    ) {
+        return cartMergeService.mergeCart(
+                auth.getName(),
+                request
+        );
     }
 
     @DeleteMapping
