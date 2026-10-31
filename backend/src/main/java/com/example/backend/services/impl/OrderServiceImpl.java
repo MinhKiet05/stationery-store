@@ -40,13 +40,15 @@ public class OrderServiceImpl implements OrderService {
         // Order creation is serialized for one cart to prevent double checkout.
         Cart lockedCart = em.find(Cart.class, cart.getCartID(), LockModeType.PESSIMISTIC_WRITE);
         List<CartItem> currentItems = cartItems.findByCart_CartID(lockedCart.getCartID());
-        if (currentItems.isEmpty()) throw bad("Gio hang trong");
+        if (currentItems.isEmpty())
+            throw bad("Gio hang trong");
 
         // Merge duplicate variant IDs, then lock rows in deterministic ascending order.
         Map<Long, Integer> quantities = new TreeMap<>();
         for (CartItem item : currentItems) {
-            if (item.getQuantity() == null || item.getQuantity() <= 0) throw bad("So luong khong hop le");
-            quantities.merge(item.getVariant().getVariantID(), item.getQuantity(), (a,b)->Math.addExact(a,b));
+            if (item.getQuantity() == null || item.getQuantity() <= 0)
+                throw bad("So luong khong hop le");
+            quantities.merge(item.getVariant().getVariantID(), item.getQuantity(), (a, b) -> Math.addExact(a, b));
         }
         Order order = new Order();
         order.setUser(user);
@@ -68,9 +70,11 @@ public class OrderServiceImpl implements OrderService {
             }
             int quantity = entry.getValue();
             if (variant.getStockQuantity() == null || variant.getStockQuantity() < quantity)
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Khong du ton kho cho bien the " + variant.getVariantID());
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Khong du ton kho cho bien the " + variant.getVariantID());
             BigDecimal unitPrice = variant.getPrice();
-            if (unitPrice == null || unitPrice.signum() < 0) throw bad("Gia ban khong hop le");
+            if (unitPrice == null || unitPrice.signum() < 0)
+                throw bad("Gia ban khong hop le");
             BigDecimal lineTotal = unitPrice.multiply(BigDecimal.valueOf(quantity));
             subTotal = subTotal.add(lineTotal);
             variant.setStockQuantity(variant.getStockQuantity() - quantity);
@@ -85,10 +89,13 @@ public class OrderServiceImpl implements OrderService {
 
         BigDecimal discount = BigDecimal.ZERO;
         if (request.couponCode() != null && !request.couponCode().isBlank()) {
-            String code = request.couponCode().trim();
+            String code = request.couponCode().trim().toUpperCase(Locale.ROOT);
             Coupon existing = coupons.findByCode(code)
                     .orElseThrow(() -> bad("Ma giam gia khong hop le"));
             Coupon coupon = em.find(Coupon.class, existing.getCouponID(), LockModeType.PESSIMISTIC_WRITE);
+            // Reload after acquiring the lock; find() may have returned a cached usage
+            // count.
+            em.refresh(coupon, LockModeType.PESSIMISTIC_WRITE);
             LocalDate today = LocalDate.now();
             if (!Boolean.TRUE.equals(coupon.getIsActive())
                     || (coupon.getStartDate() != null && today.isBefore(coupon.getStartDate()))
@@ -100,9 +107,11 @@ public class OrderServiceImpl implements OrderService {
             if (coupon.getUsageLimit() != null && used >= coupon.getUsageLimit())
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Ma giam gia da het luot");
             BigDecimal value = coupon.getDiscountValue();
-            if (value == null || value.signum() < 0) throw bad("Gia tri giam gia khong hop le");
+            if (value == null || value.signum() < 0)
+                throw bad("Gia tri giam gia khong hop le");
             if (coupon.getDiscountType() == DiscountType.PERCENTAGE) {
-                if (value.compareTo(BigDecimal.valueOf(100)) > 0) throw bad("Phan tram giam gia > 100");
+                if (value.compareTo(BigDecimal.valueOf(100)) > 0)
+                    throw bad("Phan tram giam gia > 100");
                 discount = subTotal.multiply(value).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
             } else if (coupon.getDiscountType() == DiscountType.FIXED_AMOUNT) {
                 discount = value;
@@ -164,15 +173,18 @@ public class OrderServiceImpl implements OrderService {
                 .orElseThrow(() -> notFound("Khong tim thay don hang"));
         OrderStatus target = request.status();
         OrderStatus current = order.getStatus();
-        if (target == null) throw bad("status khong duoc null");
-        if (target == current) return toResponse(order);
+        if (target == null)
+            throw bad("status khong duoc null");
+        if (target == current)
+            return toResponse(order);
         if (target == OrderStatus.CANCELLED) {
             cancel(order);
         } else if ((current == OrderStatus.PENDING && target == OrderStatus.PROCESSING)
                 || (current == OrderStatus.PROCESSING && target == OrderStatus.SHIPPED)
                 || (current == OrderStatus.SHIPPED && target == OrderStatus.DELIVERED)) {
             order.setStatus(target);
-            if (target == OrderStatus.DELIVERED) order.setDeliveredAt(LocalDateTime.now());
+            if (target == OrderStatus.DELIVERED)
+                order.setDeliveredAt(LocalDateTime.now());
         } else {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Chuyen trang thai don hang khong hop le");
         }
@@ -184,7 +196,8 @@ public class OrderServiceImpl implements OrderService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Don hang khong the huy o trang thai nay");
         if (Boolean.TRUE.equals(order.getIsPaid()))
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Don da thanh toan: can quy trinh hoan tien rieng");
-        // All order operations lock the order first; inventory locks use ascending variant IDs.
+        // All order operations lock the order first; inventory locks use ascending
+        // variant IDs.
         Map<Long, Integer> quantities = new TreeMap<>();
         for (OrderDetail item : order.getOrderDetails())
             quantities.merge(item.getVariant().getVariantID(), item.getQuantity(), Integer::sum);
@@ -195,6 +208,7 @@ public class OrderServiceImpl implements OrderService {
         }
         if (order.getCoupon() != null) {
             Coupon coupon = em.find(Coupon.class, order.getCoupon().getCouponID(), LockModeType.PESSIMISTIC_WRITE);
+            em.refresh(coupon, LockModeType.PESSIMISTIC_WRITE);
             int used = coupon.getUsedCount() == null ? 0 : coupon.getUsedCount();
             coupon.setUsedCount(Math.max(0, used - 1));
         }
@@ -202,16 +216,18 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private User currentUser(String username) {
-        if (username == null || username.isBlank()) throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
+        if (username == null || username.isBlank())
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED);
         User user = users.findByUsername(username)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
-        if (!Boolean.TRUE.equals(user.getIsActive())) throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if (!Boolean.TRUE.equals(user.getIsActive()))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         return user;
     }
 
     private OrderResponse toResponse(Order order) {
-        List<OrderDetailResponse> details = order.getOrderDetails().stream().map(d ->
-                new OrderDetailResponse(d.getOrderDetailID(), d.getVariant().getVariantID(),
+        List<OrderDetailResponse> details = order.getOrderDetails().stream()
+                .map(d -> new OrderDetailResponse(d.getOrderDetailID(), d.getVariant().getVariantID(),
                         d.getVariant().getTitle(), d.getQuantity(), d.getUnitPrice(), d.getSubTotal()))
                 .toList();
         BigDecimal subTotal = details.stream().map(OrderDetailResponse::subTotal)
@@ -226,6 +242,7 @@ public class OrderServiceImpl implements OrderService {
     private ResponseStatusException bad(String message) {
         return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
     }
+
     private ResponseStatusException notFound(String message) {
         return new ResponseStatusException(HttpStatus.NOT_FOUND, message);
     }
