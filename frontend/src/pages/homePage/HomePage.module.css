@@ -1,0 +1,649 @@
+.homePage {
+  width: 100%;
+  color: #ffffff;
+  font-family: system-ui, -apple-system, sans-serif;
+  padding-bottom: 40px;
+}
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* --- Top Announcement --- */
+.announcement {
+  background-color: #f1f5f9;
+  color: #334155;
+  font-size: 12px;
+  padding: 8px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.promoHighlight {
+  color: #ea580c;
+  font-weight: 700;
+}
+
+/* =========================================
+   HERO SECTION
+   ========================================= */
+.heroSection {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  margin-top: 24px;
+  margin-bottom: 40px;
+  width: 100%;
+}
+
+/* --- MAIN BANNER --- */
+.mainBanner {
+  position: relative;
+  border-radius: 8px;
+  overflow: hidden;
+  padding: 48px 40px 32px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background-color: #050b14;
+  min-height: 440px;
+}
+
+.slideWrapper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.slideImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right center;
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.slideImage.active {
+  opacity: 1;
+}
+
+.gradientOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, #050b14 35%, rgba(5, 11, 20, 0.8) 60%, transparent 100%);
+  z-index: 1;
+}
+
+.mainContent {
+  position: relative;
+  z-index: 2;
+  color: white;
+  max-width: 75%;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #ea580c;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 24px;
+}
+
+.tagDot {
+  font-size: 6px;
+  color: white;
+}
+
+.heroSubtitle {
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.heroTitle {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 16px;
+}
+
+.heroDesc {
+  font-size: 14px;
+  color: #94a3b8;
+  line-height: 1.5;
+  margin-bottom: 32px;
+  max-width: 90%;
+}
+
+.actions {
+  display: flex;
+  gap: 16px;
+}
+
+.primaryBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #f97316;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.primaryBtn:hover {
+  background-color: #ea580c;
+}
+
+.secondaryBtn {
+  background-color: #1e293b;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.secondaryBtn:hover {
+  background-color: #334155;
+}
+
+/* Pagination & Navigation */
+.slideCounter {
+  position: absolute;
+  top: 40px;
+  right: 40px;
+  z-index: 2;
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.bottomNav {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 40px;
+}
+
+.dots {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 4px;
+  background-color: #475569;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.dot.active {
+  width: 20px;
+  background-color: #f97316;
+}
+
+.navArrows {
+  display: flex;
+  gap: 10px;
+}
+
+.arrowBtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.arrowBtn:hover {
+  background-color: rgba(255, 255, 255, 0.25);
+}
+
+/* --- SUB BANNERS --- */
+.subBanners {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.subCard {
+  flex: 1;
+  border-radius: 8px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.cardLight {
+  background-color: #EFF4FF;
+  color: #0f172a;
+}
+
+.cardDark {
+  background-color: #35260C;
+  color: white;
+}
+
+.subSubtitle {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.cardLight .subSubtitle {
+  color: #64748b;
+}
+
+.cardDark .subSubtitle {
+  color: #d6d3d1;
+}
+
+.subTitle {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.subDesc {
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 24px;
+  max-width: 65%;
+}
+
+.cardLight .subDesc {
+  color: #475569;
+}
+
+.cardDark .subDesc {
+  color: #a8a29e;
+}
+
+.subFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+.price {
+  font-size: 14px;
+  font-weight: 700;
+  color: #c2410c;
+}
+
+.freeText {
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+}
+
+.linkBtn {
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.cardLight .linkBtn {
+  color: #0f172a;
+}
+
+.cardDark .linkBtn {
+  color: white;
+}
+
+/* Ảnh cắt hình tròn cho góc làm việc */
+.circleImgWrapper {
+  position: absolute;
+  right: -20px;
+  top: 35%;
+  transform: translateY(-50%);
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.circleImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Watermark cho dịch vụ cá nhân hóa */
+.watermarkIcon {
+  position: absolute;
+  right: -5px;
+  bottom: -15px;
+  font-size: 130px;
+  color: rgba(255, 255, 255, 0.04);
+  transform: rotate(-30deg);
+  z-index: 1;
+}
+
+/* =========================================
+   REST OF HOMEPAGE SECTIONS
+   ========================================= */
+
+/* --- Section Headers --- */
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 24px;
+}
+
+.sectionTitle {
+  font-size: 24px;
+  color: #091426;
+  font-weight: 700;
+}
+
+.sectionSubtitle {
+  color: #ea580c;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.viewAll {
+  color: #45474C;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+/* --- Categories --- */
+.categoriesGrid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+.categoryCard {
+  background-color: white;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: #091426;
+  text-decoration: none;
+  transition: transform 0.2s;
+}
+
+.categoryCard:hover {
+  transform: translateY(-4px);
+}
+
+.categoryIcon {
+  width: 64px;
+  height: 64px;
+  background-color: #f1f5f9;
+  border-radius: 50%;
+  margin-bottom: 12px;
+}
+.categoryIcon img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+.categoryName {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.categoryCount {
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* --- Products Section --- */
+.tabs {
+  display: flex;
+  gap: 12px;
+}
+
+.tab {
+  background-color: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tab.active {
+  background-color: #1e293b;
+  color: white;
+  border-color: #1e293b;
+}
+
+.productsGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  margin-bottom: 48px;
+}
+
+/* --- Brands Section --- */
+.whiteSection {
+  background-color: white;
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 24px;
+  color: #091426;
+}
+
+.brandLogos {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+  margin-top: 16px;
+}
+
+.brandLogo {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-weight: bold;
+  color: #475569;
+}
+
+.promoBannersGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.promoBanner {
+  background-color: #0f172a;
+  color: white;
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.promoBanner.light {
+  background-color: #f1f5f9;
+  color: #091426;
+}
+
+/* --- Two Columns Lists --- */
+.twoCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.listCard {
+  background-color: white;
+  border-radius: 16px;
+  padding: 24px;
+  color: #091426;
+}
+
+.listItem {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid #f1f5f9;
+  align-items: center;
+}
+
+.listItem:last-child {
+  border-bottom: none;
+}
+
+.itemImg {
+  width: 72px;
+  height: 72px;
+  background-color: #f8fafc;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.itemInfo {
+  flex: 1;
+}
+
+.itemTitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.itemDesc {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.itemPrice {
+  color: #ea580c;
+  font-weight: 700;
+}
+
+.cartBtnSmall {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background-color: #e0e7ff;
+  color: #3730a3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+}
+
+/* --- Features --- */
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background-color: white;
+  border-radius: 16px;
+  padding: 24px;
+  color: #091426;
+}
+
+.featureItem {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.featureItem:last-child {
+  border-right: none;
+}
+
+.featureIcon {
+  color: #ea580c;
+}
+
+.featureText h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+
+.featureText p {
+  font-size: 12px;
+  color: #64748b;
+  margin: 0;
+}
+
+@media (max-width: 1024px) {
+  .heroSection {
+    grid-template-columns: 1fr;
+  }
+  .subBanners {
+    flex-direction: row;
+  }
+  .categoriesGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .productsGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
