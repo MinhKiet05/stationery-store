@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /** Stable error bodies scoped to these modules; no changes to other controllers. */
-@RestControllerAdvice(assignableTypes = {UserController.class})
+@RestControllerAdvice(assignableTypes = {UserController.class, CouponController.class})
 public class AccountCouponExceptionHandler {
     @ExceptionHandler(ResponseStatusException.class)
     public ProblemDetail businessError(ResponseStatusException exception) {
