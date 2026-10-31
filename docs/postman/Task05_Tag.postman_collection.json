@@ -1,0 +1,159 @@
+{
+  "info": {
+    "name": "Task 05 - Tag API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "List tags",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "const tags = pm.response.json();", "pm.test('response is a tag list', () => pm.expect(tags).to.be.an('array'));", "if (tags.length) pm.test('tag fields are present', () => { pm.expect(tags[0].tagID).to.exist; pm.expect(tags[0].name).to.be.a('string'); });"]}}],
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/tags"}
+    },
+    {
+      "name": "Capture a product for association tests",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "const page = pm.response.json();", "pm.test('a seeded product is available', () => pm.expect(page.content).to.be.an('array').that.is.not.empty);", "if (page.content && page.content.length) pm.collectionVariables.set('productID', page.content[0].productID);"]}}],
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/products?page=0&size=1"}
+    },
+    {
+      "name": "Create tag",
+      "event": [{"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["pm.collectionVariables.set('tagName', 'Task05 Tag ' + pm.variables.replaceIn('{{$guid}}'));"]}}, {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 201', () => pm.response.to.have.status(201));", "const tag = pm.response.json();", "pm.test('created tag fields are present', () => { pm.expect(tag.tagID).to.exist; pm.expect(tag.name).to.eql(pm.collectionVariables.get('tagName')); });", "pm.collectionVariables.set('tagID', tag.tagID);"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"{{tagName}}\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/tags"}
+    },
+    {
+      "name": "Get created tag",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "const tag = pm.response.json();", "pm.test('returned ID matches created tag', () => pm.expect(tag.tagID).to.eql(Number(pm.collectionVariables.get('tagID'))));"]}}],
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/tags/{{tagID}}"}
+    },
+    {
+      "name": "Get missing tag",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/tags/0"}
+    },
+    {
+      "name": "Reject update for missing tag",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"Not found\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/tags/0"}
+    },
+    {
+      "name": "Reject delete for missing tag",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "DELETE", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/tags/0"}
+    },
+    {
+      "name": "Update tag",
+      "event": [{"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["pm.collectionVariables.set('updatedTagName', pm.collectionVariables.get('tagName') + ' Updated');"]}}, {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "pm.test('updated name is returned', () => pm.expect(pm.response.json().name).to.eql(pm.collectionVariables.get('updatedTagName')));"]}}],
+      "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"{{updatedTagName}}\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/tags/{{tagID}}"}
+    },
+    {
+      "name": "Reject duplicate tag ignoring case",
+      "event": [{"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["pm.collectionVariables.set('duplicateName', pm.collectionVariables.get('updatedTagName').toUpperCase());"]}}, {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 409', () => pm.response.to.have.status(409));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"{{duplicateName}}\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/tags"}
+    },
+    {
+      "name": "Reject missing name",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 400', () => pm.response.to.have.status(400));", "pm.test('validation detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/tags"}
+    },
+    {
+      "name": "Reject empty name",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 400', () => pm.response.to.have.status(400));", "pm.test('validation detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/tags"}
+    },
+    {
+      "name": "Reject whitespace-only name",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 400', () => pm.response.to.have.status(400));", "pm.test('validation detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"   \"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/tags"}
+    },
+    {
+      "name": "Reject name over 100 characters",
+      "event": [{"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["pm.collectionVariables.set('longName', 'T'.repeat(101));"]}}, {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 400', () => pm.response.to.have.status(400));", "pm.test('validation detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"{{longName}}\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/tags"}
+    },
+    {
+      "name": "Reject write without token",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 401', () => pm.response.to.have.status(401));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"No token tag\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/tags"}
+    },
+    {
+      "name": "Reject write for CUSTOMER",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 403', () => pm.response.to.have.status(403));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{customerToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"Customer tag\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/tags"}
+    },
+    {
+      "name": "Attach tag to product",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 201', () => pm.response.to.have.status(201));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/products/{{productID}}/tags/{{tagID}}"}
+    },
+    {
+      "name": "Reject tag attachment without token",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 401', () => pm.response.to.have.status(401));"]}}],
+      "request": {"method": "POST", "header": [], "url": "{{baseUrl}}/api/products/{{productID}}/tags/{{tagID}}"}
+    },
+    {
+      "name": "Reject tag attachment for CUSTOMER",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 403', () => pm.response.to.have.status(403));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{customerToken}}"}], "url": "{{baseUrl}}/api/products/{{productID}}/tags/{{tagID}}"}
+    },
+    {
+      "name": "Reject attaching an already attached tag",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 409', () => pm.response.to.have.status(409));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/products/{{productID}}/tags/{{tagID}}"}
+    },
+    {
+      "name": "Detach tag from product",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 204', () => pm.response.to.have.status(204));"]}}],
+      "request": {"method": "DELETE", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/products/{{productID}}/tags/{{tagID}}"}
+    },
+    {
+      "name": "Reject detaching a tag that is not attached",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "DELETE", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/products/{{productID}}/tags/{{tagID}}"}
+    },
+    {
+      "name": "Attach tag again before deleting it",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 201', () => pm.response.to.have.status(201));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/products/{{productID}}/tags/{{tagID}}"}
+    },
+    {
+      "name": "Delete tag and all its product links",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 204', () => pm.response.to.have.status(204));"]}}],
+      "request": {"method": "DELETE", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/tags/{{tagID}}"}
+    },
+    {
+      "name": "Confirm deleted tag is missing",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/tags/{{tagID}}"}
+    },
+    {
+      "name": "Reject attach to missing product",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/products/0/tags/{{tagID}}"}
+    },
+    {
+      "name": "Reject attach with missing tag",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/products/{{productID}}/tags/0"}
+    },
+    {
+      "name": "Reject detach with missing product",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "DELETE", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/products/0/tags/0"}
+    },
+    {
+      "name": "Reject detach with missing tag",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "DELETE", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/products/{{productID}}/tags/0"}
+    }
+  ],
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8080"},
+    {"key": "adminToken", "value": ""},
+    {"key": "customerToken", "value": ""},
+    {"key": "tagID", "value": ""},
+    {"key": "tagName", "value": ""},
+    {"key": "updatedTagName", "value": ""},
+    {"key": "duplicateName", "value": ""},
+    {"key": "productID", "value": ""},
+    {"key": "longName", "value": ""}
+  ]
+}
