@@ -1,0 +1,114 @@
+{
+  "info": {
+    "name": "Task 04 - Vendor API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "List vendors",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "const vendors = pm.response.json();", "pm.test('response is a vendor list', () => pm.expect(vendors).to.be.an('array'));", "if (vendors.length) pm.test('vendor fields are present', () => { pm.expect(vendors[0].vendorID).to.exist; pm.expect(vendors[0].name).to.be.a('string'); });"]}}],
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/vendors"}
+    },
+    {
+      "name": "Find a vendor referenced by a product",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "const page = pm.response.json();", "const products = page.content || [];", "const product = products.find(item => item.vendorID && item.vendorName && item.vendorName.toLowerCase() === 'thiên long') || products.find(item => item.vendorID);", "pm.test('a product with vendor is available', () => pm.expect(product).to.exist);", "if (product) pm.collectionVariables.set('referencedVendorID', product.vendorID);"]}}],
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/products?page=0&size=100"}
+    },
+    {
+      "name": "Get referenced vendor",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "const vendor = pm.response.json();", "pm.test('vendor fields are present', () => { pm.expect(vendor.vendorID).to.exist; pm.expect(vendor.name).to.be.a('string'); });"]}}],
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/vendors/{{referencedVendorID}}"}
+    },
+    {
+      "name": "Get missing vendor",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/vendors/0"}
+    },
+    {
+      "name": "Create vendor",
+      "event": [{"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["pm.collectionVariables.set('vendorName', 'Task04 Vendor ' + pm.variables.replaceIn('{{$guid}}'));"]}}, {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 201', () => pm.response.to.have.status(201));", "const vendor = pm.response.json();", "pm.test('created vendor fields are present', () => { pm.expect(vendor.vendorID).to.exist; pm.expect(vendor.name).to.eql(pm.collectionVariables.get('vendorName')); });", "pm.collectionVariables.set('vendorID', vendor.vendorID);"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"{{vendorName}}\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/vendors"}
+    },
+    {
+      "name": "Get created vendor",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "const vendor = pm.response.json();", "pm.test('returned ID matches created vendor', () => pm.expect(vendor.vendorID).to.eql(Number(pm.collectionVariables.get('vendorID'))));"]}}],
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/vendors/{{vendorID}}"}
+    },
+    {
+      "name": "Update vendor",
+      "event": [{"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["pm.collectionVariables.set('updatedVendorName', pm.collectionVariables.get('vendorName') + ' Updated');"]}}, {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 200', () => pm.response.to.have.status(200));", "const vendor = pm.response.json();", "pm.test('updated name is returned', () => pm.expect(vendor.name).to.eql(pm.collectionVariables.get('updatedVendorName')));"]}}],
+      "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"{{updatedVendorName}}\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/vendors/{{vendorID}}"}
+    },
+    {
+      "name": "Reject duplicate vendor ignoring case",
+      "event": [{"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["pm.collectionVariables.set('duplicateName', pm.collectionVariables.get('updatedVendorName').toUpperCase());"]}}, {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 409', () => pm.response.to.have.status(409));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"{{duplicateName}}\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/vendors"}
+    },
+    {
+      "name": "Reject missing name",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 400', () => pm.response.to.have.status(400));", "pm.test('validation detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/vendors"}
+    },
+    {
+      "name": "Reject empty name",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 400', () => pm.response.to.have.status(400));", "pm.test('validation detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/vendors"}
+    },
+    {
+      "name": "Reject whitespace-only name",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 400', () => pm.response.to.have.status(400));", "pm.test('validation detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"   \"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/vendors"}
+    },
+    {
+      "name": "Reject name over 150 characters",
+      "event": [{"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["pm.collectionVariables.set('longName', 'V'.repeat(151));"]}}, {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 400', () => pm.response.to.have.status(400));", "pm.test('validation detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"{{longName}}\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/vendors"}
+    },
+    {
+      "name": "Reject update for missing vendor",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{adminToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"Not found\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/vendors/0"}
+    },
+    {
+      "name": "Reject delete for missing vendor",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "DELETE", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/vendors/0"}
+    },
+    {
+      "name": "Reject write without token",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 401', () => pm.response.to.have.status(401));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"No token vendor\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/vendors"}
+    },
+    {
+      "name": "Reject write for CUSTOMER",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 403', () => pm.response.to.have.status(403));"]}}],
+      "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "Authorization", "value": "Bearer {{customerToken}}"}], "body": {"mode": "raw", "raw": "{\n  \"name\": \"Customer vendor\"\n}", "options": {"raw": {"language": "json"}}}, "url": "{{baseUrl}}/api/vendors"}
+    },
+    {
+      "name": "Reject deleting seeded vendor with products",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 409', () => pm.response.to.have.status(409));", "pm.test('detail reports product references', () => pm.expect(pm.response.json().detail).to.include('referenced by'));"]}}],
+      "request": {"method": "DELETE", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/vendors/{{referencedVendorID}}"}
+    },
+    {
+      "name": "Delete created vendor",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 204', () => pm.response.to.have.status(204));"]}}],
+      "request": {"method": "DELETE", "header": [{"key": "Authorization", "value": "Bearer {{adminToken}}"}], "url": "{{baseUrl}}/api/vendors/{{vendorID}}"}
+    },
+    {
+      "name": "Confirm created vendor was deleted",
+      "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
+      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/vendors/{{vendorID}}"}
+    }
+  ],
+  "variable": [
+    {"key": "baseUrl", "value": "http://localhost:8080"},
+    {"key": "adminToken", "value": ""},
+    {"key": "customerToken", "value": ""},
+    {"key": "vendorID", "value": ""},
+    {"key": "vendorName", "value": ""},
+    {"key": "updatedVendorName", "value": ""},
+    {"key": "duplicateName", "value": ""},
+    {"key": "referencedVendorID", "value": ""},
+    {"key": "longName", "value": ""}
+  ]
+}
