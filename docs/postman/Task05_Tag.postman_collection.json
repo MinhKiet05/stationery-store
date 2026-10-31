@@ -27,7 +27,7 @@
     {
       "name": "Get missing tag",
       "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
-      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/tags/0"}
+      "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{customerToken}}"}], "url": "{{baseUrl}}/api/tags/0"}
     },
     {
       "name": "Reject update for missing tag",
@@ -122,7 +122,7 @@
     {
       "name": "Confirm deleted tag is missing",
       "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
-      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/tags/{{tagID}}"}
+      "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{customerToken}}"}], "url": "{{baseUrl}}/api/tags/{{tagID}}"}
     },
     {
       "name": "Reject attach to missing product",
