@@ -22,7 +22,7 @@
     {
       "name": "Get missing vendor",
       "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
-      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/vendors/0"}
+      "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{customerToken}}"}], "url": "{{baseUrl}}/api/vendors/0"}
     },
     {
       "name": "Create vendor",
@@ -97,7 +97,7 @@
     {
       "name": "Confirm created vendor was deleted",
       "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('status is 404', () => pm.response.to.have.status(404));", "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"]}}],
-      "request": {"method": "GET", "header": [], "url": "{{baseUrl}}/api/vendors/{{vendorID}}"}
+      "request": {"method": "GET", "header": [{"key": "Authorization", "value": "Bearer {{customerToken}}"}], "url": "{{baseUrl}}/api/vendors/{{vendorID}}"}
     }
   ],
   "variable": [
