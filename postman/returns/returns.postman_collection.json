@@ -1,0 +1,129 @@
+{
+  "info": {
+    "name": "Stationery Store - Return Request API",
+    "description": "Use a delivered order owned by customerToken, with an orderDetailID that still has returnable quantity. Replace all placeholder tokens before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "orderID", "value": "1" },
+    { "key": "orderDetailID", "value": "1" },
+    { "key": "returnID", "value": "1" },
+    { "key": "rejectReturnID", "value": "2" },
+    { "key": "customerToken", "value": "REPLACE_WITH_CUSTOMER_TOKEN" },
+    { "key": "otherCustomerToken", "value": "REPLACE_WITH_OTHER_CUSTOMER_TOKEN" },
+    { "key": "adminToken", "value": "REPLACE_WITH_ADMIN_TOKEN" }
+  ],
+  "item": [
+    {
+      "name": "Create return request",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{customerToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"orderID\":{{orderID}},\"reason\":\"Damaged item\",\"evidenceUrls\":[\"https://example.com/evidence.jpg\"],\"items\":[{\"orderDetailID\":{{orderDetailID}},\"quantity\":1}]}" },
+        "url": "{{baseUrl}}/api/returns"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+        "pm.test('Pending return created', () => { const body = pm.response.json(); pm.expect(body.status).to.eql('PENDING'); pm.expect(body.returnID).to.be.a('number'); pm.expect(body.items[0].quantity).to.eql(1); pm.collectionVariables.set('returnID', body.returnID); });"
+      ] } }]
+    },
+    {
+      "name": "My return requests",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+        "url": "{{baseUrl}}/api/returns/my-requests"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+        "pm.test('JSON list', () => pm.expect(pm.response.json()).to.be.an('array'));"
+      ] } }]
+    },
+    {
+      "name": "Get my return detail",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{customerToken}}" }],
+        "url": "{{baseUrl}}/api/returns/{{returnID}}"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+        "pm.test('Correct return ID', () => pm.expect(pm.response.json().returnID).to.eql(Number(pm.variables.get('returnID'))));"
+      ] } }]
+    },
+    {
+      "name": "Other customer cannot view return",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{otherCustomerToken}}" }],
+        "url": "{{baseUrl}}/api/returns/{{returnID}}"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 404', () => pm.response.to.have.status(404));"
+      ] } }]
+    },
+    {
+      "name": "Admin list returns",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": "{{baseUrl}}/api/admin/returns"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+        "pm.test('JSON list', () => pm.expect(pm.response.json()).to.be.an('array'));"
+      ] } }]
+    },
+    {
+      "name": "Admin approve return",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"status\":\"APPROVED\",\"adminNote\":\"Accepted for manual processing\"}" },
+        "url": "{{baseUrl}}/api/admin/returns/{{returnID}}/status"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+        "pm.test('Approved', () => pm.expect(pm.response.json().status).to.eql('APPROVED'));"
+      ] } }]
+    },
+    {
+      "name": "Repeated approval is rejected",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"status\":\"APPROVED\"}" },
+        "url": "{{baseUrl}}/api/admin/returns/{{returnID}}/status"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 409', () => pm.response.to.have.status(409));"
+      ] } }]
+    },
+    {
+      "name": "Admin reject another pending return",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"status\":\"REJECTED\",\"adminNote\":\"Insufficient evidence\"}" },
+        "url": "{{baseUrl}}/api/admin/returns/{{rejectReturnID}}/status"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+        "pm.test('Rejected', () => pm.expect(pm.response.json().status).to.eql('REJECTED'));"
+      ] } }]
+    }
+  ]
+}
