@@ -1,0 +1,967 @@
+{
+  "info": {
+    "name": "Task 14 - Statistics API (UC035-UC037)",
+    "description": "Read-only requests for ADMIN statistics. Set adminToken/customerToken and date variables. The emptyDate must be a date with no orders. Product revenue is SUM(order_details.sub_total); order revenue is SUM(orders.total_amount) after discounts. Approval of a return is not a refund. Current schema has no confirmed refund amount, so net revenue after refunds is not claimed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "item": [
+    {
+      "name": "Overview - current month by default",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/overview"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test('month boundaries are returned', () => { pm.expect(result.startDate.slice(-2)).to.eql('01'); pm.expect(result.startDate.slice(0,7)).to.eql(result.endDate.slice(0,7)); });",
+              "pm.test('summary fields are numeric', () => { for (const key of ['totalOrders','successfulOrders','totalRevenue','totalDiscount','quantitySold','totalCustomers','newCustomers']) pm.expect(result[key], key).to.be.a('number'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Overview - selected period",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/overview?startDate={{startDate}}&endDate={{endDate}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test('requested dates are returned', () => { pm.expect(result.startDate).to.eql(pm.variables.get('startDate')); pm.expect(result.endDate).to.eql(pm.variables.get('endDate')); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC035 - revenue grouped by DAY",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/revenue?startDate={{startDate}}&endDate={{endDate}}&groupBy=DAY"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test('grouping is DAY', () => pm.expect(result.groupBy).to.eql('DAY'));",
+              "pm.test('periods is an array', () => pm.expect(result.periods).to.be.an('array'));",
+              "pm.test('totals equal period sums', () => { pm.expect(result.totalRevenue).to.be.closeTo(result.periods.reduce((sum,p) => sum + p.totalRevenue,0),0.01); pm.expect(result.totalDiscount).to.be.closeTo(result.periods.reduce((sum,p) => sum + p.totalDiscount,0),0.01); pm.expect(result.successfulOrders).to.eql(result.periods.reduce((sum,p) => sum + p.orderCount,0)); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC035 - revenue grouped by MONTH",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/revenue?startDate={{startDate}}&endDate={{endDate}}&groupBy=MONTH"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test('grouping is MONTH', () => pm.expect(result.groupBy).to.eql('MONTH'));",
+              "pm.test('periods is an array', () => pm.expect(result.periods).to.be.an('array'));",
+              "pm.test('totals equal period sums', () => { pm.expect(result.totalRevenue).to.be.closeTo(result.periods.reduce((sum,p) => sum + p.totalRevenue,0),0.01); pm.expect(result.totalDiscount).to.be.closeTo(result.periods.reduce((sum,p) => sum + p.totalDiscount,0),0.01); pm.expect(result.successfulOrders).to.eql(result.periods.reduce((sum,p) => sum + p.orderCount,0)); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC035 - revenue grouped by YEAR",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/revenue?startDate={{startDate}}&endDate={{endDate}}&groupBy=YEAR"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test('grouping is YEAR', () => pm.expect(result.groupBy).to.eql('YEAR'));",
+              "pm.test('periods is an array', () => pm.expect(result.periods).to.be.an('array'));",
+              "pm.test('totals equal period sums', () => { pm.expect(result.totalRevenue).to.be.closeTo(result.periods.reduce((sum,p) => sum + p.totalRevenue,0),0.01); pm.expect(result.totalDiscount).to.be.closeTo(result.periods.reduce((sum,p) => sum + p.totalDiscount,0),0.01); pm.expect(result.successfulOrders).to.eql(result.periods.reduce((sum,p) => sum + p.orderCount,0)); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC035 - no transactions returns zeros",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/revenue?startDate={{emptyDate}}&endDate={{emptyDate}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test('all revenue metrics are zero', () => { pm.expect(result.totalRevenue).to.eql(0); pm.expect(result.totalDiscount).to.eql(0); pm.expect(result.successfulOrders).to.eql(0); pm.expect(result.periods).to.eql([]); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC036 - customers sorted by REVENUE",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/customers?startDate={{startDate}}&endDate={{endDate}}&sortBy=REVENUE&limit=5"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test('ranking is REVENUE', () => pm.expect(result.sortBy).to.eql('REVENUE'));",
+              "pm.test('limited ranking contains no credential fields', () => { pm.expect(result.customers).to.be.an('array'); pm.expect(result.customers.length).to.be.at.most(5); result.customers.forEach(c => { pm.expect(c).not.to.have.property('passwordHash'); pm.expect(c).not.to.have.property('password'); }); });",
+              "const key = 'totalPaid';",
+              "pm.test('ranking is descending', () => { for(let i=1;i<result.customers.length;i++) pm.expect(result.customers[i-1][key]).to.be.at.least(result.customers[i][key]); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC036 - customers sorted by ORDERS",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/customers?startDate={{startDate}}&endDate={{endDate}}&sortBy=ORDERS&limit=5"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test('ranking is ORDERS', () => pm.expect(result.sortBy).to.eql('ORDERS'));",
+              "pm.test('limited ranking contains no credential fields', () => { pm.expect(result.customers).to.be.an('array'); pm.expect(result.customers.length).to.be.at.most(5); result.customers.forEach(c => { pm.expect(c).not.to.have.property('passwordHash'); pm.expect(c).not.to.have.property('password'); }); });",
+              "const key = 'orderCount';",
+              "pm.test('ranking is descending', () => { for(let i=1;i<result.customers.length;i++) pm.expect(result.customers[i-1][key]).to.be.at.least(result.customers[i][key]); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC036 - no purchases returns empty ranking",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/customers?startDate={{emptyDate}}&endDate={{emptyDate}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('no customers ranked', () => pm.expect(pm.response.json().customers).to.eql([]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC037 - products sorted by QUANTITY",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/top-products?startDate={{startDate}}&endDate={{endDate}}&sortBy=QUANTITY&limit=5"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const rows = pm.response.json();",
+              "pm.test('limited product list', () => { pm.expect(rows).to.be.an('array'); pm.expect(rows.length).to.be.at.most(5); });",
+              "const key = 'quantitySold';",
+              "pm.test('ranking is descending', () => { for(let i=1;i<rows.length;i++) pm.expect(rows[i-1][key]).to.be.at.least(rows[i][key]); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC037 - products sorted by REVENUE",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/top-products?startDate={{startDate}}&endDate={{endDate}}&sortBy=REVENUE&limit=5"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const rows = pm.response.json();",
+              "pm.test('limited product list', () => { pm.expect(rows).to.be.an('array'); pm.expect(rows.length).to.be.at.most(5); });",
+              "const key = 'revenue';",
+              "pm.test('ranking is descending', () => { for(let i=1;i<rows.length;i++) pm.expect(rows[i-1][key]).to.be.at.least(rows[i][key]); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC037 - filter category",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/top-products?startDate={{startDate}}&endDate={{endDate}}&productTypeID={{productTypeID}}&sortBy=QUANTITY"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('product list is returned', () => pm.expect(pm.response.json()).to.be.an('array'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "UC037 - no sales returns empty list",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/top-products?startDate={{emptyDate}}&endDate={{emptyDate}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('no products ranked', () => pm.expect(pm.response.json()).to.eql([]));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Order and return request status counts",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/orders?startDate={{startDate}}&endDate={{endDate}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test('all order statuses are included', () => { for(const key of ['PENDING','PROCESSING','SHIPPED','DELIVERED','CANCELLED','RETURN_PENDING']) pm.expect(result.statusCounts[key],key).to.be.a('number'); });",
+              "pm.test('total matches status counts', () => pm.expect(result.totalOrders).to.eql(Object.values(result.statusCounts).reduce((a,b) => a+b,0)));",
+              "pm.test('current return statuses are included', () => { for(const key of ['PENDING','APPROVED','REJECTED','COMPLETED']) pm.expect(result.returnRequestCounts[key],key).to.be.a('number'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject anonymous - overview",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/admin/statistics/overview"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject CUSTOMER - overview",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{customerToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/overview"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject reversed dates - overview",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/overview?startDate=2026-11-03&endDate=2026-11-02"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('business message is correct', () => pm.expect(pm.response.json().detail).to.eql('Khoảng thời gian không hợp lệ'));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject anonymous - revenue",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/admin/statistics/revenue"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject CUSTOMER - revenue",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{customerToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/revenue"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject reversed dates - revenue",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/revenue?startDate=2026-11-03&endDate=2026-11-02"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('business message is correct', () => pm.expect(pm.response.json().detail).to.eql('Khoảng thời gian không hợp lệ'));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject anonymous - top-products",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/admin/statistics/top-products"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject CUSTOMER - top-products",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{customerToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/top-products"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject reversed dates - top-products",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/top-products?startDate=2026-11-03&endDate=2026-11-02"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('business message is correct', () => pm.expect(pm.response.json().detail).to.eql('Khoảng thời gian không hợp lệ'));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject anonymous - orders",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/admin/statistics/orders"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject CUSTOMER - orders",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{customerToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/orders"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject reversed dates - orders",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/orders?startDate=2026-11-03&endDate=2026-11-02"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('business message is correct', () => pm.expect(pm.response.json().detail).to.eql('Khoảng thời gian không hợp lệ'));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject anonymous - customers",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/admin/statistics/customers"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 401', () => pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject CUSTOMER - customers",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{customerToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/customers"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject reversed dates - customers",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/customers?startDate=2026-11-03&endDate=2026-11-02"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('business message is correct', () => pm.expect(pm.response.json().detail).to.eql('Khoảng thời gian không hợp lệ'));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject invalid date format",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/revenue?startDate=02-11-2026&endDate=2026-11-30"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject missing end date",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/revenue?startDate=2026-11-01"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject invalid grouping",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/revenue?groupBy=WEEK"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject zero limit",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/top-products?limit=0"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject limit above maximum",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/customers?limit=101"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject invalid product ranking",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/top-products?sortBy=PRICE"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject invalid customer ranking",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/customers?sortBy=QUANTITY"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reject invalid category ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/admin/statistics/top-products?productTypeID=-1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('error detail is present', () => pm.expect(pm.response.json().detail).to.be.a('string'));"
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "customerToken",
+      "value": ""
+    },
+    {
+      "key": "startDate",
+      "value": "2026-11-01"
+    },
+    {
+      "key": "endDate",
+      "value": "2026-11-30"
+    },
+    {
+      "key": "productTypeID",
+      "value": "1"
+    },
+    {
+      "key": "emptyDate",
+      "value": "1900-01-01"
+    }
+  ]
+}
