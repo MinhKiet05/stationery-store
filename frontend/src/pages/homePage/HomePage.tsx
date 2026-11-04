@@ -8,20 +8,20 @@ import backdrop1 from "../../assets/backdrop1.webp";
 import backdrop2 from "../../assets/backdrop2.webp";
 import backdrop3 from "../../assets/backdrop3.webp";
 import cirle from "../../assets/cirle.webp";
-import pen from "../../assets/pen.webp";
-import handbook from "../../assets/handbook.webp";
-import washi from "../../assets/washi.webp";
-import fold from "../../assets/fold.webp";
-import paper from "../../assets/paper.webp";
-import color from "../../assets/color.webp";
+import balohocsinh from "../../assets/balohocsinh.webp";
+import butcaocap from "../../assets/butcaocap.webp";
+import butgel from "../../assets/butgel.webp";
+import butlongmau from "../../assets/butlongmau.webp";
+import combo from "../../assets/combo.webp";
+import taphocsinh from "../../assets/taphocsinh.webp";
 
 const categories = [
-  { id: 1, name: "Bút Viết & Mực", count: "1.450+ sản phẩm", icon: pen },
-  { id: 2, name: "Sổ Tay & Planner", count: "820+ sản phẩm", icon: handbook },
-  { id: 3, name: "Giấy In & Giấy Vẽ", count: "580+ sản phẩm", icon: paper },
-  { id: 4, name: "Màu & Mỹ Thuật", count: "620+ sản phẩm", icon: color },
-  { id: 5, name: "Washi Tape & Thú...", count: "340+ sản phẩm", icon: washi },
-  { id: 6, name: "Lưu Trữ Văn Phòng", count: "510+ sản phẩm", icon: fold },
+  { id: 1, name: "COMBO", count: "27+ sản phẩm", icon: combo },
+  { id: 2, name: "Tập học sinh", count: "20+ sản phẩm", icon: taphocsinh },
+  { id: 3, name: "Bút lông màu", count: "12+ sản phẩm", icon: butlongmau },
+  { id: 4, name: "Balo học sinh", count: "10+ sản phẩm", icon: balohocsinh },
+  { id: 5, name: "Bút gel", count: "8+ sản phẩm", icon: butgel },
+  { id: 6, name: "Bút cao cấp", count: "6+ sản phẩm", icon: butcaocap },
 ];
 
 export default function HomePage() {
@@ -279,14 +279,24 @@ export default function HomePage() {
                             <span style={{ fontSize: 13, color: '#94a3b8', cursor: 'pointer' }}>Xem tất cả →</span>
                         </div>
 
-                        {[1, 2, 3].map((item) => (
-                            <div key={item} className={styles.listItem}>
-                                <div className={styles.itemImg}></div>
+                        {products.slice(0, 3).map((product) => (
+                            <div key={product.productID} className={styles.listItem}>
+                                <div className={styles.itemImg}>
+                                    {product.images?.[0] && (
+                                        <img
+                                            src={product.images[0]}
+                                            alt={product.title}
+                                            loading="lazy"
+                                            style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: 8 }}
+                                        />
+                                    )}
+                                </div>
                                 <div className={styles.itemInfo}>
-                                    <div style={{ fontSize: 10, color: '#3b82f6', fontWeight: 'bold', marginBottom: 4 }}>XU HƯỚNG 2025</div>
-                                    <div className={styles.itemTitle}>Sổ còng bìa da Pastel Morandi khổ A5 có khóa bấm</div>
-                                    <div className={styles.itemDesc}>Kèm 100 trang ruột dot grid & thước kẻ nhựa tiện ích</div>
-                                    <div className={styles.itemPrice}>85.000đ</div>
+                                    <div style={{ fontSize: 10, color: '#3b82f6', fontWeight: 'bold', marginBottom: 4 }}>{product.productTypeName}</div>
+                                    <div className={styles.itemTitle}>{product.title}</div>
+                                    <div className={styles.itemPrice}>
+                                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price)}
+                                    </div>
                                 </div>
                                 <button className={styles.cartBtnSmall}><ShoppingCart size={16} /></button>
                             </div>
