@@ -1,0 +1,382 @@
+.header {
+  position: relative;
+  width: 100%;
+  background-color: #ffffff;
+  color: #091426;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  font-family: system-ui, -apple-system, sans-serif;
+  z-index: 40;
+}
+
+/* --- Top Info Bar --- */
+.topBar {
+  background-color: #091426;
+  color: #cbd5e1;
+  font-size: 12px;
+}
+.logoText{
+    font-size: 18px;
+    font-weight: 700;
+    color: #091426;
+}
+.topBarContent {
+  display: flex;
+  min-height: 36px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+}
+
+.topBarLeft,
+.topBarRight {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.topBarItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.divider {
+  border-left: 1px solid #475569;
+  padding-left: 20px;
+}
+
+.trackOrder {
+  color: #cbd5e1;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.trackOrder:hover {
+  color: #ffffff;
+}
+
+/* --- Main Header --- */
+.mainHeader {
+  display: flex;
+  min-height: 80px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  align-items: center;
+  gap: 32px;
+  padding: 12px 24px;
+}
+
+.logo {
+  display: flex;
+  height: 48px;
+  width: 200px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.logoImg {
+  height: auto;
+  max-height: 44px;
+  width: 100%;
+  object-fit: contain;
+  object-position: left;
+}
+
+/* --- Search Section --- */
+.searchSection {
+  flex: 1;
+  min-width: 0;
+}
+
+.searchForm {
+  display: flex;
+  height: 44px;
+  width: 100%;
+  align-items: center;
+  border-radius: 8px;
+  background-color: #f1f5f9;
+  padding: 4px;
+  border: 1px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.searchForm:focus-within {
+  border-color: #93c5fd;
+  background-color: #ffffff;
+}
+
+.searchIcon {
+  margin-left: 12px;
+  flex-shrink: 0;
+  color: #64748b;
+}
+
+.searchInput {
+  height: 100%;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  padding: 0 12px;
+  font-size: 14px;
+  outline: none;
+  color: #091426;
+}
+
+.searchInput::placeholder {
+  color: #94a3b8;
+}
+
+.searchBtn {
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background-color: #091426;
+  padding: 0 24px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.searchBtn:hover {
+  background-color: #091426;
+}
+
+.suggestions {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.suggestionHighlight {
+  font-weight: 600;
+  color: #334155;
+}
+
+/* --- Actions & Profile --- */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.actionIconBtn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  padding: 8px;
+  color: #334155;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.actionIconBtn:hover {
+  background-color: #f1f5f9;
+}
+
+.redDot {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  height: 8px;
+  width: 8px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  border: 2px solid #ffffff;
+}
+
+.badge {
+  position: absolute;
+  right: 0px;
+  top: 0px;
+  display: flex;
+  height: 18px;
+  min-width: 18px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background-color: #f97316;
+  padding: 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #ffffff;
+  border: 2px solid #ffffff;
+}
+
+.profileContainer {
+  position: relative;
+  margin-left: 12px;
+  border-left: 1px solid #e2e8f0;
+  padding-left: 20px;
+}
+
+.profileBtn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 4px;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.profileBtn:hover {
+  background-color: #f8fafc;
+}
+
+.avatar {
+  display: flex;
+  height: 36px;
+  width: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #fde8d0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #c2410c;
+  overflow: hidden;
+}
+
+.avatarImg {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.userInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.userName {
+  font-size: 13px;
+  font-weight: 700;
+  color: #091426;
+}
+
+.userRole {
+  font-size: 11px;
+  font-weight: 600;
+  color: #ea580c;
+}
+
+.loginBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  background-color: #091426;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  text-decoration: none;
+  transition: background-color 0.2s;
+}
+
+.loginBtn:hover {
+  background-color: #1e3a8a;
+}
+
+/* --- Navigation --- */
+.nav {
+  border-top: 1px solid #f1f5f9;
+}
+
+.navContent {
+  display: flex;
+  min-height: 54px;
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.navLink:hover {
+  background-color: #f1f5f9;
+}
+
+.navLinkActive {
+  background-color: #eef2ff;
+  color: #1e3a8a;
+}
+
+.navLinkHot {
+  color: #ea580c;
+}
+
+.navLinkHot:hover {
+  background-color: #fff7ed;
+}
+
+.hotBadge {
+  margin-left: 6px;
+  border-radius: 4px;
+  background-color: #ffedd5;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #ea580c;
+}
+
+.guarantee {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.guaranteeIcon {
+  color: #f97316;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .topBarItem.divider { display: none; }
+  .profileContainer { display: none; }
+  .nav { display: none; }
+}
