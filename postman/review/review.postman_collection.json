@@ -1,0 +1,84 @@
+{
+  "info": {
+    "name": "Stationery Store - Review API",
+    "description": "Replace placeholder variables with test data. Run create, update, then delete against a product purchased by the authenticated user after the review policy is confirmed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "productID", "value": "1" },
+    { "key": "reviewID", "value": "1" },
+    { "key": "accessToken", "value": "REPLACE_WITH_CUSTOMER_TOKEN" }
+  ],
+  "item": [
+    {
+      "name": "List product reviews",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/products/{{productID}}/reviews"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+        "pm.test('JSON list', () => pm.expect(pm.response.json()).to.be.an('array'));"
+      ] } }]
+    },
+    {
+      "name": "Create review",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"rating\":5,\"comment\":\"Good product\"}" },
+        "url": "{{baseUrl}}/api/products/{{productID}}/reviews"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 201', () => pm.response.to.have.status(201));",
+        "pm.test('Review ID, product and rating', () => { const body = pm.response.json(); pm.expect(body.reviewID).to.be.a('number'); pm.expect(body.productID).to.eql(Number(pm.variables.get('productID'))); pm.expect(body.rating).to.eql(5); pm.collectionVariables.set('reviewID', body.reviewID); });"
+      ] } }]
+    },
+    {
+      "name": "Update own review",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"rating\":4,\"comment\":\"Updated review\"}" },
+        "url": "{{baseUrl}}/api/reviews/{{reviewID}}"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+        "pm.test('Updated rating', () => pm.expect(pm.response.json().rating).to.eql(4));"
+      ] } }]
+    },
+    {
+      "name": "Reject invalid rating",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": { "mode": "raw", "raw": "{\"rating\":6}" },
+        "url": "{{baseUrl}}/api/reviews/{{reviewID}}"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 400', () => pm.response.to.have.status(400));"
+      ] } }]
+    },
+    {
+      "name": "Delete own review",
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+        "url": "{{baseUrl}}/api/reviews/{{reviewID}}"
+      },
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('HTTP 204', () => pm.response.to.have.status(204));"
+      ] } }]
+    }
+  ]
+}
