@@ -1,0 +1,8 @@
+.section { min-width: 0; }
+.section h3 { font-size: 18px; font-weight: 700; }
+.subtitle { color: #94a3b8; font-size: 13px; margin: 8px 0 18px; }
+.grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.status { padding: 24px 0; color: #cbd5e1; }
+.status button { color: #fb923c; text-decoration: underline; cursor: pointer; }
+@media (max-width: 650px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 380px) { .grid { grid-template-columns: 1fr; } }

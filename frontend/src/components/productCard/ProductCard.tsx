@@ -1,4 +1,3 @@
-import React from "react";
 import { Heart, ShoppingCart, Star } from "lucide-react";
 import styles from "./ProductCard.module.css";
 
@@ -45,7 +44,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     <div className={styles.card}>
       {/* Khối hình ảnh */}
       <div className={styles.imageContainer}>
-        <a href={`/products/${product.handle}`} className={styles.imageLink}>
+        <a href={`/products/${encodeURIComponent(product.handle || String(product.productID))}`} className={styles.imageLink}>
           <img
             src={product.images?.[0] || "/placeholder.png"}
             alt={product.title}
@@ -77,7 +76,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         </span>
 
         {/* Tên sản phẩm */}
-        <a href={`/products/${product.handle}`} className={styles.titleLink}>
+        <a href={`/products/${encodeURIComponent(product.handle || String(product.productID))}`} className={styles.titleLink}>
           <h3 className={styles.title}>
             {product.title}
           </h3>
@@ -87,7 +86,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         <div className={styles.rating}>
           <Star size={14} className={styles.starIcon} />
           <span className={styles.ratingScore}>{product.ratingAverage.toFixed(1)}</span>
-          <span>(Đã bán {product.reviewCount * 10})</span>
+          <span>({product.reviewCount} đánh giá)</span>
         </div>
 
         {/* Giá & Giỏ hàng */}
@@ -106,6 +105,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <button
             aria-label="Thêm vào giỏ hàng"
             className={styles.cartBtn}
+            onClick={() => { window.location.href = `/products/${encodeURIComponent(product.handle || String(product.productID))}`; }}
           >
             <ShoppingCart size={18} />
           </button>

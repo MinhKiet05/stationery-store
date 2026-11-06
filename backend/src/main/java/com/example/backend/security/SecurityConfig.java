@@ -76,6 +76,8 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/recommendations/popular").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/forgot-password",
                         "/api/auth/reset-password").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**",

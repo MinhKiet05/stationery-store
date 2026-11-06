@@ -332,28 +332,6 @@ public class ProductServiceImpl implements ProductService {
 
     // Chuyển Entity thành DTO
     private ProductResponse toResponse(Product product) {
-
-        Vendor vendor = product.getVendor();
-        ProductType productType = product.getProductType();
-
-        return new ProductResponse(
-                product.getProductID(),
-                product.getTitle(),
-                product.getHandle(),
-                product.getDescription(),
-                product.getPrice(),
-                product.getPriceMin(),
-                product.getPriceMax(),
-                product.getCompareAtPrice(),
-                product.getAvailable(),
-                product.getIsActive(),
-                product.getRatingAverage(),
-                product.getReviewCount(),
-                vendor != null ? vendor.getVendorID() : null,
-                vendor != null ? vendor.getName() : null,
-                productType != null ? productType.getProductTypeID() : null,
-                productType != null ? productType.getName() : null,
-                new ArrayList<>(product.getImages())
-        );
+        return com.example.backend.dto.product.ProductMapper.toResponse(product);
     }
 }

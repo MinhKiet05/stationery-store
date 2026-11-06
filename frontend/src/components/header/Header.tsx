@@ -3,18 +3,13 @@ import styles from "./Header.module.css";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";
 import {
   Bell,
-  ChevronDown,
-  ClipboardList,
   Flame,
   Headphones,
   LogIn,
-  Menu,
   PackageSearch,
   Search,
   ShoppingBag,
   Truck,
-  UserRound,
-  X,
 } from "lucide-react";
 
 export type UserInfoResponse = {
@@ -81,7 +76,6 @@ export default function Header({
   const [user, setUser] = useState<UserInfoResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   const fetchCurrentUser = useCallback(async (signal?: AbortSignal) => {
@@ -122,11 +116,12 @@ export default function Header({
 
   useEffect(() => {
     const controller = new AbortController();
-    void fetchCurrentUser(controller.signal);
+    const initialFetch = window.setTimeout(() => void fetchCurrentUser(controller.signal), 0);
     const reload = () => void fetchCurrentUser();
     window.addEventListener("storage", reload);
     window.addEventListener("auth-changed", reload);
     return () => {
+      window.clearTimeout(initialFetch);
       controller.abort();
       window.removeEventListener("storage", reload);
       window.removeEventListener("auth-changed", reload);
@@ -238,6 +233,10 @@ export default function Header({
                     <span className={styles.userRole}>{roleLabel(user.role)}</span>
                   </div>
                 </button>
+                {accountMenuOpen && <div className={styles.userInfo}>
+                  <a href={profileHref}>Tài khoản</a>
+                  <button type="button" onClick={logout}>Đăng xuất</button>
+                </div>}
               </>
             ) : (
               <a href={loginHref} className={styles.loginBtn}>
