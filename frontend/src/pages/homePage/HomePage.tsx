@@ -1,4 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import Recommendations from "../../components/recommendations/Recommendations";
+import { api } from "../../services/api";
 import styles from "./HomePage.module.css";
 import { Clock, ShieldCheck, Truck, HeadphonesIcon, ShoppingCart, Circle, ArrowRight, ChevronLeft, ChevronRight, PenTool, ExternalLink } from "lucide-react";
 import ProductCard, { type Product } from "../../components/productCard/ProductCard";
@@ -38,8 +40,7 @@ export default function HomePage() {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const response = await fetch("http://localhost:8080/api/products");
-                const data = await response.json();
+                const data = await api<{ content: Product[] }>("/api/products");
                 if (data && data.content) {
                     setProducts(data.content);
                 }
@@ -304,23 +305,7 @@ export default function HomePage() {
                     </div>
 
                     <div className={styles.listCard}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                            <h3 style={{ fontSize: 18, fontWeight: 'bold' }}>Gợi Ý Dành Riêng Cho Bạn</h3>
-                            <span style={{ fontSize: 13, color: '#94a3b8', cursor: 'pointer' }}>Dựa trên lịch sử xem</span>
-                        </div>
-
-                        {[1, 2, 3].map((item) => (
-                            <div key={`s-${item}`} className={styles.listItem}>
-                                <div className={styles.itemImg}></div>
-                                <div className={styles.itemInfo}>
-                                    <div style={{ fontSize: 10, color: '#ea580c', fontWeight: 'bold', marginBottom: 4 }}>KHUYÊN DÙNG CHO BẠN</div>
-                                    <div className={styles.itemTitle}>Bộ compa kỹ thuật Marvy Uchida lõi thép chính xác cao</div>
-                                    <div className={styles.itemDesc}>Phù hợp môn hình học & vẽ phác thảo kiến trúc</div>
-                                    <div className={styles.itemPrice}>64.000đ</div>
-                                </div>
-                                <button className={styles.cartBtnSmall}><ShoppingCart size={16} /></button>
-                            </div>
-                        ))}
+                        <Recommendations />
                     </div>
                 </section>
 

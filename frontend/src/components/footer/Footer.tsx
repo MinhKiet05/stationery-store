@@ -1,4 +1,3 @@
-import React from "react";
 import { MapPin, Phone, Mail } from "lucide-react";
 import styles from "./Footer.module.css";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";

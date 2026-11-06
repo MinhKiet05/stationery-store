@@ -1,6 +1,7 @@
 import { getGuestCart } from "../utils/guestCart";
+import { API_BASE } from "./api";
 
-const BASE_URL = "http://localhost:8080";
+const BASE_URL = API_BASE;
 
 export async function mergeGuestCart(accessToken: string) {
     const items = getGuestCart();

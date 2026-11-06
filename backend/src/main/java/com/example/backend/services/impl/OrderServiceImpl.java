@@ -30,6 +30,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orders;
     private final OrderLockRepository orderLocks;
     private final EntityManager em;
+    private final com.example.backend.services.UserTrackingService tracking;
 
     @Override
     @Transactional
@@ -183,8 +184,10 @@ public class OrderServiceImpl implements OrderService {
                 || (current == OrderStatus.PROCESSING && target == OrderStatus.SHIPPED)
                 || (current == OrderStatus.SHIPPED && target == OrderStatus.DELIVERED)) {
             order.setStatus(target);
-            if (target == OrderStatus.DELIVERED)
+            if (target == OrderStatus.DELIVERED) {
                 order.setDeliveredAt(LocalDateTime.now());
+                tracking.recordPurchase(order);
+            }
         } else {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Chuyen trang thai don hang khong hop le");
         }
