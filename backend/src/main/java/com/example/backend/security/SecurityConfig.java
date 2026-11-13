@@ -76,12 +76,15 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/recommendations/popular").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/forgot-password",
                         "/api/auth/reset-password").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**",
                     "/api/product-variants", "/api/product-variants/**",
                     "/api/product-types", "/api/product-types/**",
                     "/api/vendors", "/api/vendors/**", "/api/tags", "/api/tags/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").authenticated()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/products/**", "/api/product-variants/**",
                     "/api/product-types/**", "/api/vendors/**", "/api/tags/**").hasRole("ADMIN")

@@ -24,6 +24,7 @@ public class CartServiceImpl implements CartService {
     private final CartItemRepository cartItems;
     private final ProductVariantRepository variants;
     private final EntityManager em;
+    private final com.example.backend.services.UserTrackingService tracking;
 
     @Override
     @Transactional(readOnly = true)
@@ -64,6 +65,7 @@ public class CartServiceImpl implements CartService {
         }
         item.setQuantity(desired);
         cartItems.saveAndFlush(item);
+        tracking.recordCartAddition(user, variant.getProduct());
         return toResponse(cart);
     }
 

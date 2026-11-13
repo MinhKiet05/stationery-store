@@ -1,0 +1,15 @@
+.page { background: #f8fafc; color: #172033; padding: 36px max(20px, calc((100vw - 1200px) / 2)); min-height: 65vh; }
+.page a { color: #c2410c; }
+.detail { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 24px; }
+.image { background: white; border-radius: 20px; padding: 25px; display: grid; place-items: center; }
+.image img { max-width: 100%; max-height: 440px; object-fit: contain; }
+.page h1 { font-size: 28px; font-weight: 700; margin: 12px 0; }
+.price { color: #c2410c; font-size: 25px; display: block; margin: 16px 0; }
+.page label { display: grid; gap: 8px; margin: 18px 0; }
+.page select, .page input { padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; max-width: 100%; }
+.page button { padding: 12px 20px; background: #ea580c; color: white; border-radius: 8px; cursor: pointer; margin: 12px 0; }
+.page button:disabled { opacity: .5; cursor: default; }
+.description { white-space: pre-wrap; line-height: 1.8; margin-top: 25px; }
+.login { max-width: 420px; margin: auto; }
+.login a { margin-left: 16px; }
+@media (max-width: 700px) { .detail { grid-template-columns: 1fr; gap: 20px; } }

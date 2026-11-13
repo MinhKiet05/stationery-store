@@ -8,6 +8,13 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import java.util.Optional;
 
 public interface ProductRepository extends JpaRepository<Product, Long>, JpaSpecificationExecutor<Product> {
+    @org.springframework.data.jpa.repository.Query("""
+        select p from Product p left join p.productType t where p.isActive = true and p.available = true
+        and (t is null or t.isActive = true)
+        and exists (select v.variantID from ProductVariant v where v.product = p
+            and v.available = true and v.stockQuantity > 0 and v.price >= 0)
+        """)
+    java.util.List<Product> findSellable(Pageable pageable);
     Optional<Product> findByHandle(String handle);
     Optional<Product> findByHandleAndIsActiveTrue(String handle);
     boolean existsByHandle(String handle);
