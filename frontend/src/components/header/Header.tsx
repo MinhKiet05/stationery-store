@@ -1,3 +1,4 @@
+import { getCurrentUser, type UserInfoResponse } from "../../services/authService";
 import React, { useCallback, useEffect, useState } from "react";
 import styles from "./Header.module.css";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";
@@ -11,16 +12,6 @@ import {
   ShoppingBag,
   Truck,
 } from "lucide-react";
-
-export type UserInfoResponse = {
-  userID: number;
-  username: string;
-  email: string;
-  fullName: string;
-  phoneNumber: string | null;
-  role: string;
-  avatarUrl?: string; // Bổ sung ảnh đại diện nếu có từ API
-};
 
 type HeaderProps = {
   apiBaseUrl?: string;
@@ -88,21 +79,7 @@ export default function Header({
 
     setLoading(true);
     try {
-      const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/api/auth/me`, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token}` },
-        signal,
-      });
-
-      if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          localStorage.removeItem(TOKEN_KEY);
-        }
-        setUser(null);
-        return;
-      }
-
-      const data = (await response.json()) as UserInfoResponse;
+      const data = await getCurrentUser(apiBaseUrl, signal);
       if (!signal?.aborted) setUser(data);
     } catch (error) {
       if (!signal?.aborted) {

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import Recommendations from "../../components/recommendations/Recommendations";
-import { api } from "../../services/api";
+import { getProducts } from "../../services/productService";
 import styles from "./HomePage.module.css";
 import { Clock, ShieldCheck, Truck, HeadphonesIcon, ShoppingCart, Circle, ArrowRight, ChevronLeft, ChevronRight, PenTool, ExternalLink } from "lucide-react";
 import ProductCard, { type Product } from "../../components/productCard/ProductCard";
@@ -40,7 +40,7 @@ export default function HomePage() {
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const data = await api<{ content: Product[] }>("/api/products");
+                const data = await getProducts();
                 if (data && data.content) {
                     setProducts(data.content);
                 }
