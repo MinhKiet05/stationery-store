@@ -1,5 +1,23 @@
 import { getGuestCart } from "../utils/guestCart";
-import { API_BASE } from "./api";
+import { api, API_BASE } from "./api";
+
+export type Cart = {
+    items: {
+        cartItemID: number;
+        productTitle: string;
+        variantTitle: string;
+        quantity: number;
+        lineTotal: number;
+    }[];
+    subtotal: number;
+};
+
+export function addCartItem(variantID: number, quantity: number) {
+    return api<Cart>("/api/cart/items", {
+        method: "POST",
+        body: JSON.stringify({ variantID, quantity }),
+    });
+}
 
 const BASE_URL = API_BASE;
 
