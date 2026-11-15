@@ -82,10 +82,13 @@
 .logoImg {
   height: auto;
   max-height: 44px;
-  width: 100%;
+  width: 50px;
   object-fit: contain;
   object-position: left;
 }
+
+.logo { gap: 8px; }
+.header *, .header *::before, .header *::after { box-sizing: border-box; }
 
 /* --- Search Section --- */
 .searchSection {
@@ -375,8 +378,25 @@
 }
 
 /* Responsive adjustments */
+.mainHeader, .navContent, .topBarContent { padding-left: 32px; padding-right: 32px; }
+.navLink { padding-left: 10px; padding-right: 10px; font-size: 13px; }
+.guarantee { white-space: nowrap; }
+
 @media (max-width: 1024px) {
   .topBarItem.divider { display: none; }
   .profileContainer { display: none; }
   .nav { display: none; }
+}
+
+@media (max-width: 600px) {
+  .topBarContent { padding: 0 16px; }
+  .topBarRight { display: none; }
+  .mainHeader { padding: 12px 16px; gap: 12px; flex-wrap: wrap; }
+  .logo { width: auto; margin-right: auto; }
+  .logoText { font-size: 16px; }
+  .actions { gap: 6px; }
+  .searchSection { flex-basis: 100%; order: 3; }
+  .searchBtn { padding: 0 14px; }
+  .searchInput { font-size: 12px; }
+  .suggestions { font-size: 10px; }
 }
