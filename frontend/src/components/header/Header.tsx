@@ -170,6 +170,7 @@ export default function Header({
               Tìm kiếm
             </button>
           </form>
+          <p className={styles.suggestions}>Gợi ý: <span className={styles.suggestionHighlight}>Bút gel xóa được · Sổ tay A5 bìa da · Bảng keo washi · Giấy in Double A</span></p>
         </div>
 
         <div className={styles.actions}>
@@ -232,7 +233,7 @@ export default function Header({
               <a
                 key={item.href}
                 href={item.href}
-                className={`${styles.navLink} ${item.href === "/" ? styles.navLinkActive : ""} ${item.promotion ? styles.navLinkHot : ""}`}
+                className={`${styles.navLink} ${window.location.pathname === item.href ? styles.navLinkActive : ""} ${item.promotion ? styles.navLinkHot : ""}`}
               >
                 {item.promotion && <Flame size={16} style={{ marginRight: '4px' }} />}
                 {item.label}

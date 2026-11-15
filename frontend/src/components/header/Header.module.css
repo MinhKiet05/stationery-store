@@ -8,6 +8,8 @@
   z-index: 40;
 }
 
+.header, .header * { box-sizing: border-box; }
+
 /* --- Top Info Bar --- */
 .topBar {
   background-color: #091426;
@@ -77,12 +79,13 @@
   width: 200px;
   flex-shrink: 0;
   align-items: center;
+  gap: 10px;
 }
 
 .logoImg {
   height: auto;
   max-height: 44px;
-  width: 100%;
+  width: 44px;
   object-fit: contain;
   object-position: left;
 }
@@ -326,7 +329,7 @@
   align-items: center;
   white-space: nowrap;
   border-radius: 8px;
-  padding: 8px 16px;
+  padding: 8px 11px;
   font-size: 14px;
   font-weight: 600;
   color: #475569;
@@ -379,4 +382,20 @@
   .topBarItem.divider { display: none; }
   .profileContainer { display: none; }
   .nav { display: none; }
+}
+
+@media (max-width: 640px) {
+  .topBarContent { min-height: 30px; padding: 0 16px; }
+  .topBar { font-size: 10px; }
+  .topBarRight { display: none; }
+  .mainHeader { flex-wrap: wrap; gap: 12px; padding: 14px 18px; }
+  .logo { width: auto; flex: 1; }
+  .logoText { font-size: 17px; }
+  .logoImg { width: 34px; }
+  .actions { gap: 8px; }
+  .actionIconBtn { padding: 6px; }
+  .searchSection { order: 3; flex-basis: 100%; }
+  .searchInput { font-size: 12px; padding: 0 8px; }
+  .searchBtn { padding: 0 13px; font-size: 12px; }
+  .suggestions { font-size: 10px; margin-top: 6px; }
 }
