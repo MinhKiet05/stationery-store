@@ -281,7 +281,12 @@ export default function HomePage() {
                         </div>
 
                         {products.slice(0, 3).map((product) => (
-                            <div key={product.productID} className={styles.listItem}>
+                            <a
+                                key={product.productID}
+                                href={`/products/${encodeURIComponent(product.handle || String(product.productID))}`}
+                                className={styles.listItem}
+                                aria-label={`Xem chi tiết ${product.title}`}
+                            >
                                 <div className={styles.itemImg}>
                                     {product.images?.[0] && (
                                         <img
@@ -299,8 +304,8 @@ export default function HomePage() {
                                         {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price)}
                                     </div>
                                 </div>
-                                <button className={styles.cartBtnSmall}><ShoppingCart size={16} /></button>
-                            </div>
+                                <span className={styles.cartBtnSmall} aria-hidden="true"><ShoppingCart size={16} /></span>
+                            </a>
                         ))}
                     </div>
 

@@ -14,6 +14,13 @@ public class TrackingHistory {
     private final UserTrackingEventRepository events;
     private final AiProperties properties;
     @Transactional(readOnly = true)
+    public java.util.List<Long> recentProductIds(String username) {
+        var user = users.findByUsername(username).filter(u -> Boolean.TRUE.equals(u.getIsActive()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        return events.findRecentProductIds(user.getUserID());
+    }
+
+    @Transactional(readOnly = true)
     public PreferenceProfile profile(String username) {
         var user = users.findByUsername(username).filter(u -> Boolean.TRUE.equals(u.getIsActive()))
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
