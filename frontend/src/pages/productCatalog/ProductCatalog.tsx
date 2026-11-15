@@ -111,8 +111,8 @@ export default function ProductCatalog() {
           ? b.price - a.price
           : sort === "rating"
             ? b.rating - a.rating
-            : sort === "bestseller"
-              ? b.sold - a.sold
+            : sort === "name"
+              ? a.title.localeCompare(b.title, "vi")
               : 0,
     );
   }, [query, category, brands, price, rating, inStock, onSale, express, sort]);
@@ -245,9 +245,6 @@ export default function ProductCatalog() {
           />
         </section>
 
-        <div className={styles.demoNote}>
-          Dữ liệu sản phẩm minh hoạ theo thiết kế.
-        </div>
         <button
           className={styles.mobileFilterButton}
           onClick={() => setMobileFilters(!mobileFilters)}
@@ -498,6 +495,8 @@ export default function ProductCatalog() {
                 <input
                   type="checkbox"
                   checked={express}
+                  disabled={!catalogProducts.some(product => product.express)}
+                  title="Chưa có thông tin giao hoả tốc trong dữ liệu được cung cấp"
                   onChange={(event) => {
                     setExpress(event.target.checked);
                     setPage(1);
@@ -551,8 +550,8 @@ export default function ProductCatalog() {
                     setPage(1);
                   }}
                 >
-                  <option value="popular">Phổ biến nhất</option>
-                  <option value="bestseller">Bán chạy nhất</option>
+                  <option value="popular">Mặc định</option>
+                  <option value="name">Tên sản phẩm A–Z</option>
                   <option value="price-asc">Giá tăng dần</option>
                   <option value="price-desc">Giá giảm dần</option>
                   <option value="rating">Đánh giá cao nhất</option>
@@ -601,13 +600,11 @@ export default function ProductCatalog() {
                         />
                       </button>
                       <div className={styles.badges}>
-                        <span>
-                          -
-                          {Math.round(
-                            (1 - product.price / product.oldPrice) * 100,
-                          )}
-                          %
-                        </span>
+                        {product.oldPrice > product.price && (
+                          <span>
+                            -{Math.round((1 - product.price / product.oldPrice) * 100)}%
+                          </span>
+                        )}
                         {product.badge && (
                           <b
                             className={
@@ -645,7 +642,6 @@ export default function ProductCatalog() {
                     <div className={styles.cardContent}>
                       <p className={styles.vendor}>
                         {product.brand}
-                        {product.origin && ` (${product.origin})`}
                       </p>
                       <button
                         className={styles.productTitle}
@@ -654,20 +650,22 @@ export default function ProductCatalog() {
                         {product.title}
                       </button>
                       <p className={styles.productRating}>
-                        <Star size={14} fill="currentColor" />
-                        <strong>{product.rating.toFixed(1)}</strong>
-                        <span>
-                          (Đã bán{" "}
-                          {product.sold >= 1000
-                            ? `${(product.sold / 1000).toFixed(1)}k`
-                            : product.sold}
-                          )
-                        </span>
+                        {product.reviewCount > 0 ? (
+                          <>
+                            <Star size={14} fill="currentColor" />
+                            <strong>{product.rating.toFixed(1)}</strong>
+                            <span>({product.reviewCount} đánh giá)</span>
+                          </>
+                        ) : (
+                          <span>Chưa có đánh giá</span>
+                        )}
                       </p>
                       <div className={styles.priceRow}>
                         <div>
                           <strong>{money(product.price)}</strong>
-                          <del>{money(product.oldPrice)}</del>
+                          {product.oldPrice > product.price && (
+                            <del>{money(product.oldPrice)}</del>
+                          )}
                         </div>
                         <button
                           className={styles.cartButton}
@@ -828,12 +826,10 @@ export default function ProductCatalog() {
             {money(selectedProduct.price)}
           </strong>
           <p>
-            {selectedProduct.inStock ? "Còn hàng" : "Tạm hết hàng"} · Đánh giá{" "}
-            {selectedProduct.rating.toFixed(1)}/5
+            {selectedProduct.inStock ? "Còn hàng" : "Tạm hết hàng"} · {selectedProduct.reviewCount > 0 ? `Đánh giá ${selectedProduct.rating.toFixed(1)}/5` : "Chưa có đánh giá"}
           </p>
           <p className={styles.muted}>
-            Sản phẩm minh hoạ theo thiết kế. Chức năng đặt hàng sẽ được kết nối
-            với cửa hàng sau.
+            Thông tin và ảnh lấy từ database được cung cấp. Chức năng đặt hàng chưa kết nối với cửa hàng.
           </p>
         </dialog>
       )}
