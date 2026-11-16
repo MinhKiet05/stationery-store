@@ -18,6 +18,19 @@ export function getProducts(signal?: AbortSignal) {
   return api<{ content: Product[] }>("/api/products", { signal });
 }
 
+export type ProductPage = {
+  content: Product[];
+  totalPages: number;
+  totalElements: number;
+};
+
+export function getProductPage(page: number, signal?: AbortSignal) {
+  return api<ProductPage>(
+    `/api/products?page=${page}&size=100&sort=productID,asc`,
+    { signal },
+  );
+}
+
 export function getProduct(handle: string, signal?: AbortSignal) {
   const path = /^\d+$/.test(handle)
     ? handle
@@ -26,10 +39,15 @@ export function getProduct(handle: string, signal?: AbortSignal) {
 }
 
 export function getProductVariants(productID: number, signal?: AbortSignal) {
-  return api<Variant[]>(`/api/product-variants/product/${productID}`, { signal });
+  return api<Variant[]>(`/api/product-variants/product/${productID}`, {
+    signal,
+  });
 }
 
-export function getRelatedProducts(productTypeID: number, signal?: AbortSignal) {
+export function getRelatedProducts(
+  productTypeID: number,
+  signal?: AbortSignal,
+) {
   return api<{ content: Product[] }>(
     `/api/products/search?productTypeID=${productTypeID}&size=6`,
     { signal },
