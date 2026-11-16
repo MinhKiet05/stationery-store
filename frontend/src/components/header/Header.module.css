@@ -85,10 +85,13 @@
 .logoImg {
   height: auto;
   max-height: 44px;
-  width: 44px;
+  width: 50px;
   object-fit: contain;
   object-position: left;
 }
+
+.logo { gap: 8px; }
+.header *, .header *::before, .header *::after { box-sizing: border-box; }
 
 /* --- Search Section --- */
 .searchSection {
@@ -378,6 +381,10 @@
 }
 
 /* Responsive adjustments */
+.mainHeader, .navContent, .topBarContent { padding-left: 32px; padding-right: 32px; }
+.navLink { padding-left: 10px; padding-right: 10px; font-size: 13px; }
+.guarantee { white-space: nowrap; }
+
 @media (max-width: 1024px) {
   .topBarItem.divider { display: none; }
   .profileContainer { display: none; }
@@ -391,7 +398,6 @@
   .mainHeader { flex-wrap: wrap; gap: 12px; padding: 14px 18px; }
   .logo { width: auto; flex: 1; }
   .logoText { font-size: 17px; }
-  .logoImg { width: 34px; }
   .actions { gap: 8px; }
   .actionIconBtn { padding: 6px; }
   .searchSection { order: 3; flex-basis: 100%; }

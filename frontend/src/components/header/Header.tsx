@@ -66,7 +66,7 @@ export default function Header({
 }: HeaderProps) {
   const [user, setUser] = useState<UserInfoResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") ?? "");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
   const fetchCurrentUser = useCallback(async (signal?: AbortSignal) => {
@@ -170,7 +170,7 @@ export default function Header({
               Tìm kiếm
             </button>
           </form>
-          <p className={styles.suggestions}>Gợi ý: <span className={styles.suggestionHighlight}>Bút gel xóa được · Sổ tay A5 bìa da · Bảng keo washi · Giấy in Double A</span></p>
+          <p className={styles.suggestions}>Gợi ý: <span className={styles.suggestionHighlight}>Bút gel xóa được · Sổ tay A5 bìa da · Băng keo washi · Giấy in Double A</span></p>
         </div>
 
         <div className={styles.actions}>
@@ -233,7 +233,8 @@ export default function Header({
               <a
                 key={item.href}
                 href={item.href}
-                className={`${styles.navLink} ${window.location.pathname === item.href ? styles.navLinkActive : ""} ${item.promotion ? styles.navLinkHot : ""}`}
+                aria-current={item.href === window.location.pathname + window.location.search || (item.href === "/" && window.location.pathname === "/") ? "page" : undefined}
+                className={`${styles.navLink} ${item.href === window.location.pathname + window.location.search || (item.href === "/" && window.location.pathname === "/") ? styles.navLinkActive : ""} ${item.promotion ? styles.navLinkHot : ""}`}
               >
                 {item.promotion && <Flame size={16} style={{ marginRight: '4px' }} />}
                 {item.label}
