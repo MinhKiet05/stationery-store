@@ -32,7 +32,7 @@ const navigation = [
   { label: "Dụng cụ văn phòng", href: "/products?category=dung-cu-van-phong" },
   { label: "Quà tặng & Phụ kiện", href: "/products?category=qua-tang-phu-kien" },
   { label: "Khuyến mãi", href: "/promotions", promotion: true },
-  { label: "Blog văn phòng phẩm", href: "/blog" },
+  { label: "Về chúng tôi", href: "/about-us" },
 ];
 
 const TOKEN_KEY = "accessToken";

@@ -10,7 +10,9 @@ export async function api<T>(
   const headers = new Headers(options.headers);
   if (options.body) headers.set("Content-Type", "application/json");
   const token = localStorage.getItem("accessToken");
-  if (token && path !== "/api/auth/login")
+  const isPublicAuth =
+    path === "/api/auth/login" || path === "/api/auth/register";
+  if (token && !isPublicAuth)
     headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -22,6 +24,7 @@ export async function api<T>(
   if (!response.ok) {
     if (
       response.status === 401 &&
+      !isPublicAuth &&
       token &&
       localStorage.getItem("accessToken") === token
     ) {
@@ -35,7 +38,11 @@ export async function api<T>(
           ? path === "/api/auth/login"
             ? "Tên đăng nhập hoặc mật khẩu không đúng."
             : "Vui lòng đăng nhập lại."
-          : "Không thể kết nối cửa hàng. Vui lòng thử lại.",
+          : path === "/api/auth/register" && response.status === 409
+            ? "Tên đăng nhập hoặc email đã tồn tại."
+            : path === "/api/auth/register" && response.status === 400
+              ? "Thông tin đăng ký không hợp lệ. Vui lòng kiểm tra lại."
+              : "Không thể kết nối cửa hàng. Vui lòng thử lại.",
     );
   }
   return response.json() as Promise<T>;
