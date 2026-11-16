@@ -1,4 +1,4 @@
-import products from "./catalogProducts.json";
+import type { Product } from "../../components/productCard/ProductCard";
 
 export type CatalogProduct = {
   id: string;
@@ -13,22 +13,30 @@ export type CatalogProduct = {
   badge?: string;
   inStock: boolean;
   express?: boolean;
+  detailHref: string;
 };
 
-export const categories = [
-  { id: "all", label: "Tất cả Bút & Mực" },
-  { id: "gel", label: "Bút Gel & Bút Bi" },
-  { id: "fountain", label: "Bút Máy & Mực Bơm" },
-  { id: "highlighter", label: "Bút Dạ Quang / Pastel" },
-  { id: "brush", label: "Bút Lông & Brush Pen" },
-  { id: "pencil", label: "Bút Chì & Ruột Bút" },
-  { id: "color", label: "Bút Màu & Bút Sáp" },
-  { id: "premium", label: "Bút Viết Cao Cấp" },
-  { id: "correction", label: "Bút Xoá & Băng Xoá" },
-];
+export type CatalogCategory = { id: string; label: string };
+export const allCategory: CatalogCategory = {
+  id: "all",
+  label: "Tất cả Bút & Mực",
+};
 
-// Snapshot imported from stationery_shop_full.sql; image URLs come from product_images.
-export const catalogProducts: CatalogProduct[] = products;
+export function toCatalogProduct(product: Product): CatalogProduct {
+  return {
+    id: String(product.productID),
+    title: product.title,
+    brand: product.vendorName ?? "",
+    category: String(product.productTypeID),
+    image: product.images?.find((image) => Boolean(image?.trim())) ?? "",
+    price: Number(product.price ?? product.priceMin ?? 0),
+    oldPrice: Number(product.compareAtPrice ?? 0),
+    rating: Number(product.ratingAverage ?? 0),
+    reviewCount: product.reviewCount ?? 0,
+    inStock: product.available === true,
+    detailHref: `/products/${encodeURIComponent(product.handle || String(product.productID))}`,
+  };
+}
 
 export const money = (amount: number) =>
   `${new Intl.NumberFormat("vi-VN").format(amount)}đ`;
@@ -39,3 +47,8 @@ export const normalize = (value: string) =>
     .replace(/đ/g, "d")
     .replace(/Đ/g, "D")
     .toLowerCase();
+
+// The API has flat product types. This page displays active writing/ink types;
+// exact names and IDs come from the server rather than a hardcoded category list.
+export const isPenAndInkType = (name: string) =>
+  /^(but|muc|ngoi but|ruot but)(\s|$)/.test(normalize(name).trim());

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test:catalog": "node --test tests/catalogService.test.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

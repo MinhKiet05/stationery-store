@@ -22,12 +22,13 @@ import {
   Zap,
 } from "lucide-react";
 import {
-  catalogProducts,
-  categories,
+  allCategory,
   money,
   normalize,
   type CatalogProduct,
+  type CatalogCategory,
 } from "./catalogData";
+import { getCatalog } from "../../services/catalogService";
 import styles from "./ProductCatalog.module.css";
 
 const priceRanges = [
@@ -61,6 +62,41 @@ export default function ProductCatalog() {
     null,
   );
   const [notice, setNotice] = useState("");
+  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
+  const [categories, setCategories] = useState<CatalogCategory[]>([
+    allCategory,
+  ]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function load() {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const data = await getCatalog(controller.signal);
+        if (controller.signal.aborted) return;
+        setCatalogProducts(data.products);
+        setCategories(data.categories);
+        setCategory((current) =>
+          data.categories.some((item) => item.id === current) ? current : "all",
+        );
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "Không tải được sản phẩm. Vui lòng thử lại.",
+        );
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }
+    void load();
+    return () => controller.abort();
+  }, [loadAttempt]);
 
   useEffect(() => {
     document.title = query
@@ -92,7 +128,7 @@ export default function ProductCatalog() {
             .split(/\s+/)
             .every((word) =>
               normalize(
-                `Bút Mực ${product.title} ${product.brand} ${categories.find((item) => item.id === product.category)?.label}`,
+                `${product.title} ${product.brand} ${categories.find((item) => item.id === product.category)?.label ?? ""}`,
               ).includes(word),
             )) &&
         (category === "all" || product.category === category) &&
@@ -115,7 +151,19 @@ export default function ProductCatalog() {
               ? a.title.localeCompare(b.title, "vi")
               : 0,
     );
-  }, [query, category, brands, price, rating, inStock, onSale, express, sort]);
+  }, [
+    catalogProducts,
+    categories,
+    query,
+    category,
+    brands,
+    price,
+    rating,
+    inStock,
+    onSale,
+    express,
+    sort,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, totalPages);
@@ -193,12 +241,20 @@ export default function ProductCatalog() {
   );
 
   return (
-    <main className={styles.page}>
+    <main className={styles.page} aria-busy={loading}>
       <div className={styles.container}>
         <h1 className={styles.srOnly}>Bút & Mực viết chính hãng</h1>
         <div className={styles.summary}>
           <p>
-            Tìm thấy <strong>{filtered.length}</strong> sản phẩm phù hợp{" "}
+            {loading ? (
+              "Đang tải sản phẩm…"
+            ) : loadError ? (
+              "Chưa tải được sản phẩm"
+            ) : (
+              <>
+                Tìm thấy <strong>{filtered.length}</strong> sản phẩm phù hợp
+              </>
+            )}{" "}
             {query && <>cho “{query}”</>}{" "}
             <span className={styles.separator}>•</span>{" "}
             <b>100% nhập khẩu chính hãng</b>
@@ -495,8 +551,8 @@ export default function ProductCatalog() {
                 <input
                   type="checkbox"
                   checked={express}
-                  disabled={!catalogProducts.some(product => product.express)}
-                  title="Chưa có thông tin giao hoả tốc trong dữ liệu được cung cấp"
+                  disabled={!catalogProducts.some((product) => product.express)}
+                  title="Chưa có thông tin giao hoả tốc cho các sản phẩm này"
                   onChange={(event) => {
                     setExpress(event.target.checked);
                     setPage(1);
@@ -575,11 +631,27 @@ export default function ProductCatalog() {
               </div>
             </div>
 
-            <div className={styles.srOnly} role="status" aria-live="polite">
-              Tìm thấy {filtered.length} sản phẩm. Trang {currentPage} trên{" "}
-              {totalPages}.
-            </div>
-            {visible.length ? (
+            {!loading && !loadError && (
+              <div className={styles.srOnly} role="status" aria-live="polite">
+                Tìm thấy {filtered.length} sản phẩm. Trang {currentPage} trên{" "}
+                {totalPages}.
+              </div>
+            )}
+            {loading ? (
+              <div className={styles.empty} role="status">
+                Đang tải danh mục và sản phẩm…
+              </div>
+            ) : loadError ? (
+              <div className={styles.empty} role="alert">
+                <h2>Không tải được danh mục sản phẩm</h2>
+                <p>{loadError}</p>
+                <button
+                  onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+                >
+                  Thử lại
+                </button>
+              </div>
+            ) : visible.length ? (
               <div
                 className={`${styles.productGrid} ${view === "list" ? styles.productList : ""}`}
               >
@@ -591,18 +663,28 @@ export default function ProductCatalog() {
                         onClick={() => setSelectedProduct(product)}
                         aria-label={`Xem ${product.title}`}
                       >
-                        <img
-                          src={product.image}
-                          alt={product.title}
-                          loading="lazy"
-                          width="192"
-                          height="192"
-                        />
+                        {product.image ? (
+                          <img
+                            src={product.image}
+                            alt={product.title}
+                            loading="lazy"
+                            width="192"
+                            height="192"
+                          />
+                        ) : (
+                          <span className={styles.missingImage}>
+                            Chưa có ảnh sản phẩm
+                          </span>
+                        )}
                       </button>
                       <div className={styles.badges}>
                         {product.oldPrice > product.price && (
                           <span>
-                            -{Math.round((1 - product.price / product.oldPrice) * 100)}%
+                            -
+                            {Math.round(
+                              (1 - product.price / product.oldPrice) * 100,
+                            )}
+                            %
                           </span>
                         )}
                         {product.badge && (
@@ -640,9 +722,7 @@ export default function ProductCatalog() {
                       </button>
                     </div>
                     <div className={styles.cardContent}>
-                      <p className={styles.vendor}>
-                        {product.brand}
-                      </p>
+                      <p className={styles.vendor}>{product.brand}</p>
                       <button
                         className={styles.productTitle}
                         onClick={() => setSelectedProduct(product)}
@@ -693,58 +773,59 @@ export default function ProductCatalog() {
               </div>
             )}
 
-            <div className={styles.pagination}>
-              <p>
-                Hiển thị <strong>{visible.length}</strong> trên{" "}
-                <strong>{filtered.length}</strong> sản phẩm
-              </p>
-              <div>
-                <label className={styles.pageSize}>
-                  Mỗi trang
-                  <select
-                    aria-label="Số sản phẩm mỗi trang"
-                    value={pageSize}
-                    onChange={(event) => {
-                      setPageSize(Number(event.target.value));
-                      setPage(1);
-                    }}
-                  >
-                    <option value={12}>12</option>
-                    <option value={8}>8</option>
-                    <option value={4}>4</option>
-                  </select>
-                </label>
-                <nav aria-label="Phân trang sản phẩm">
-                  <button
-                    aria-label="Trang trước"
-                    disabled={currentPage === 1}
-                    onClick={() => setPage(currentPage - 1)}
-                  >
-                    <ChevronLeft size={17} />
-                  </button>
-                  {Array.from({ length: totalPages }, (_, index) => (
-                    <button
-                      key={index}
-                      aria-label={`Trang ${index + 1}`}
-                      aria-current={
-                        currentPage === index + 1 ? "page" : undefined
-                      }
-                      onClick={() => setPage(index + 1)}
+            {!loading && !loadError && (
+              <div className={styles.pagination}>
+                <p>
+                  Hiển thị <strong>{visible.length}</strong> trên{" "}
+                  <strong>{filtered.length}</strong> sản phẩm
+                </p>
+                <div>
+                  <label className={styles.pageSize}>
+                    Mỗi trang
+                    <select
+                      aria-label="Số sản phẩm mỗi trang"
+                      value={pageSize}
+                      onChange={(event) => {
+                        setPageSize(Number(event.target.value));
+                        setPage(1);
+                      }}
                     >
-                      {index + 1}
+                      <option value={12}>12</option>
+                      <option value={8}>8</option>
+                      <option value={4}>4</option>
+                    </select>
+                  </label>
+                  <nav aria-label="Phân trang sản phẩm">
+                    <button
+                      aria-label="Trang trước"
+                      disabled={currentPage === 1}
+                      onClick={() => setPage(currentPage - 1)}
+                    >
+                      <ChevronLeft size={17} />
                     </button>
-                  ))}
-                  <button
-                    aria-label="Trang sau"
-                    disabled={currentPage === totalPages}
-                    onClick={() => setPage(currentPage + 1)}
-                  >
-                    <ChevronRight size={17} />
-                  </button>
-                </nav>
+                    {Array.from({ length: totalPages }, (_, index) => (
+                      <button
+                        key={index}
+                        aria-label={`Trang ${index + 1}`}
+                        aria-current={
+                          currentPage === index + 1 ? "page" : undefined
+                        }
+                        onClick={() => setPage(index + 1)}
+                      >
+                        {index + 1}
+                      </button>
+                    ))}
+                    <button
+                      aria-label="Trang sau"
+                      disabled={currentPage === totalPages}
+                      onClick={() => setPage(currentPage + 1)}
+                    >
+                      <ChevronRight size={17} />
+                    </button>
+                  </nav>
+                </div>
               </div>
-            </div>
-
+            )}
             <section className={styles.tips}>
               <h2>
                 <Lightbulb size={23} />
@@ -819,18 +900,21 @@ export default function ProductCatalog() {
           >
             <X size={22} />
           </button>
-          <img src={selectedProduct.image} alt={selectedProduct.title} />
+          {selectedProduct.image && (
+            <img src={selectedProduct.image} alt={selectedProduct.title} />
+          )}
           <p className={styles.vendor}>{selectedProduct.brand}</p>
           <h2 id="product-preview-title">{selectedProduct.title}</h2>
           <strong className={styles.previewPrice}>
             {money(selectedProduct.price)}
           </strong>
           <p>
-            {selectedProduct.inStock ? "Còn hàng" : "Tạm hết hàng"} · {selectedProduct.reviewCount > 0 ? `Đánh giá ${selectedProduct.rating.toFixed(1)}/5` : "Chưa có đánh giá"}
+            {selectedProduct.inStock ? "Còn hàng" : "Tạm hết hàng"} ·{" "}
+            {selectedProduct.reviewCount > 0
+              ? `Đánh giá ${selectedProduct.rating.toFixed(1)}/5`
+              : "Chưa có đánh giá"}
           </p>
-          <p className={styles.muted}>
-            Thông tin và ảnh lấy từ database được cung cấp. Chức năng đặt hàng chưa kết nối với cửa hàng.
-          </p>
+          <a href={selectedProduct.detailHref}>Xem chi tiết sản phẩm</a>
         </dialog>
       )}
     </main>
