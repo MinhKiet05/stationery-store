@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
-  ArrowRight,
   BadgeCheck,
   ChevronDown,
   ChevronLeft,
@@ -8,14 +8,11 @@ import {
   Columns3,
   Heart,
   LayoutGrid,
-  Lightbulb,
   PackageCheck,
-  PenTool,
   RotateCcw,
   Search,
   ShoppingCart,
   SlidersHorizontal,
-  Sparkles,
   Star,
   Truck,
   X,
@@ -29,7 +26,7 @@ import {
   type CatalogCategory,
 } from "./catalogData";
 import { getCatalog } from "../../services/catalogService";
-import styles from "./ProductCatalog.module.css";
+import styles from "./SearchPage.module.css";
 
 const priceRanges = [
   { label: "< 50.000đ", min: "0", max: "50000" },
@@ -38,9 +35,9 @@ const priceRanges = [
   { label: "> 300.000đ", min: "300000", max: "" },
 ];
 
-export default function ProductCatalog() {
-  const query =
-    new URLSearchParams(window.location.search).get("search")?.trim() ?? "";
+export default function SearchPage() {
+  const [searchParams] = useSearchParams();
+  const query = searchParams.get("search")?.trim() ?? "";
   const [category, setCategory] = useState("all");
   const [brands, setBrands] = useState<string[]>([]);
   const [brandSearch, setBrandSearch] = useState("");
@@ -101,7 +98,7 @@ export default function ProductCatalog() {
   useEffect(() => {
     document.title = query
       ? `Tìm kiếm “${query}” | StationeryStore`
-      : "Bút & Mực viết chính hãng | StationeryStore";
+      : "Tìm kiếm sản phẩm | StationeryStore";
   }, [query]);
 
   useEffect(() => {
@@ -219,15 +216,6 @@ export default function ProductCatalog() {
     setPage(1);
   }
 
-  async function copyPromoCode() {
-    try {
-      await navigator.clipboard.writeText("PENLUXE10");
-      setNotice("Đã sao chép mã PENLUXE10.");
-    } catch {
-      setNotice("Mã ưu đãi: PENLUXE10");
-    }
-  }
-
   const chip = (label: string, remove: () => void) => (
     <button
       className={styles.chip}
@@ -243,7 +231,9 @@ export default function ProductCatalog() {
   return (
     <main className={styles.page} aria-busy={loading}>
       <div className={styles.container}>
-        <h1 className={styles.srOnly}>Bút & Mực viết chính hãng</h1>
+        <h1 className={styles.srOnly}>
+          {query ? `Kết quả tìm kiếm cho “${query}”` : "Tìm kiếm sản phẩm"}
+        </h1>
         <div className={styles.summary}>
           <p>
             {loading ? (
@@ -271,29 +261,20 @@ export default function ProductCatalog() {
           </div>
         </div>
 
-        <section className={styles.hero} aria-labelledby="collection-title">
+        <section className={styles.hero} aria-labelledby="search-title">
           <div className={styles.heroCopy}>
             <span className={styles.eyebrow}>
-              <Sparkles size={14} /> ƯU ĐÃI ĐỘC QUYỀN THÁNG NÀY
+              <Search size={14} /> TÌM KIẾM SẢN PHẨM
             </span>
-            <h2 id="collection-title">
-              Bộ Sưu Tập Ngòi Bút Tinh Hoa & Mực Pigment Cao Cấp
+            <h2 id="search-title">
+              {query ? `Kết quả tìm kiếm cho “${query}”` : "Khám phá văn phòng phẩm"}
             </h2>
             <p>
-              Trải nghiệm cảm giác êm mượt cùng các dòng bút bi gel xoá được,
-              bút máy ngòi thép Đức và mực kháng nước bền vững. Giảm đến 30% khi
-              mua kèm phụ kiện thay thế.
+              Tìm sản phẩm theo tên, thương hiệu hoặc danh mục. Sử dụng bộ lọc
+              để chọn khoảng giá, đánh giá và tình trạng còn hàng phù hợp.
             </p>
-            <div className={styles.heroActions}>
-              <a href="#catalog-results">
-                Khám phá bộ sưu tập <ArrowRight size={16} />
-              </a>
-              <button onClick={() => void copyPromoCode()}>
-                Mã: PENLUXE10 (-10%)
-              </button>
-            </div>
           </div>
-          <PenTool
+          <Search
             className={styles.heroPen}
             size={190}
             strokeWidth={1}
@@ -330,7 +311,7 @@ export default function ProductCatalog() {
             </div>
             <details className={styles.filterSection} open>
               <summary>
-                Danh mục con <ChevronDown size={15} />
+                Danh mục sản phẩm <ChevronDown size={15} />
               </summary>
               <div className={styles.categoryList}>
                 {categories.map((item) => (
@@ -768,7 +749,7 @@ export default function ProductCatalog() {
                 </p>
                 <button onClick={reset}>Xoá bộ lọc</button>
                 {query && (
-                  <a href="/products?category=but-muc">Xem tất cả Bút & Mực</a>
+                  <Link to="/search">Xem tất cả sản phẩm</Link>
                 )}
               </div>
             )}
@@ -826,47 +807,6 @@ export default function ProductCatalog() {
                 </div>
               </div>
             )}
-            <section className={styles.tips}>
-              <h2>
-                <Lightbulb size={23} />
-                Mẹo chọn ngòi bút phù hợp nhu cầu
-              </h2>
-              <div className={styles.tipGrid}>
-                <article>
-                  <div>
-                    <h3>0.38mm – 0.5mm</h3>
-                    <span>Nét thanh mảnh</span>
-                  </div>
-                  <p>
-                    Lý tưởng để ghi chú sổ tay, viết nhật ký bullet journal trên
-                    giấy mỏng, đi nét vẽ kỹ thuật hoặc người có chữ viết nhỏ
-                    nhắn, chi tiết.
-                  </p>
-                </article>
-                <article>
-                  <div>
-                    <h3>0.7mm</h3>
-                    <span className={styles.popularTip}>Đa dụng nhất</span>
-                  </div>
-                  <p>
-                    Độ dày tiêu chuẩn cho tốc độ viết mượt, đậm tay, mực ra đều
-                    đặn. Thích hợp soạn thảo văn bản học tập, làm việc văn phòng
-                    hằng ngày.
-                  </p>
-                </article>
-                <article>
-                  <div>
-                    <h3>1.0mm</h3>
-                    <span className={styles.darkTip}>Ký tên & Hợp đồng</span>
-                  </div>
-                  <p>
-                    Nét đậm, sắc sảo và rõ ràng. Phù hợp cho giám đốc ký tá hồ
-                    sơ quan trọng, viết tiêu đề hoặc người thích cảm giác lướt
-                    bút êm ái tối đa.
-                  </p>
-                </article>
-              </div>
-            </section>
           </div>
         </div>
       </div>

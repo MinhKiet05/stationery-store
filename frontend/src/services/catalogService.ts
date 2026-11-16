@@ -2,18 +2,15 @@ import { getProductPage } from "./productService";
 import { getProductTypes } from "./productTypeService";
 import {
   allCategory,
-  isPenAndInkType,
   toCatalogProduct,
-} from "../pages/productCatalog/catalogData";
+} from "../pages/searchPage/catalogData";
 
 export async function getCatalog(signal?: AbortSignal) {
   const [types, firstPage] = await Promise.all([
     getProductTypes(signal),
     getProductPage(0, signal),
   ]);
-  const activeTypes = types.filter(
-    (type) => type.isActive && isPenAndInkType(type.name),
-  );
+  const activeTypes = types.filter((type) => type.isActive);
   const activeTypeIDs = new Set(activeTypes.map((type) => type.productTypeID));
   const products = [...firstPage.content];
 
