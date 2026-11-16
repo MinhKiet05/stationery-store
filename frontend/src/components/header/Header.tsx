@@ -57,8 +57,8 @@ export default function Header({
   apiBaseUrl = "http://localhost:8080",
   loginHref = "/login",
   cartHref = "/cart",
-  profileHref = "/profile",
-  ordersHref = "/orders",
+  profileHref = "/my-profile",
+  ordersHref = "/my-profile/orders",
   notificationsHref = "/notifications",
   cartCount = 3, // Set mặc định 3 theo ảnh thiết kế
   onSearch,

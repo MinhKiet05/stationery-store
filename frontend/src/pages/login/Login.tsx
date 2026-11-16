@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from "react";
 import { Tag, Sparkles, Truck, Eye, EyeOff, ArrowRight } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { login, register } from "../../services/authService";
 import styles from "./Login.module.css";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
 
   // State cho Đăng nhập
@@ -43,7 +44,11 @@ export default function Login() {
     try {
       const result = await login(username, password);
       if (result.cartSynced) {
-        navigate("/");
+        const from = location.state?.from;
+        const target = typeof from?.pathname === "string" && from.pathname.startsWith("/") && !from.pathname.startsWith("//")
+          ? from.pathname + (from.search || "")
+          : "/";
+        navigate(target, { replace: true });
       } else {
         setError("Đăng nhập thành công. Chưa đồng bộ được giỏ khách.");
       }
@@ -207,6 +212,7 @@ export default function Login() {
                   <button
                     type="button"
                     className={styles.eyeBtn}
+                    tabIndex={-1}
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -307,6 +313,7 @@ export default function Login() {
                   <button
                     type="button"
                     className={styles.eyeBtn}
+                    tabIndex={-1}
                     onClick={() => setShowRegPassword(!showRegPassword)}
                   >
                     {showRegPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -330,6 +337,7 @@ export default function Login() {
                     placeholder="Nhập lại mật khẩu"
                   />
                   <button
+                    tabIndex={-1}
                     type="button"
                     className={styles.eyeBtn}
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}

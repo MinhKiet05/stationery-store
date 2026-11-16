@@ -36,6 +36,10 @@ import { addCartItem, type Cart } from "../../services/cartService";
 import { createOrder } from "../../services/orderService";
 import { trackProductView } from "../../services/aiService";
 import { addToGuestCart, getGuestCart } from "../../utils/guestCart";
+import {
+  isFavoriteProduct,
+  toggleFavoriteProduct,
+} from "../../utils/favoriteStorage";
 import styles from "./ProductDetail.module.css";
 
 type Tab = "specs" | "description" | "reviews";
@@ -107,14 +111,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
         setProduct(data);
         setVariants(choices);
         setSelected((choices.find(inStock) ?? choices[0])?.variantID ?? 0);
-        try {
-          setSaved(
-            localStorage.getItem(`favorite-product-${data.productID}`) ===
-              "true",
-          );
-        } catch {
-          setSaved(false);
-        }
+        setSaved(isFavoriteProduct(data.productID));
         void trackProductView(data.productID).catch(() => {});
         void getRelatedProducts(data.productTypeID, controller.signal)
           .then((result) => {
@@ -143,6 +140,18 @@ function ProductDetailContent({ handle }: { handle: string }) {
     void load();
     return () => controller.abort();
   }, [handle]);
+
+  // Đồng bộ trạng thái yêu thích nếu người dùng bấm tim ở ProductCard hoặc tab khác
+  useEffect(() => {
+    if (!product) return;
+    const sync = () => setSaved(isFavoriteProduct(product.productID));
+    window.addEventListener("favorites-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("favorites-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [product]);
 
   useEffect(() => {
     if (!product) return;
@@ -264,16 +273,10 @@ function ProductDetailContent({ handle }: { handle: string }) {
 
   function toggleFavorite() {
     if (!product) return;
-    try {
-      localStorage.setItem(
-        `favorite-product-${product.productID}`,
-        String(!saved),
-      );
-      setSaved(!saved);
-    } catch {
-      setNotice("Không thể lưu yêu thích trên trình duyệt này.");
-    }
+    const next = toggleFavoriteProduct(product.productID);
+    setSaved(next);
   }
+
   async function share() {
     try {
       if (navigator.share)
@@ -292,6 +295,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
         );
     }
   }
+
   function openTab(next: Tab) {
     setTab(next);
     details.current?.scrollIntoView({ behavior: "smooth", block: "start" });

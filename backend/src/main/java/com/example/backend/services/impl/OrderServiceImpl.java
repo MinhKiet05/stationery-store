@@ -230,8 +230,7 @@ public class OrderServiceImpl implements OrderService {
 
     private OrderResponse toResponse(Order order) {
         List<OrderDetailResponse> details = order.getOrderDetails().stream()
-                .map(d -> new OrderDetailResponse(d.getOrderDetailID(), d.getVariant().getVariantID(),
-                        d.getVariant().getTitle(), d.getQuantity(), d.getUnitPrice(), d.getSubTotal()))
+                .map(this::toDetailResponse)
                 .toList();
         BigDecimal subTotal = details.stream().map(OrderDetailResponse::subTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -244,6 +243,17 @@ public class OrderServiceImpl implements OrderService {
 
     private ResponseStatusException bad(String message) {
         return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+    }
+
+    private OrderDetailResponse toDetailResponse(OrderDetail detail) {
+        ProductVariant variant = detail.getVariant();
+        Product product = variant.getProduct();
+        String image = product.getImages().stream()
+                .filter(url -> url != null && !url.isBlank()).findFirst().orElse(null);
+        return new OrderDetailResponse(detail.getOrderDetailID(), variant.getVariantID(),
+                variant.getTitle(), detail.getQuantity(), detail.getUnitPrice(), detail.getSubTotal(),
+                product.getProductID(), product.getTitle(), product.getHandle(), image,
+                product.getVendor() == null ? null : product.getVendor().getName());
     }
 
     private ResponseStatusException notFound(String message) {

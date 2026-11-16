@@ -8,7 +8,11 @@ import ForgotPassword from "./pages/forgotPassword/ForgotPassword";
 import AboutUs from "./pages/aboutUs/AboutUs";
 import SearchPage from "./pages/searchPage/SearchPage";
 import AiChatWidget from "./components/aiChat/AiChatWidget";
-
+import MyProfile from "./pages/myProfile/MyProfile";
+import AccountInfoTab from "./pages/myProfile/tabs/AccountInfoTab";
+import OrderHistoryTab from "./pages/myProfile/tabs/OrderHistoryTab";
+import SecurityTab from "./pages/myProfile/tabs/SecurityTab";
+import WishlistTab from "./pages/myProfile/tabs/WishlistTab";
 // Layout chung cho các trang có Header & Footer
 function MainLayout() {
   return (
@@ -47,6 +51,14 @@ function App() {
           <Route path="/search" element={<SearchPage />} />
           <Route path="/products" element={<ProductSearchRedirect />} />
           <Route path="/products/:handle" element={<ProductDetailWrapper />} />
+          <Route path="/my-profile" element={<MyProfile />}>
+            <Route index element={<AccountInfoTab />} />
+            <Route path="orders" element={<OrderHistoryTab />} />
+            <Route path="wishlist" element={<WishlistTab />} />
+            <Route path="security" element={<SecurityTab />} />
+          </Route>
+          <Route path="/profile" element={<Navigate to="/my-profile" replace />} />
+          <Route path="/orders" element={<Navigate to="/my-profile/orders" replace />} />
         </Route>
 
         {/* Nhóm trang Auth độc lập */}
