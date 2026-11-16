@@ -32,7 +32,7 @@ const navigation = [
   { label: "Dụng cụ văn phòng", href: "/products?category=dung-cu-van-phong" },
   { label: "Quà tặng & Phụ kiện", href: "/products?category=qua-tang-phu-kien" },
   { label: "Khuyến mãi", href: "/promotions", promotion: true },
-  { label: "Blog văn phòng phẩm", href: "/blog" },
+  { label: "Về chúng tôi", href: "/about-us" },
 ];
 
 const TOKEN_KEY = "accessToken";
@@ -170,7 +170,7 @@ export default function Header({
               Tìm kiếm
             </button>
           </form>
-          <p className={styles.suggestions}>Gợi ý: <strong>Bút gel xoá được</strong> · Sổ tay A5 bìa da · Băng keo washi · Giấy in Double A</p>
+          <p className={styles.suggestions}>Gợi ý: <span className={styles.suggestionHighlight}>Bút gel xóa được · Sổ tay A5 bìa da · Băng keo washi · Giấy in Double A</span></p>
         </div>
 
         <div className={styles.actions}>

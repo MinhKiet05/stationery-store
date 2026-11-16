@@ -5,13 +5,15 @@ import ProductDetail from "./pages/productDetail/ProductDetail";
 import Login from "./pages/login/Login";
 import AiChatWidget from "./components/aiChat/AiChatWidget";
 import ProductCatalog from "./pages/productCatalog/ProductCatalog";
+import AboutUs from "./pages/aboutUs/AboutUs";
 function App() {
   const productMatch = window.location.pathname.match(/^\/products\/([^/]+)\/?$/);
+  const isAboutUsPage = /^\/(about-us)\/?$/.test(window.location.pathname);
   return (
     <>
       <Header cartCount={3} />
       {/* Nội dung trang */}
-      {productMatch ? <ProductDetail handle={decodeURIComponent(productMatch[1])} />
+      {isAboutUsPage ? <AboutUs /> : productMatch ? <ProductDetail handle={decodeURIComponent(productMatch[1])} />
         : /^\/products\/?$/.test(window.location.pathname) ? <ProductCatalog />
         : window.location.pathname === "/login" ? <Login /> : <HomePage />}
       <Footer/>

@@ -22,6 +22,12 @@ public class AiController {
     public RecommendationResponse me(Authentication authentication, @RequestParam(defaultValue = "3") @Min(1) @Max(12) int limit) {
         return recommendations.recommend(authentication.getName(), limit);
     }
+    @GetMapping("/api/recommendations/recent")
+    public RecommendationResponse recent(Authentication authentication,
+            @RequestParam(defaultValue = "3") @Min(1) @Max(12) int limit) {
+        return recommendations.recent(authentication.getName(), limit);
+    }
+
     @GetMapping("/api/recommendations/popular")
     public RecommendationResponse popular(@RequestParam(defaultValue = "3") @Min(1) @Max(12) int limit) {
         return recommendations.popular(limit);

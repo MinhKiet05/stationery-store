@@ -43,7 +43,7 @@ export default function Footer() {
               <li><a href="#" className={styles.link}>Chính sách giao hàng & kiểm hàng</a></li>
               <li><a href="#" className={styles.link}>Chính sách đổi trả 7 ngày</a></li>
               <li><a href="#" className={styles.link}>Hướng dẫn thanh toán an toàn</a></li>
-              <li><a href="#" className={styles.link}>Câu hỏi thường gặp FAQ</a></li>
+              <li><a href="/about#faq" className={styles.link}>Câu hỏi thường gặp FAQ</a></li>
             </ul>
           </div>
 
@@ -51,8 +51,9 @@ export default function Footer() {
           <div className={styles.column}>
             <h3 className={styles.title}>VỀ CHÚNG TÔI</h3>
             <ul className={styles.linkList}>
-              <li><a href="#" className={styles.link}>Giới thiệu StationeryStore</a></li>
-              <li><a href="#" className={styles.link}>Hệ thống cửa hàng</a></li>
+              <li><a href="/about" className={styles.link}>Giới thiệu StationeryStore</a></li>
+              <li><a href="/about#stores" className={styles.link}>Hệ thống cửa hàng</a></li>
+              <li><a href="/about#contact" className={styles.link}>Liên hệ & Hợp tác</a></li>
               <li><a href="#" className={styles.link}>Tuyển dụng</a></li>
               <li><a href="#" className={styles.link}>Điều khoản dịch vụ</a></li>
               <li><a href="#" className={styles.link}>Chính sách bảo mật thông tin</a></li>

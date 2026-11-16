@@ -1,9 +1,9 @@
 import { api } from "./api";
 import type { Product } from "../components/productCard/ProductCard";
-export type RecommendationResponse = { products: Product[]; source: "PERSONALIZED" | "FALLBACK" };
+export type RecommendationResponse = { products: Product[]; source: "PERSONALIZED" | "RECENT_ACTIVITY" | "FALLBACK" };
 export type ChatResponse = { reply: string; products: Product[]; source: "AI_RAG" | "CATALOG_FALLBACK" | "UNAVAILABLE" };
 export function getRecommendations(signal: AbortSignal) {
-  const path = localStorage.getItem("accessToken") ? "me" : "popular";
+  const path = localStorage.getItem("accessToken") ? "recent" : "popular";
   return api<RecommendationResponse>(`/api/recommendations/${path}?limit=3`, { signal });
 }
 export function sendChat(message: string, signal: AbortSignal) {

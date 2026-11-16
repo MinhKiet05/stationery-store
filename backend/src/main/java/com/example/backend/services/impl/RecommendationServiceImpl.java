@@ -44,6 +44,19 @@ public class RecommendationServiceImpl implements RecommendationService {
     }
 
     @Override
+    public RecommendationResponse recent(String username, int limit) {
+        var recentIds = history.recentProductIds(username);
+        if (recentIds.isEmpty()) return popular(limit);
+        var productsById = catalog.byIds(recentIds).stream().filter(CatalogProduct::sellable)
+                .collect(Collectors.toMap(p -> p.product().productID(), CatalogProduct::product));
+        // Keep the event timestamp order: findAllById does not guarantee the input order.
+        var products = recentIds.stream().map(productsById::get).filter(Objects::nonNull)
+                .distinct().limit(limit).toList();
+        if (products.isEmpty()) return popular(limit);
+        return new RecommendationResponse(products, "RECENT_ACTIVITY");
+    }
+
+    @Override
     public RecommendationResponse popular(int limit) {
         return new RecommendationResponse(catalog.newest(limit).stream().filter(CatalogProduct::sellable)
                 .limit(limit).map(CatalogProduct::product).toList(), "FALLBACK");
