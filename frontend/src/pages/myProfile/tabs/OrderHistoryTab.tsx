@@ -1,6 +1,6 @@
 import { useState, type FormEvent, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Package, Truck, CheckCircle, XCircle, CreditCard, ChevronLeft, ChevronRight, X, Clock, CalendarDays, Receipt } from 'lucide-react';
+import { Search, Package, Truck, CheckCircle, XCircle, CreditCard, ChevronLeft, ChevronRight, X, CalendarDays } from 'lucide-react';
 import { cancelOrder, type OrderStatus, type Order } from '../../../services/orderService';
 import { useProfile } from '../profileContext';
 import { filterOrders, orderStatuses, orderStatusLabel } from '../orderHistory';

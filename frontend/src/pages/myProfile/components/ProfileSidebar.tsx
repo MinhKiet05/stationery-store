@@ -3,7 +3,7 @@ import { User, ShoppingBag, Heart, Lock, LogOut, PhoneCall, MapPin } from 'lucid
 import type { UserProfile } from '../../../services/userService';
 import styles from '../MyProfile.module.css';
 
-export default function ProfileSidebar({ profile, orderCount }: { profile: UserProfile; orderCount: number | null }) {
+export default function ProfileSidebar({ profile }: { profile: UserProfile; orderCount: number | null }) {
   const navigate = useNavigate();
 
   function logout() {
