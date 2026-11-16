@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
-  ArrowRight, Award, BookOpen, Check, ChevronRight, Clock3, ExternalLink,
-  Headphones, HelpCircle, Home, Leaf, Mail, MapPin,
+  ArrowRight, Award, BookOpen, Check, Clock3, ExternalLink,
+  Headphones, HelpCircle, Leaf, Mail, MapPin,
   MessageCircle, PackageCheck, PenLine, Phone, Send, ShieldCheck, Smile,
   Sparkles, Star, Store, UserRound,
 } from "lucide-react";
@@ -151,7 +151,6 @@ export default function AboutUs() {
         width="600" 
         height="450" 
         style={{ border: 0 }} 
-        allowFullScreen="" 
         loading="lazy" 
         referrerPolicy="strict-origin-when-cross-origin"
         title="Bản đồ vị trí cửa hàng StationeryStore Flagship"

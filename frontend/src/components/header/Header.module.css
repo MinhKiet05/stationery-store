@@ -9,7 +9,15 @@
 }
 
 .header, .header * { box-sizing: border-box; }
-
+.successAlert {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
 /* --- Top Info Bar --- */
 .topBar {
   background-color: #091426;
