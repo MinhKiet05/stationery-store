@@ -6,6 +6,7 @@ import ProductDetail from "./pages/productDetail/ProductDetail";
 import Login from "./pages/login/Login";
 import ForgotPassword from "./pages/forgotPassword/ForgotPassword";
 import AboutUs from "./pages/aboutUs/AboutUs";
+import Policy from "./pages/policy/Policy";
 import SearchPage from "./pages/searchPage/SearchPage";
 import AiChatWidget from "./components/aiChat/AiChatWidget";
 
@@ -44,6 +45,7 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/about-us" element={<AboutUs />} />
+          <Route path="/policy" element={<Policy />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/products" element={<ProductSearchRedirect />} />
           <Route path="/products/:handle" element={<ProductDetailWrapper />} />
