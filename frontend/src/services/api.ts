@@ -42,7 +42,13 @@ export async function api<T>(
             ? "Tên đăng nhập hoặc email đã tồn tại."
             : path === "/api/auth/register" && response.status === 400
               ? "Thông tin đăng ký không hợp lệ. Vui lòng kiểm tra lại."
-              : "Không thể kết nối cửa hàng. Vui lòng thử lại.",
+              : path === "/api/users/me" && response.status === 409
+                ? "Email này đã được sử dụng bởi tài khoản khác."
+                : path === "/api/users/me" && response.status === 400
+                  ? "Thông tin hồ sơ không hợp lệ. Vui lòng kiểm tra lại."
+                  : path.startsWith("/api/orders/") && response.status === 409
+                    ? "Trạng thái đơn hàng đã thay đổi hoặc đơn đã thanh toán nên không thể hủy. Vui lòng tải lại."
+                    : "Không thể kết nối cửa hàng. Vui lòng thử lại.",
     );
   }
   return response.json() as Promise<T>;

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test:catalog": "node --test tests/catalogService.test.mjs",
+    "test:profile": "node --test tests/profile.test.mjs",
     "test:about": "node scripts/test-about.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
