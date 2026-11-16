@@ -1,0 +1,386 @@
+/* Container và Layout tổng thể */
+.page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 90vh;
+  background-color: #f3f4f6;
+  padding: 2rem;
+  font-family: 'Inter', sans-serif;
+}
+
+.container {
+  display: flex;
+  width: 100%;
+  max-width: 1100px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+/* --- PANEL TRÁI (Dark Mode) --- */
+.leftPanel {
+  flex: 1;
+  background-color: #1a1c29;
+  color: #ffffff;
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.brand {
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  color: #f97316;
+  font-weight: 600;
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 2.5rem;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  color: #9ca3af;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
+}
+
+.featureTitle {
+  font-size: 0.75rem;
+  color: #6b7280;
+  letter-spacing: 1px;
+  font-weight: 600;
+  margin-bottom: 1.5rem;
+}
+
+.featureItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.featureItem .icon {
+  font-size: 1.5rem;
+}
+
+.featureItem strong {
+  display: block;
+  font-size: 0.95rem;
+  margin-bottom: 0.25rem;
+  color: #f3f4f6;
+}
+
+.featureItem p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+/* --- PANEL PHẢI (Form) --- */
+.rightPanel {
+  flex: 1.2;
+  padding: 3rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 2rem;
+}
+
+.headerText h2 {
+  font-size: 1.75rem;
+  color: #111827;
+  margin: 0 0 0.5rem 0;
+}
+
+.headerText p {
+  color: #6b7280;
+  font-size: 0.9rem;
+  margin: 0;
+  max-width: 300px;
+}
+
+/* Nút chuyển đổi Tab */
+.tabToggle {
+  display: flex;
+  background: #f3f4f6;
+  border-radius: 8px;
+  padding: 0.25rem;
+}
+
+.tabToggle button {
+  border: none;
+  background: transparent;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tabToggle button.active {
+  background: #ffffff;
+  color: #111827;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+/* Form Styles */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.9rem;
+  color: #374151;
+  font-weight: 500;
+  gap: 0.5rem;
+}
+
+.req {
+  color: #ef4444;
+}
+
+.form input {
+  padding: 0.75rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  transition: border-color 0.2s;
+  background-color: #f9fafb;
+}
+
+.form input:focus {
+  border-color: #ff8a00;
+  background-color: #ffffff;
+}
+
+.formOptions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.checkbox {
+  flex-direction: row !important;
+  align-items: center;
+  font-weight: 400 !important;
+  cursor: pointer;
+}
+/* Bổ sung/Cập nhật CSS cho Input có Icon */
+.inputWrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.inputWrapper input {
+  width: 100%;
+  padding-right: 2.5rem; /* Chừa chỗ cho icon mắt */
+}
+
+.eyeBtn {
+  position: absolute;
+  right: 0.75rem;
+  background: transparent;
+  border: none;
+  color: #9ca3af;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.eyeBtn:hover {
+  color: #374151;
+}
+
+/* Căn chỉnh icon và text cho Nút Submit */
+.submitBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  /* (Giữ nguyên các thuộc tính color, background cũ ở đây) */
+}
+
+/* Căn chỉnh Social Icon */
+.socialBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  /* (Giữ nguyên các thuộc tính cũ ở đây) */
+}
+
+.socialIcon {
+  color: #374151;
+}
+
+/* Bố cục 2 cột cho form đăng ký (Tên và SĐT) */
+.rowGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+/* Left panel icon color adjustment */
+.featureItem .icon {
+  color: #f97316; /* Màu cam chủ đạo cho icon lucide */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.checkbox input {
+  margin-right: 0.25rem;
+  accent-color: #f97316;
+}
+
+.forgot {
+  color: #f97316;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.forgot:hover {
+  text-decoration: underline;
+}
+
+.submitBtn {
+  background: #f97316;
+  color: #ffffff;
+  border: none;
+  padding: 0.875rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 0.5rem;
+}
+
+.submitBtn:hover {
+  background: #ea580c;
+}
+
+.submitBtn:disabled {
+  background: #fca5a5;
+  cursor: not-allowed;
+}
+
+/* Alert Lỗi */
+.errorAlert {
+  background-color: #fee2e2;
+  color: #b91c1c;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+/* Social Buttons */
+.successAlert {
+  background-color: #dcfce7;
+  color: #166534;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.socialDivider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.socialDivider::before,
+.socialDivider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.socialDivider span {
+  padding: 0 1rem;
+}
+
+.socialLogins {
+  display: flex;
+  gap: 1rem;
+}
+
+.socialBtn {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.socialBtn:hover {
+  background: #f3f4f6;
+}
+
+.footerLink {
+  text-align: center;
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.footerLink span {
+  color: #f97316;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.footerLink span:hover {
+  text-decoration: underline;
+}
+
+/* Responsive: 1 Cột trên điện thoại */
+@media (max-width: 860px) {
+  .container {
+    flex-direction: column;
+  }
+  .leftPanel {
+    padding: 2rem;
+  }
+  .rightPanel {
+    padding: 2rem;
+  }
+}

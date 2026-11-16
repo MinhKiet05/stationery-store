@@ -7,7 +7,7 @@ import AiChatWidget from "./components/aiChat/AiChatWidget";
 import AboutUs from "./pages/aboutUs/AboutUs";
 function App() {
   const productMatch = window.location.pathname.match(/^\/products\/([^/]+)\/?$/);
-  const isAboutUsPage = /^\/(about|about-us|gioi-thieu|contact|lien-he)\/?$/.test(window.location.pathname);
+  const isAboutUsPage = /^\/(about-us)\/?$/.test(window.location.pathname);
   return (
     <>
       <Header cartCount={3} />

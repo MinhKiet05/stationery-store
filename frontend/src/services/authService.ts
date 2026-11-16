@@ -2,10 +2,36 @@ import { api } from "./api";
 import { mergeGuestCart } from "./cartService";
 import { clearGuestCart } from "../utils/guestCart";
 
-export async function login(username: string, password: string) {
-  const data = await api<{ accessToken: string }>("/api/auth/login", {
+export type LoginRequest = {
+  username: string;
+  password: string;
+};
+
+export type RegisterRequest = LoginRequest & {
+  email: string;
+  fullName?: string;
+  phoneNumber?: string;
+};
+
+export type AuthResponse = {
+  accessToken: string;
+  tokenType: string;
+  expiresInSeconds: number;
+  user: UserInfoResponse;
+};
+
+export function register(body: RegisterRequest): Promise<UserInfoResponse> {
+  return api<UserInfoResponse>("/api/auth/register", {
     method: "POST",
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify(body),
+  });
+}
+
+export async function login(username: string, password: string) {
+  const body: LoginRequest = { username, password };
+  const data = await api<AuthResponse>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(body),
   });
   localStorage.setItem("accessToken", data.accessToken);
   window.dispatchEvent(new Event("auth-changed"));
@@ -16,14 +42,14 @@ export async function login(username: string, password: string) {
   } catch {
     cartSynced = false;
   }
-  return { cartSynced };
+  return { ...data, cartSynced };
 }
 
 export type UserInfoResponse = {
   userID: number;
   username: string;
   email: string;
-  fullName: string;
+  fullName: string | null;
   phoneNumber: string | null;
   role: string;
   avatarUrl?: string; // Bổ sung ảnh đại diện nếu có từ API

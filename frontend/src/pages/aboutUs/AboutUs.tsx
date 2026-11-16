@@ -70,9 +70,6 @@ export default function AboutUs() {
     <main className={styles.page}>
       <div className={styles.breadcrumbBar}>
         <div className={styles.container}>
-          <nav aria-label="Đường dẫn" className={styles.breadcrumb}>
-            <a href="/"><Home size={13} /> Trang chủ</a><ChevronRight size={12} /><span>Giới thiệu & Liên hệ</span>
-          </nav>
           <div className={styles.breadcrumbTrust}><span><PackageCheck size={14} /> Chứng nhận phân phối chính hãng</span><span><ShieldCheck size={14} /> Tiêu chuẩn FSC Quốc tế</span></div>
         </div>
       </div>
@@ -138,17 +135,49 @@ export default function AboutUs() {
               <div className={styles.socialSection}><strong>Kênh mạng xã hội chính thức:</strong><div className={styles.socialLinks}><a href="https://www.facebook.com/" target="_blank" rel="noreferrer">Facebook <ExternalLink size={11} /></a><a href="https://www.instagram.com/" target="_blank" rel="noreferrer">Instagram <ExternalLink size={11} /></a><a href="https://www.tiktok.com/" target="_blank" rel="noreferrer">TikTok <ExternalLink size={11} /></a><a href="https://shopee.vn/" target="_blank" rel="noreferrer">Shopee Mall <ExternalLink size={11} /></a></div></div>
             </article>
 
-            <article className={styles.mapCard}>
-              <div className={styles.mapHeading}><h3><MapPin size={18} /> Vị trí trực quan trên Google Maps</h3><a href={mapsUrl} target="_blank" rel="noreferrer">Mở trong Google Maps <ExternalLink size={12} /></a></div>
-              <div className={styles.mapFrame}>
-                <a className={styles.mapCanvas} href={mapsUrl} target="_blank" rel="noreferrer" aria-label="Mở chỉ đường đến cửa hàng trên Google Maps">
-                  <img src="/images/nguyen-hue-map.png" alt="Bản đồ khu vực phố Nguyễn Huệ và sông Sài Gòn, Quận 1" loading="lazy" width="768" height="420" />
-                  <span className={styles.mapMarker}><span>StationeryStore Flagship</span><MapPin size={31} fill="#ff7a16" color="white" strokeWidth={1.8} /></span>
-                </a>
-                <a className={styles.mapChip} href={mapsUrl} target="_blank" rel="noreferrer"><MapPin size={14} /> Chỉ đường từ Nhà hát Lớn <ArrowRight size={13} /></a>
-                <a className={styles.mapAttribution} href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a>
-              </div>
-            </article>
+           <article className={styles.mapCard}>
+  <div className={styles.mapHeading}>
+    <h3><MapPin size={18} /> Vị trí trực quan trên Google Maps</h3>
+    <a href={mapsUrl} target="_blank" rel="noreferrer">
+      Mở trong Google Maps <ExternalLink size={12} />
+    </a>
+  </div>
+  
+  <div className={styles.mapFrame}>
+    {/* Thay thẻ <a> bọc ngoài bằng <div> để đúng chuẩn HTML/DOM nesting */}
+    <div className={styles.mapCanvas}>
+      <iframe 
+        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3918.858169091083!2d106.68427047570304!3d10.822164158346961!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3174deb3ef536f31%3A0x8b7bb8b7c956157b!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBDw7RuZyBuZ2hp4buHcCBUUC5IQ00!5e0!3m2!1svi!2s!4v1794835472157!5m2!1svi!2s" 
+        width="600" 
+        height="450" 
+        style={{ border: 0 }} 
+        allowFullScreen="" 
+        loading="lazy" 
+        referrerPolicy="strict-origin-when-cross-origin"
+        title="Bản đồ vị trí cửa hàng StationeryStore Flagship"
+      />
+    </div>
+
+    <a 
+      className={styles.mapChip} 
+      href={mapsUrl} 
+      target="_blank" 
+      rel="noreferrer"
+      aria-label="Chỉ đường từ Nhà hát Lớn"
+    >
+      <MapPin size={14} /> Chỉ đường từ Nhà hát Lớn <ArrowRight size={13} />
+    </a>
+    
+    <a 
+      className={styles.mapAttribution} 
+      href="https://www.openstreetmap.org/copyright" 
+      target="_blank" 
+      rel="noreferrer"
+    >
+      © OpenStreetMap contributors
+    </a>
+  </div>
+</article>
 
             <article className={styles.branchesCard}><h3><BookOpen size={19} /> Chi nhánh khác trên toàn quốc</h3><a href="https://www.google.com/maps/search/?api=1&query=45+Pho+Trang+Tien+Ha+Noi" target="_blank" rel="noreferrer" className={styles.branch}><div><strong>Hà Nội Atelier · Hoàn Kiếm</strong><p>45 Phố Tràng Tiền, Quận Hoàn Kiếm, Hà Nội</p><span><Phone size={11} /> Hotline chi nhánh: 024 3939 1234</span></div><span className={styles.hours}>08:30 – 21:00</span></a><a href="https://www.google.com/maps/search/?api=1&query=88+Bach+Dang+Hai+Chau+Da+Nang" target="_blank" rel="noreferrer" className={styles.branch}><div><strong>Đà Nẵng Concept Store · Hải Châu</strong><p>88 Bạch Đằng, Phường Hải Châu I, Quận Hải Châu, Đà Nẵng</p><span><Phone size={11} /> Hotline chi nhánh: 0236 3888 686</span></div><span className={styles.hours}>08:30 – 21:00</span></a></article>
           </div>
