@@ -78,23 +78,23 @@ test("loads all product pages and uses active product-type IDs and image URLs fr
   const result = await getCatalog();
   assert.deepEqual(
     result.categories.map((type) => type.id),
-    ["all", "77"],
+    ["all", "77", "42"],
   );
   assert.equal(result.categories[1].label, types[0].name);
   assert.deepEqual(
     result.products.map((item) => item.id),
-    ["1", "4"],
+    ["1", "3", "4"],
   );
-  assert.ok(result.products.every((item) => item.category === "77"));
+  assert.deepEqual(result.products.map((item) => item.category), ["77", "42", "77"]);
   assert.equal(
     result.products[0].image,
     "https://images.example.test/product-1.jpg",
   );
   assert.equal(result.products[0].detailHref, "/products/product-1");
-  assert.equal(result.products[1].image, "");
-  assert.equal(result.products[1].price, 8000);
-  assert.equal(result.products[1].rating, 0);
-  assert.equal(result.products[1].reviewCount, 0);
+  assert.equal(result.products[2].image, "");
+  assert.equal(result.products[2].price, 8000);
+  assert.equal(result.products[2].rating, 0);
+  assert.equal(result.products[2].reviewCount, 0);
   assert.equal(calls.length, 3);
 });
 

@@ -6,6 +6,7 @@ import ProductDetail from "./pages/productDetail/ProductDetail";
 import Login from "./pages/login/Login";
 import ForgotPassword from "./pages/forgotPassword/ForgotPassword";
 import AboutUs from "./pages/aboutUs/AboutUs";
+import SearchPage from "./pages/searchPage/SearchPage";
 import AiChatWidget from "./components/aiChat/AiChatWidget";
 
 // Layout chung cho các trang có Header & Footer
@@ -30,6 +31,11 @@ function ResetPasswordRedirect() {
   return <Navigate to={{ pathname: "/forgot-password", search, hash }} replace />;
 }
 
+function ProductSearchRedirect() {
+  const { search, hash } = useLocation();
+  return <Navigate to={{ pathname: "/search", search, hash }} replace />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -38,6 +44,8 @@ function App() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/about-us" element={<AboutUs />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/products" element={<ProductSearchRedirect />} />
           <Route path="/products/:handle" element={<ProductDetailWrapper />} />
         </Route>
 

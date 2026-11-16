@@ -110,7 +110,7 @@ export default function Header({
     const query = search.trim();
     if (!query) return;
     if (onSearch) onSearch(query);
-    else window.location.href = `/products?search=${encodeURIComponent(query)}`;
+    else window.location.href = `/search?search=${encodeURIComponent(query)}`;
   }
 
   function logout() {

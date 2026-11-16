@@ -19,7 +19,7 @@ export type CatalogProduct = {
 export type CatalogCategory = { id: string; label: string };
 export const allCategory: CatalogCategory = {
   id: "all",
-  label: "Tất cả Bút & Mực",
+  label: "Tất cả sản phẩm",
 };
 
 export function toCatalogProduct(product: Product): CatalogProduct {
@@ -47,8 +47,3 @@ export const normalize = (value: string) =>
     .replace(/đ/g, "d")
     .replace(/Đ/g, "D")
     .toLowerCase();
-
-// The API has flat product types. This page displays active writing/ink types;
-// exact names and IDs come from the server rather than a hardcoded category list.
-export const isPenAndInkType = (name: string) =>
-  /^(but|muc|ngoi but|ruot but)(\s|$)/.test(normalize(name).trim());
