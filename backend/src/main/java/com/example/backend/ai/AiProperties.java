@@ -8,13 +8,16 @@ import java.time.Duration;
 @Data @Component @ConfigurationProperties(prefix = "app.ai")
 public class AiProperties {
     private boolean enabled = false;
-    private String ollamaUrl = "http://localhost:11434";
-    private String embeddingModel = "qwen3-embedding:0.6b";
-    private String chatModel = "qwen3:1.7b";
+    @lombok.ToString.Exclude
+    private String geminiApiKey = "";
+    private String embeddingModel = "gemini-embedding-001";
+    private String chatModel = "gemini-2.5-flash-lite";
+    private int embeddingDimensions = 3072;
     private String vectorUrl = "jdbc:postgresql://localhost:5433/stationery_ai";
     private String vectorUsername = "stationery_ai";
+    @lombok.ToString.Exclude
     private String vectorPassword = "";
-    private String vectorTable = "stationery_vectors";
+    private String vectorTable = "stationery_vectors_gemini";
     private Duration timeout = Duration.ofSeconds(30);
     private Duration vectorTimeout = Duration.ofSeconds(5);
     private double viewWeight = 1;

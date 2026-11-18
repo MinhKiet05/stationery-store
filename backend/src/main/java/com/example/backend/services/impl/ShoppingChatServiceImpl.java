@@ -94,7 +94,7 @@ public class ShoppingChatServiceImpl implements ShoppingChatService {
     private static ChatResponse unavailable(String reason) {
         String reply = switch (reason) {
             case "VECTOR" -> "Dịch vụ tìm kiếm AI đang mất kết nối. Mình chưa thể tìm đầy đủ sản phẩm; bạn thử lại sau nhé.";
-            case "EMBEDDING", "CHAT" -> "Ollama hiện chưa phản hồi. Bạn vui lòng thử lại sau nhé.";
+            case "EMBEDDING", "CHAT" -> "Gemini hiện chưa phản hồi. Bạn vui lòng thử lại sau nhé.";
             case "TIMEOUT" -> "Tìm kiếm AI mất nhiều thời gian hơn dự kiến. Bạn thử lại sau nhé.";
             default -> "Trợ lý AI đang tạm bận. Bạn vui lòng thử lại sau nhé.";
         };

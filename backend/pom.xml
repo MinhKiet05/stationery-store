@@ -42,10 +42,14 @@
         </dependencies>
     </dependencyManagement>
     <dependencies>
-        <!-- Explicit clients: PostgreSQL must never replace the SQL Server JPA datasource. -->
+        <!-- Explicit, lazy clients keep AI optional and SQL Server as the JPA datasource. -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-ollama</artifactId>
+            <artifactId>spring-ai-google-genai</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-google-genai-embedding</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>

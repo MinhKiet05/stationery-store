@@ -40,6 +40,6 @@ public class AiController {
     @PostMapping("/api/admin/ai/index")
     public ProductIndexJob.IndexResult index() {
         try { return index.reindex(); }
-        catch (RuntimeException ex) { throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Không thể index. Kiểm tra Ollama và pgvector."); }
+        catch (RuntimeException ex) { throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Không thể index. Kiểm tra Gemini và pgvector."); }
     }
 }
