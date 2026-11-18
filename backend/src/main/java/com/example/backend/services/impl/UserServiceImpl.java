@@ -68,7 +68,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @PreAuthorize("hasRole('ADMIN')")
     public List<UserResponse> getUsers() {
-        return users.findAll().stream().map(UserResponse::from).toList();
+        return users.findAllResponses();
     }
 
     @Override

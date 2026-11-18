@@ -14,6 +14,7 @@ import AccountInfoTab from "./pages/myProfile/tabs/AccountInfoTab";
 import OrderHistoryTab from "./pages/myProfile/tabs/OrderHistoryTab";
 import SecurityTab from "./pages/myProfile/tabs/SecurityTab";
 import WishlistTab from "./pages/myProfile/tabs/WishlistTab";
+import AppNotifications from "./components/notifications/AppNotifications";
 // Layout chung cho các trang có Header & Footer
 function MainLayout() {
   return (
@@ -70,6 +71,7 @@ function App() {
       </Routes>
 
       <AiChatWidget />
+      <AppNotifications />
     </BrowserRouter>
   );
 }

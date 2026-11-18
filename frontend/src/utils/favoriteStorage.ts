@@ -1,3 +1,5 @@
+import { notify } from "./notifications";
+
 const EVENT_NAME = "favorites-changed";
 
 export function isFavoriteProduct(productID: number): boolean {
@@ -18,8 +20,9 @@ export function toggleFavoriteProduct(productID: number): boolean {
     }
     // Bắn sự kiện để các component khác (ProductCard, ProductDetail, WishlistTab) tự cập nhật
     window.dispatchEvent(new Event(EVENT_NAME));
+    notify.success(next ? "Đã thêm sản phẩm vào danh sách yêu thích." : "Đã bỏ sản phẩm khỏi danh sách yêu thích.");
   } catch {
-    // Bỏ qua nếu trình duyệt chặn storage
+    notify.error(null, "Không thể lưu danh sách yêu thích. Vui lòng kiểm tra quyền lưu trữ của trình duyệt.");
   }
   return next;
 }

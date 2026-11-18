@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import ProductCard from "../productCard/ProductCard";
 import { getRecommendations, type RecommendationResponse } from "../../services/aiService";
+import { userMessage } from "../../utils/notifications";
 import styles from "./Recommendations.module.css";
 
 export default function Recommendations() {
@@ -23,7 +24,7 @@ export default function Recommendations() {
         if (!request.signal.aborted) setResult(data);
       } catch (err) {
         if (!request.signal.aborted)
-          setError(err instanceof Error ? err.message : "Không tải được sản phẩm.");
+          setError(userMessage(err, "Không tải được sản phẩm. Vui lòng thử lại."));
       } finally {
         if (!request.signal.aborted) setLoading(false);
       }

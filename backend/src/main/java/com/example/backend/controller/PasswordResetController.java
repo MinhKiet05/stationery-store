@@ -16,12 +16,12 @@ public class PasswordResetController {
     public PasswordResetMessageResponse forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
         service.requestReset(request.email());
         return new PasswordResetMessageResponse(
-                "Neu email ton tai, chung toi se gui lien ket dat lai mat khau.");
+                "Nếu email tồn tại, chúng tôi sẽ gửi liên kết đặt lại mật khẩu.");
     }
 
     @PostMapping("/reset-password")
     public PasswordResetMessageResponse resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         service.resetPassword(request.token(), request.newPassword());
-        return new PasswordResetMessageResponse("Dat lai mat khau thanh cong. Vui long dang nhap lai.");
+        return new PasswordResetMessageResponse("Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại.");
     }
 }

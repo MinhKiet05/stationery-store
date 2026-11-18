@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Tag, Sparkles, Truck, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { login, register } from "../../services/authService";
+import { notify } from "../../utils/notifications";
 import styles from "./Login.module.css";
 
 export default function Login() {
@@ -25,14 +26,12 @@ export default function Login() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [busy, setBusy] = useState(false);
 
   function changeTab(tab: "login" | "register") {
     if (busy) return;
     setActiveTab(tab);
     setError("");
-    setSuccess("");
   }
 
   async function handleLogin(event: FormEvent) {
@@ -40,20 +39,20 @@ export default function Login() {
     if (busy) return;
     setBusy(true);
     setError("");
-    setSuccess("");
     try {
       const result = await login(username, password);
       if (result.cartSynced) {
+        notify.success("Đăng nhập thành công.");
         const from = location.state?.from;
         const target = typeof from?.pathname === "string" && from.pathname.startsWith("/") && !from.pathname.startsWith("//")
           ? from.pathname + (from.search || "")
           : "/";
         navigate(target, { replace: true });
       } else {
-        setError("Đăng nhập thành công. Chưa đồng bộ được giỏ khách.");
+        notify.warning("Đăng nhập thành công. Chưa đồng bộ được giỏ khách.");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đăng nhập thất bại.");
+      notify.error(err, "Đăng nhập thất bại. Vui lòng thử lại.");
     } finally {
       setBusy(false);
     }
@@ -69,7 +68,6 @@ export default function Login() {
     if (busy) return;
     setBusy(true);
     setError("");
-    setSuccess("");
     try {
       const user = await register({
         username: regUsername,
@@ -79,14 +77,14 @@ export default function Login() {
         phoneNumber: regPhoneNumber,
       });
 
-      setSuccess("Đăng ký thành công! Vui lòng đăng nhập.");
+      notify.success("Đăng ký thành công! Vui lòng đăng nhập.");
       setActiveTab("login");
       setUsername(user.username);
       setPassword("");
       setRegPassword("");
       setRegConfirmPassword("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đăng ký thất bại.");
+      notify.error(err, "Đăng ký thất bại. Vui lòng thử lại.");
     } finally {
       setBusy(false);
     }
@@ -173,11 +171,6 @@ export default function Login() {
           {error && (
             <p className={styles.errorAlert} role="alert">
               {error}
-            </p>
-          )}
-          {success && (
-            <p className={styles.successAlert} role="status">
-              {success}
             </p>
           )}
 

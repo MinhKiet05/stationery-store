@@ -1,5 +1,6 @@
 import { getCurrentUser, type UserInfoResponse } from "../../services/authService";
 import { API_BASE } from "../../services/api";
+import { notify } from "../../utils/notifications";
 import React, { useCallback, useEffect, useState } from "react";
 import styles from "./Header.module.css";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";
@@ -120,6 +121,7 @@ export default function Header({
     setAccountMenuOpen(false);
     onLogout?.();
     window.dispatchEvent(new Event("auth-changed"));
+    notify.success("Đăng xuất thành công.");
   }
 
   return (

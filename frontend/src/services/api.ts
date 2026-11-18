@@ -1,3 +1,5 @@
+import { notify, userMessage } from "../utils/notifications";
+
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(
   /\/+$/,
   "",
@@ -30,8 +32,9 @@ export async function api<T>(
     ) {
       localStorage.removeItem("accessToken");
       window.dispatchEvent(new Event("auth-changed"));
+      notify.sessionExpired();
     }
-    throw new Error(
+    const fallback =
       response.status === 429
         ? "Bạn gửi hơi nhanh. Hãy thử lại sau một phút."
         : response.status === 401
@@ -48,8 +51,11 @@ export async function api<T>(
                   ? "Thông tin hồ sơ không hợp lệ. Vui lòng kiểm tra lại."
                   : path.startsWith("/api/orders/") && response.status === 409
                     ? "Trạng thái đơn hàng đã thay đổi hoặc đơn đã thanh toán nên không thể hủy. Vui lòng tải lại."
-                    : "Không thể kết nối cửa hàng. Vui lòng thử lại.",
-    );
+                    : "Không thể kết nối cửa hàng. Vui lòng thử lại.";
+    const body = await response.json().catch(() => null);
+    throw Object.assign(new Error(userMessage(body, fallback)), {
+      notificationHandled: response.status === 401 && !isPublicAuth && Boolean(token),
+    });
   }
   return response.json() as Promise<T>;
 }

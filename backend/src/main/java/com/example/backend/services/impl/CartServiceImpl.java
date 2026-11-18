@@ -164,7 +164,7 @@ public class CartServiceImpl implements CartService {
     }
 
     private CartResponse toResponse(Cart cart) {
-        List<CartItemResponse> responses = cartItems.findByCart_CartID(cart.getCartID())
+        List<CartItemResponse> responses = cartItems.findForResponseByCartID(cart.getCartID())
                 .stream()
                 .sorted(Comparator.comparing(CartItem::getCartItemID))
                 .map(this::toItemResponse)

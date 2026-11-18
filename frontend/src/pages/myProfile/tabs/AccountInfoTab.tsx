@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { UserRound } from 'lucide-react';
 import { updateMyProfile, type UpdateProfileRequest } from '../../../services/userService';
 import { useProfile } from '../profileContext';
+import { notify } from '../../../utils/notifications';
 import styles from './AccountInfoTab.module.css';
 
 export default function AccountInfoTab() {
@@ -13,15 +14,11 @@ export default function AccountInfoTab() {
     address: profile.address ?? '',
   }));
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [message, setMessage] = useState('');
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
     setBusy(true);
-    setError('');
-    setMessage('');
     try {
       const updated = await updateMyProfile({
         email: form.email.trim(),
@@ -31,9 +28,9 @@ export default function AccountInfoTab() {
       });
       updateProfile(updated);
       setForm({ email: updated.email, fullName: updated.fullName ?? '', phoneNumber: updated.phoneNumber ?? '', address: updated.address ?? '' });
-      setMessage('Đã lưu thông tin tài khoản.');
+      notify.success('Đã lưu thông tin tài khoản.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Không thể lưu thông tin. Vui lòng thử lại.');
+      notify.error(err, 'Không thể lưu thông tin. Vui lòng thử lại.');
     } finally {
       setBusy(false);
     }
@@ -41,8 +38,6 @@ export default function AccountInfoTab() {
 
   function reset() {
     setForm({ email: profile.email, fullName: profile.fullName ?? '', phoneNumber: profile.phoneNumber ?? '', address: profile.address ?? '' });
-    setError('');
-    setMessage('');
   }
 
   return (
@@ -55,8 +50,6 @@ export default function AccountInfoTab() {
         <UserRound size={56} aria-hidden="true" />
         <div><strong>{profile.fullName || profile.username}</strong><p>Tên đăng nhập: {profile.username}</p></div>
       </div>
-      {error && <p role="alert">{error}</p>}
-      {message && <p role="status">{message}</p>}
       <form onSubmit={save} aria-busy={busy}>
         <fieldset className={styles.formFields} disabled={busy}>
           <div className={styles.formGrid}>

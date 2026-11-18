@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import styles from "./ForgotPassword.module.css";
 import { API_BASE } from "../../services/api";
+import { notify, queuePasswordResetNotice, userMessage } from "../../utils/notifications";
 
 export default function ForgotPassword() {
   const [step, setStep] = useState<1 | 2>(1);
@@ -60,15 +61,13 @@ export default function ForgotPassword() {
 
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.message || "Không thể gửi yêu cầu khôi phục mật khẩu.");
+        throw new Error(userMessage(data, "Không thể gửi yêu cầu khôi phục mật khẩu."));
       }
 
-      setSuccessMsg(
-        data?.message || "Nếu email tồn tại, chúng tôi sẽ gửi liên kết/mã đặt lại mật khẩu."
-      );
+      notify.info(userMessage(data, "Nếu email tồn tại, chúng tôi sẽ gửi liên kết đặt lại mật khẩu."));
       setStep(2);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi, vui lòng thử lại.");
+      notify.error(err, "Không thể gửi yêu cầu khôi phục mật khẩu. Vui lòng thử lại.");
     } finally {
       setBusy(false);
     }
@@ -98,15 +97,16 @@ export default function ForgotPassword() {
 
       const data = await response.json().catch(() => null);
       if (!response.ok) {
-        throw new Error(data?.message || "Mã xác nhận không hợp lệ hoặc đã hết hạn.");
+        throw new Error(userMessage(data, "Mã xác nhận không hợp lệ hoặc đã hết hạn."));
       }
 
-      setSuccessMsg(data?.message || "Đặt lại mật khẩu thành công. Đang chuyển về trang đăng nhập...");
+      setSuccessMsg("Đặt lại mật khẩu thành công. Đang chuyển về trang đăng nhập...");
+      queuePasswordResetNotice();
       setTimeout(() => {
         window.location.href = "/login";
       }, 2000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đặt lại mật khẩu thất bại.");
+      notify.error(err, "Đặt lại mật khẩu thất bại. Vui lòng thử lại.");
     } finally {
       setBusy(false);
     }

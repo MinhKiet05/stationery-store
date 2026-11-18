@@ -11,7 +11,7 @@ public class AiProperties {
     @lombok.ToString.Exclude
     private String geminiApiKey = "";
     private String embeddingModel = "gemini-embedding-001";
-    private String chatModel = "gemini-2.5-flash-lite";
+    private String chatModel = "gemini-3.1-flash-lite";
     private int embeddingDimensions = 3072;
     private String vectorUrl = "";
     private String vectorUsername = "";
