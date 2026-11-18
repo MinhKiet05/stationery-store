@@ -36,7 +36,7 @@ public class ReturnRequest {
     private String reason;
 
     // Danh sách URL hình ảnh/video minh chứng
-    @Column(name = "evidence_images", columnDefinition = "NVARCHAR(MAX)")
+    @Column(name = "evidence_images", columnDefinition = "text")
     private String evidenceImages;
 
     // Trạng thái yêu cầu

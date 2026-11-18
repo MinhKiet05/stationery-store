@@ -69,7 +69,9 @@ public class GeminiCatalogAi implements CatalogAi {
             config.setInitializationFailTimeout(-1);
             config.addDataSourceProperty("connectTimeout", Math.max(1, properties.getVectorTimeout().toSeconds()));
             config.addDataSourceProperty("socketTimeout", Math.max(1, properties.getVectorTimeout().toSeconds()));
-            config.addDataSourceProperty("options", "-c statement_timeout=" + properties.getVectorTimeout().toMillis());
+            // Session SQL also works with Supabase's session pooler and extensions schema.
+            config.setConnectionInitSql("SET search_path TO public, extensions; SET statement_timeout = "
+                    + properties.getVectorTimeout().toMillis());
             pool = new HikariDataSource(config);
             jdbc = new JdbcTemplate(pool);
             jdbc.setQueryTimeout((int) Math.max(1, properties.getVectorTimeout().toSeconds()));

@@ -24,7 +24,7 @@ public class Review {
     @Column(nullable = false)
     private Integer rating;
 
-    @Column(columnDefinition = "NVARCHAR(MAX)")
+    @Column(columnDefinition = "text")
     private String comment;
 
     @Column(name = "review_date")

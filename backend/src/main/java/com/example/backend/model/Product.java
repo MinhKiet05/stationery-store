@@ -26,16 +26,16 @@ public class Product {
     @Column(nullable = false, length = 200)
     private String title;
 
-    @Column(length = 100, unique = true)
+    @Column(length = 255, unique = true)
     private String handle;
 
-    @Column(length = 100)
+    @Column(columnDefinition = "text")
     private String url;
 
     @Builder.Default
     private Boolean available = true;
 
-    @Column(columnDefinition = "NVARCHAR(MAX)")
+    @Column(columnDefinition = "text")
     private String description;
 
     @Column(precision = 12, scale = 2)

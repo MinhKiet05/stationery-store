@@ -14,6 +14,7 @@ import {
   Shield,
 } from "lucide-react";
 import styles from "./ForgotPassword.module.css";
+import { API_BASE } from "../../services/api";
 
 export default function ForgotPassword() {
   const [step, setStep] = useState<1 | 2>(1);
@@ -51,7 +52,7 @@ export default function ForgotPassword() {
     setSuccessMsg("");
 
     try {
-      const response = await fetch("/api/auth/forgot-password", {
+      const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim() }),
@@ -86,7 +87,7 @@ export default function ForgotPassword() {
 
     setBusy(true);
     try {
-      const response = await fetch("/api/auth/reset-password", {
+      const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

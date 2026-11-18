@@ -9,7 +9,7 @@ import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest(properties = {
         "app.ai.enabled=false", "app.ai.gemini-api-key=", "app.ai.vector-url=jdbc:postgresql://invalid.invalid/unused",
-        "spring.datasource.url=jdbc:h2:mem:gemini-disabled;MODE=MSSQLServer;DB_CLOSE_DELAY=-1",
+        "spring.datasource.url=jdbc:h2:mem:gemini-disabled;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
         "spring.datasource.username=sa", "spring.datasource.password=", "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
         "spring.jpa.hibernate.ddl-auto=create-drop", "spring.jpa.show-sql=false",
@@ -17,7 +17,7 @@ import static org.assertj.core.api.Assertions.*;
         "app.mail.from=test@example.test", "app.jwt.secret-base64=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "logging.level.root=WARN", "logging.level.org.hibernate.SQL=OFF"
 })
-@ActiveProfiles("ai")
+@ActiveProfiles({"test", "ai"})
 class GeminiDisabledTest {
     @Autowired ApplicationContext context;
     @Autowired CatalogAi ai;

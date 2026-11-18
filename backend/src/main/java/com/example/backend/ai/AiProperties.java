@@ -13,8 +13,8 @@ public class AiProperties {
     private String embeddingModel = "gemini-embedding-001";
     private String chatModel = "gemini-2.5-flash-lite";
     private int embeddingDimensions = 3072;
-    private String vectorUrl = "jdbc:postgresql://localhost:5433/stationery_ai";
-    private String vectorUsername = "stationery_ai";
+    private String vectorUrl = "";
+    private String vectorUsername = "";
     @lombok.ToString.Exclude
     private String vectorPassword = "";
     private String vectorTable = "stationery_vectors_gemini";

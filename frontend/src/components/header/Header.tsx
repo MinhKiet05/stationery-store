@@ -1,4 +1,5 @@
 import { getCurrentUser, type UserInfoResponse } from "../../services/authService";
+import { API_BASE } from "../../services/api";
 import React, { useCallback, useEffect, useState } from "react";
 import styles from "./Header.module.css";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";
@@ -54,7 +55,7 @@ function initials(name: string) {
 }
 
 export default function Header({
-  apiBaseUrl = "http://localhost:8080",
+  apiBaseUrl = API_BASE,
   loginHref = "/login",
   cartHref = "/cart",
   profileHref = "/my-profile",

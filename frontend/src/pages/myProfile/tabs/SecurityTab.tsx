@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Lock, Eye, EyeOff, ShieldCheck, CheckCircle2, KeyRound } from "lucide-react";
 import styles from "./SecurityTab.module.css";
+import { API_BASE } from "../../../services/api";
 
 export default function SecurityTab() {
   const [oldPassword, setOldPassword] = useState("");
@@ -44,7 +45,7 @@ export default function SecurityTab() {
     setBusy(true);
     try {
       const token = localStorage.getItem("accessToken");
-      const response = await fetch("/api/users/me/password", {
+      const response = await fetch(`${API_BASE}/api/users/me/password`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

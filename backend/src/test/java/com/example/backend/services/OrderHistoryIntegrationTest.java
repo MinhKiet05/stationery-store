@@ -10,6 +10,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -19,7 +20,7 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.*;
 
 @DataJpaTest(showSql = false, properties = {
-        "spring.datasource.url=jdbc:h2:mem:order-history;MODE=MSSQLServer;DB_CLOSE_DELAY=-1",
+        "spring.datasource.url=jdbc:h2:mem:order-history;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
         "spring.datasource.username=sa", "spring.datasource.password=",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
@@ -29,6 +30,7 @@ import static org.assertj.core.api.Assertions.*;
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(OrderServiceImpl.class)
+@ActiveProfiles("test")
 class OrderHistoryIntegrationTest {
     @Autowired EntityManager em;
     @Autowired OrderService orders;

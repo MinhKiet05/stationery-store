@@ -1,5 +1,9 @@
 # Gemini migration and deployment
 
+> Historical guide for the earlier Gemini-only migration. The main database has since been
+> migrated in code to PostgreSQL. Use [production-readiness.md](production-readiness.md)
+> and [data-migration.md](data-migration.md) for current environment, schema and deployment steps.
+
 ## Files changed by this migration
 
 - `.env.example` (new environment template)

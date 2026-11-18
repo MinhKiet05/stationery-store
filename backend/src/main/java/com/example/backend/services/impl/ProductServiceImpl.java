@@ -238,7 +238,7 @@ public class ProductServiceImpl implements ProductService {
             throw new IllegalArgumentException("Tên sản phẩm quá dài");
         }
 
-        if (request.handle() != null && request.handle().length() > 100) {
+        if (request.handle() != null && request.handle().codePointCount(0, request.handle().length()) > 255) {
             throw new IllegalArgumentException("Handle quá dài");
         }
 
