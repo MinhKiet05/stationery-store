@@ -4,8 +4,6 @@ import com.example.backend.dto.user.*;
 import com.example.backend.model.User;
 import com.example.backend.repositories.UserRepository;
 import com.example.backend.services.UserService;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -25,7 +23,6 @@ import java.util.Locale;
 public class UserServiceImpl implements UserService {
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
-    private final EntityManager entityManager;
 
     @Override
     public UserResponse getMe(String username) {
@@ -81,8 +78,8 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public UserResponse updateStatus(Long id, UpdateUserStatusRequest request) {
-        User user = requireUser(id);
-        lock(user);
+        User user = users.findForUpdateById(id).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay tai khoan"));
         user.setIsActive(request.isActive());
         // Existing JWT authentication reloads isActive from DB on every subsequent request.
         return UserResponse.from(user);
@@ -101,8 +98,15 @@ public class UserServiceImpl implements UserService {
     }
 
     private User lockedCurrentUser(String username) {
-        User user = currentUser(username);
-        lock(user);
+        if (username == null || username.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Chua dang nhap");
+        }
+        // Load and lock in one query, before checking status/password or changing
+        // fields. A waiting writer must read the row committed by its predecessor.
+        // refresh(user, PESSIMISTIC_WRITE) breaks on Hibernate's inverse User.cart
+        // refresh fetch plan; a root query does not use that refresh loader.
+        User user = users.findForUpdateByUsername(username).orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tai khoan khong ton tai"));
         if (!Boolean.TRUE.equals(user.getIsActive())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Tai khoan da bi khoa");
         }
@@ -112,11 +116,6 @@ public class UserServiceImpl implements UserService {
     private User requireUser(Long id) {
         return users.findById(id).orElseThrow(() ->
                 new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay tai khoan"));
-    }
-
-    private void lock(User user) {
-        // Refresh under the lock so a waiting writer never overwrites a newer password/status.
-        entityManager.refresh(user, LockModeType.PESSIMISTIC_WRITE);
     }
 
     private String trim(String value) {
