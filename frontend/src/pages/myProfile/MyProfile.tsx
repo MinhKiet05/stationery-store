@@ -3,6 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { getMyProfile, type UserProfile } from '../../services/userService';
 import { getMyOrders, type Order } from '../../services/orderService';
 import type { ProfileContext } from './profileContext';
+import { userMessage } from '../../utils/notifications';
 import ProfileBanner from './components/ProfileBanner';
 import ProfileSidebar from './components/ProfileSidebar';
 import styles from './MyProfile.module.css';
@@ -39,7 +40,7 @@ function ProfileContent() {
     getMyProfile(controller.signal).then((data) => {
       if (!controller.signal.aborted) setProfile(data);
     }).catch((error: unknown) => {
-      if (!controller.signal.aborted) setProfileError(error instanceof Error ? error.message : 'Không tải được hồ sơ.');
+      if (!controller.signal.aborted) setProfileError(userMessage(error, 'Không tải được hồ sơ. Vui lòng thử lại.'));
     });
     return () => controller.abort();
   }, [profileAttempt]);
@@ -49,7 +50,7 @@ function ProfileContent() {
     getMyOrders(controller.signal).then((data) => {
       if (!controller.signal.aborted) setOrders(data);
     }).catch((error: unknown) => {
-      if (!controller.signal.aborted) setOrdersError(error instanceof Error ? error.message : 'Không tải được đơn hàng.');
+      if (!controller.signal.aborted) setOrdersError(userMessage(error, 'Không tải được đơn hàng. Vui lòng thử lại.'));
     }).finally(() => {
       if (!controller.signal.aborted) setOrdersLoading(false);
     });

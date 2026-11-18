@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { Lock, Eye, EyeOff, ShieldCheck, CheckCircle2, KeyRound } from "lucide-react";
+import { Lock, Eye, EyeOff, ShieldCheck, KeyRound } from "lucide-react";
 import styles from "./SecurityTab.module.css";
 import { API_BASE } from "../../../services/api";
+import { notify, userMessage } from "../../../utils/notifications";
 
 export default function SecurityTab() {
   const [oldPassword, setOldPassword] = useState("");
@@ -14,14 +15,12 @@ export default function SecurityTab() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
 
     setError("");
-    setSuccess("");
 
     // 1. Kiểm tra mật khẩu mới không trùng mật khẩu cũ
     if (newPassword === oldPassword) {
@@ -63,16 +62,16 @@ export default function SecurityTab() {
         if (data?.message === "Mat khau cu khong dung") {
           throw new Error("Mật khẩu hiện tại không chính xác.");
         }
-        throw new Error(data?.message || "Đổi mật khẩu thất bại. Vui lòng thử lại.");
+        throw new Error(userMessage(data, "Đổi mật khẩu thất bại. Vui lòng thử lại."));
       }
 
       // Endpoint trả về 204 No Content khi thành công
-      setSuccess("Đổi mật khẩu thành công! Mật khẩu mới của bạn đã được áp dụng.");
+      notify.success("Đổi mật khẩu thành công! Mật khẩu mới của bạn đã được áp dụng.");
       setOldPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Đã xảy ra lỗi khi đổi mật khẩu.");
+      notify.error(err, "Đổi mật khẩu thất bại. Vui lòng thử lại.");
     } finally {
       setBusy(false);
     }
@@ -91,12 +90,6 @@ export default function SecurityTab() {
         </div>
       )}
 
-      {success && (
-        <div className={styles.successAlert} role="status">
-          <CheckCircle2 size={18} />
-          <span>{success}</span>
-        </div>
-      )}
 
       <form className={styles.form} onSubmit={handleSubmit}>
         {/* Mật khẩu hiện tại */}
@@ -198,7 +191,6 @@ export default function SecurityTab() {
               setNewPassword("");
               setConfirmPassword("");
               setError("");
-              setSuccess("");
             }}
           >
             Làm mới

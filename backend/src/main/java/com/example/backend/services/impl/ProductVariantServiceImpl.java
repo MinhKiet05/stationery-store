@@ -28,15 +28,14 @@ public class ProductVariantServiceImpl implements ProductVariantService {
     @Override
     @Transactional(readOnly = true)
     public List<ProductVariantResponse> getAllVariants() {
-        return variantRepository.findAll().stream().map(this::toResponse).toList();
+        return variantRepository.findAllResponses();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProductVariantResponse> getVariantsByProduct(Long productID) {
         requireActiveProduct(productID);
-        return variantRepository.findByProduct_ProductID(productID)
-                .stream().map(this::toResponse).toList();
+        return variantRepository.findResponsesByProductID(productID);
     }
 
     @Override

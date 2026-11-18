@@ -6,6 +6,7 @@ import {
   Sparkles, Star, Store, UserRound,
 } from "lucide-react";
 import styles from "./AboutUs.module.css";
+import { notify } from "../../utils/notifications";
 
 const values = [
   { icon: ShieldCheck, title: "Tinh Tuyển Chất Lượng", description: "100% sản phẩm có chứng nhận xuất xứ rõ ràng từ các xưởng sản xuất danh tiếng tại Nhật Bản, Đức và Thụy Sĩ. Đảm bảo độ bền ngòi bút và độ chuẩn màu mực vượt trội.", promise: "Cam kết hoàn tiền 200% nếu hàng giả", promiseIcon: PackageCheck },
@@ -64,6 +65,7 @@ export default function AboutUs() {
     const body = `Họ và tên: ${String(form.get("name")).trim()}\nEmail: ${String(form.get("email")).trim()}\nSố điện thoại: ${String(form.get("phone") || "Không cung cấp").trim()}\nĐăng ký nhận cẩm nang & ưu đãi: ${form.has("newsletter") ? "Có" : "Không"}\n\n${String(form.get("message")).trim()}`;
     window.location.href = `mailto:cskh@stationerystore.vn?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     setEmailPrepared(true);
+    notify.info("Đã chuẩn bị email. Vui lòng gửi trong ứng dụng email của bạn.");
   }
 
   return (

@@ -36,6 +36,7 @@ import { addCartItem, type Cart } from "../../services/cartService";
 import { createOrder } from "../../services/orderService";
 import { trackProductView } from "../../services/aiService";
 import { addToGuestCart, getGuestCart } from "../../utils/guestCart";
+import { notify, userMessage } from "../../utils/notifications";
 import {
   isFavoriteProduct,
   toggleFavoriteProduct,
@@ -84,7 +85,6 @@ function ProductDetailContent({ handle }: { handle: string }) {
   const [quantity, setQuantity] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [adding, setAdding] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<Tab>("specs");
@@ -131,7 +131,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
       } catch (err) {
         if (!controller.signal.aborted)
           setError(
-            err instanceof Error ? err.message : "Không tải được sản phẩm.",
+            userMessage(err, "Không tải được sản phẩm. Vui lòng thử lại."),
           );
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -202,7 +202,6 @@ function ProductDetailContent({ handle }: { handle: string }) {
       return;
     busy.current = true;
     setAdding(true);
-    setNotice("");
     setCheckoutError("");
     setOrderID(null);
     setCart(null);
@@ -224,12 +223,14 @@ function ProductDetailContent({ handle }: { handle: string }) {
         addToGuestCart(selected, quantity);
         if (buyNow) setModal("checkout");
       }
-      setNotice(`Đã thêm ${quantity} sản phẩm vào giỏ hàng.`);
+      notify.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng.`);
       window.dispatchEvent(new Event("cart-changed"));
     } catch (err) {
-      setNotice(
-        err instanceof Error ? err.message : "Không thêm được sản phẩm.",
-      );
+      if (err instanceof Error && err.message === "Số lượng trong giỏ vượt quá tồn kho. Vui lòng giảm số lượng.") {
+        notify.warning(err.message);
+      } else {
+        notify.error(err, "Không thêm được sản phẩm. Vui lòng thử lại.");
+      }
     } finally {
       setAdding(false);
       busy.current = false;
@@ -250,6 +251,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
         paymentMethod: "COD",
       });
       setOrderID(order.orderID);
+      notify.success(`Đặt hàng thành công. Mã đơn hàng: #ST-${order.orderID}.`);
       window.dispatchEvent(new Event("cart-changed"));
       // Refresh failures must not turn a successful order into an apparent failure.
       if (product)
@@ -261,10 +263,9 @@ function ProductDetailContent({ handle }: { handle: string }) {
           .catch(() => {});
     } catch (err) {
       setCheckoutError(
-        err instanceof Error
-          ? err.message
-          : "Không thể đặt hàng. Vui lòng thử lại.",
+        userMessage(err, "Không thể đặt hàng. Vui lòng thử lại."),
       );
+      notify.error(err, "Không thể đặt hàng. Vui lòng thử lại.");
     } finally {
       busy.current = false;
       setOrdering(false);
@@ -279,18 +280,19 @@ function ProductDetailContent({ handle }: { handle: string }) {
 
   async function share() {
     try {
-      if (navigator.share)
+      if (navigator.share) {
         await navigator.share({
           title: product?.title,
           url: window.location.href,
         });
-      else {
+        notify.success("Đã chia sẻ liên kết sản phẩm.");
+      } else {
         await navigator.clipboard.writeText(window.location.href);
-        setNotice("Đã sao chép liên kết sản phẩm.");
+        notify.success("Đã sao chép liên kết sản phẩm.");
       }
     } catch (err) {
       if (!(err instanceof DOMException && err.name === "AbortError"))
-        setNotice(
+        notify.info(
           "Bạn có thể sao chép đường dẫn trên thanh địa chỉ để chia sẻ.",
         );
     }
@@ -489,7 +491,6 @@ function ProductDetailContent({ handle }: { handle: string }) {
                           onClick={() => {
                             setSelected(v.variantID);
                             setQuantity(1);
-                            setNotice("");
                           }}
                         >
                           {v.title}
@@ -577,9 +578,6 @@ function ProductDetailContent({ handle }: { handle: string }) {
                       Giao hàng tận nơi
                     </span>
                   </div>
-                  <p className={styles.notice} role="status" aria-live="polite">
-                    {notice}
-                  </p>
                 </div>
               </section>
               <section ref={details} className={styles.detailsPanel}>

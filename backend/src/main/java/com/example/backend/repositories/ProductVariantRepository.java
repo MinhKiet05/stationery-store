@@ -8,6 +8,17 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, Long> {
+    String RESPONSE_SELECT = """
+        select new com.example.backend.dto.productvariant.ProductVariantResponse(
+            v.variantID, v.product.productID, v.product.title, v.title, v.sku, v.available,
+            v.price, v.compareAtPrice, v.option1, v.option2, v.option3, v.stockQuantity, v.version)
+        from ProductVariant v
+        """;
+    @org.springframework.data.jpa.repository.Query(RESPONSE_SELECT)
+    List<com.example.backend.dto.productvariant.ProductVariantResponse> findAllResponses();
+    @org.springframework.data.jpa.repository.Query(RESPONSE_SELECT + " where v.product.productID = :productID")
+    List<com.example.backend.dto.productvariant.ProductVariantResponse> findResponsesByProductID(
+            @org.springframework.data.repository.query.Param("productID") Long productID);
     Optional<ProductVariant> findBySku(String sku);
     boolean existsBySku(String sku);
     List<ProductVariant> findByProduct_ProductID(Long productID);

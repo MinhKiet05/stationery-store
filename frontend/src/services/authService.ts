@@ -1,6 +1,7 @@
 import { api } from "./api";
 import { mergeGuestCart } from "./cartService";
 import { clearGuestCart } from "../utils/guestCart";
+import { notify } from "../utils/notifications";
 
 export type LoginRequest = {
   username: string;
@@ -69,7 +70,9 @@ export async function getCurrentUser(
   });
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
+      const currentSession = localStorage.getItem("accessToken") === token;
       localStorage.removeItem("accessToken");
+      if (currentSession) notify.sessionExpired();
     }
     return null;
   }

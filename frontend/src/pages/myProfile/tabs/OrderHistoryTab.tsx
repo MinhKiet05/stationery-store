@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Search, Package, Truck, CheckCircle, XCircle, CreditCard, ChevronLeft, ChevronRight, X, CalendarDays } from 'lucide-react';
 import { cancelOrder, type OrderStatus, type Order } from '../../../services/orderService';
 import { useProfile } from '../profileContext';
+import { notify } from '../../../utils/notifications';
 import { filterOrders, orderStatuses, orderStatusLabel } from '../orderHistory';
 import styles from './OrderHistoryTab.module.css';
 
@@ -24,8 +25,6 @@ export default function OrderHistoryTab() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [cancelling, setCancelling] = useState<number | null>(null);
-  const [actionError, setActionError] = useState('');
-  const [message, setMessage] = useState('');
 
   // State cho Modal
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
@@ -55,23 +54,21 @@ export default function OrderHistoryTab() {
   async function handleCancel(orderID: number) {
     if (cancelling !== null) return;
     setCancelling(orderID);
-    setActionError('');
-    setMessage('');
     try {
       const updated = await cancelOrder(orderID);
       replaceOrder(updated);
-      setMessage('Đã hủy đơn hàng #ST-' + updated.orderID + '.');
+      notify.success('Đã hủy đơn hàng #ST-' + updated.orderID + '.');
       // Nếu đang xem chi tiết đơn vừa hủy thì cập nhật lại modal
       if (viewingOrder?.orderID === orderID) setViewingOrder(updated);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Không thể hủy đơn hàng. Vui lòng tải lại để kiểm tra trạng thái mới nhất.');
+      notify.error(error, 'Không thể hủy đơn hàng. Vui lòng tải lại để kiểm tra trạng thái mới nhất.');
     } finally {
       setCancelling(null);
     }
   }
 
   function handleReturnRequest(orderID: number) {
-    alert(`Chức năng yêu cầu trả hàng cho đơn #ST-${orderID} sẽ được hỗ trợ trong thời gian tới.`);
+    notify.info(`Chức năng yêu cầu trả hàng cho đơn #ST-${orderID} sẽ được hỗ trợ trong thời gian tới.`);
   }
 
   return (
@@ -96,8 +93,6 @@ export default function OrderHistoryTab() {
         ))}
       </div>
 
-      {actionError && <p className={styles.errorAlert} role="alert">{actionError}</p>}
-      {message && <p className={styles.successAlert} role="status">{message}</p>}
 
       {ordersLoading ? <p role="status" className={styles.loadingText}>Đang tải đơn hàng…</p> : ordersError ? (
         <div role="alert" className={styles.errorAlert}>

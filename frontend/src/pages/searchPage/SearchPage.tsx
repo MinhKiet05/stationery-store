@@ -26,6 +26,7 @@ import {
   type CatalogCategory,
 } from "./catalogData";
 import { getCatalog } from "../../services/catalogService";
+import { userMessage } from "../../utils/notifications";
 import styles from "./SearchPage.module.css";
 
 const priceRanges = [
@@ -83,9 +84,7 @@ export default function SearchPage() {
       } catch (error) {
         if (controller.signal.aborted) return;
         setLoadError(
-          error instanceof Error
-            ? error.message
-            : "Không tải được sản phẩm. Vui lòng thử lại.",
+          userMessage(error, "Không tải được sản phẩm. Vui lòng thử lại."),
         );
       } finally {
         if (!controller.signal.aborted) setLoading(false);

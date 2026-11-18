@@ -27,6 +27,10 @@ public class ProductCatalog {
     public List<CatalogProduct> keywordCandidates(ShoppingSearch search) {
         if (search.databaseTerms().isEmpty()) return List.of();
         Specification<Product> specification = (root, query, cb) -> {
+            // This internal RAG query returns a bounded List, never a Page/count query.
+            // Fetch only to-one fields; images/tags/variants remain separate lazy batches.
+            root.fetch("vendor", JoinType.LEFT);
+            root.fetch("productType", JoinType.LEFT);
             var type = root.join("productType", JoinType.LEFT);
             var vendor = root.join("vendor", JoinType.LEFT);
             var predicates = new ArrayList<Predicate>();
@@ -41,7 +45,7 @@ public class ProductCatalog {
                     cb.or(predicates.toArray(Predicate[]::new)));
         };
         // Include out-of-stock matches for truthful diagnostics, never as purchasable response cards.
-        return products.findAll(specification, PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "productID")))
+        return products.findBy(specification, q -> q.sortBy(Sort.by(Sort.Direction.DESC, "productID")).limit(100).all())
                 .stream().map(this::snapshot).toList();
     }
 

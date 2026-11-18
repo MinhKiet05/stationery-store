@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { MessageCircle, Send, Sparkles, X, LoaderCircle } from "lucide-react";
 import type { Product } from "../productCard/ProductCard";
 import { sendChat } from "../../services/aiService";
+import { notify, userMessage as getUserMessage } from "../../utils/notifications";
 import styles from "./AiChatWidget.module.css";
 type Message = { id: number; role: "user" | "assistant"; text: string; products?: Product[] };
 const welcome: Message = { id: 0, role: "assistant", text: "Chào bạn! Mình có thể giúp bạn tìm bút, sổ và dụng cụ học tập. Bạn đang cần gì, với ngân sách bao nhiêu?" };
@@ -33,9 +34,9 @@ export default function AiChatWidget() {
       const answer: Message = { id: ++sequence.current, role: "assistant", text: data.reply, products: data.products };
       setMessages(old => [...old, answer].slice(-60));
     } catch (err) {
-      const answer: Message = { id: ++sequence.current, role: "assistant", text: err instanceof Error && err.name !== "AbortError"
-        ? err.message : "Trợ lý đang bận. Bạn thử lại sau nhé." };
+      const answer: Message = { id: ++sequence.current, role: "assistant", text: getUserMessage(err, "Trợ lý đang bận. Bạn thử lại sau nhé.") };
       setMessages(old => [...old, answer].slice(-60));
+      notify.error(err, "Trợ lý đang bận. Bạn thử lại sau nhé.");
     } finally { window.clearTimeout(timeout); request.current = null; setBusy(false); }
   }
   return <div className={styles.widget}>

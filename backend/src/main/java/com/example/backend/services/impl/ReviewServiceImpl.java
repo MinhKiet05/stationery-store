@@ -37,8 +37,7 @@ public class ReviewServiceImpl implements ReviewService {
     @Transactional(readOnly = true)
     public List<ReviewResponse> getByProduct(Long productID) {
         product(productID);
-        return reviews.findByProduct_ProductID(productID).stream()
-                .map(this::toResponse).toList();
+        return reviews.findResponsesByProductID(productID);
     }
 
     @Override

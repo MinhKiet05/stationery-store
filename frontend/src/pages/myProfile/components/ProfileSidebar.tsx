@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { User, ShoppingBag, Heart, Lock, LogOut, PhoneCall, MapPin } from 'lucide-react';
 import type { UserProfile } from '../../../services/userService';
+import { notify } from '../../../utils/notifications';
 import styles from '../MyProfile.module.css';
 
 export default function ProfileSidebar({ profile }: { profile: UserProfile; orderCount: number | null }) {
@@ -10,6 +11,7 @@ export default function ProfileSidebar({ profile }: { profile: UserProfile; orde
     localStorage.removeItem('accessToken');
     window.dispatchEvent(new Event('auth-changed'));
     navigate('/login', { replace: true });
+    notify.success('Đăng xuất thành công.');
   }
 
   return (

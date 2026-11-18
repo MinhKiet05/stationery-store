@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import ProductCard, { type Product } from "../../../components/productCard/ProductCard";
 import { getProduct } from "../../../services/productService";
 import { getAllFavoriteProductIds } from "../../../utils/favoriteStorage";
+import { notify } from "../../../utils/notifications";
 import styles from "./WishlistTab.module.css";
 
 export default function WishlistTab() {
@@ -61,9 +62,14 @@ export default function WishlistTab() {
 
   function handleClearAll() {
     if (products.length === 0) return;
-    products.forEach((p) => localStorage.removeItem(`favorite-product-${p.productID}`));
-    window.dispatchEvent(new Event("favorites-changed"));
-    setProducts([]);
+    try {
+      products.forEach((p) => localStorage.removeItem(`favorite-product-${p.productID}`));
+      window.dispatchEvent(new Event("favorites-changed"));
+      setProducts([]);
+      notify.success("Đã xóa danh sách yêu thích.");
+    } catch {
+      notify.error(null, "Không thể xóa danh sách yêu thích. Vui lòng kiểm tra quyền lưu trữ của trình duyệt.");
+    }
   }
 
   return (
