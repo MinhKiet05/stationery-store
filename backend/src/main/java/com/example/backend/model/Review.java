@@ -3,6 +3,8 @@ package com.example.backend.model;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "reviews")
@@ -29,6 +31,12 @@ public class Review {
 
     @Column(name = "review_date")
     private LocalDateTime reviewDate;
+
+    @ElementCollection
+    @CollectionTable(name = "review_images", joinColumns = @JoinColumn(name = "review_id"))
+    @OrderColumn(name = "image_position")
+    @Builder.Default
+    private List<ReviewImage> images = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {

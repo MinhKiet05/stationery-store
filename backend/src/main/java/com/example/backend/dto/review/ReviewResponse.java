@@ -1,6 +1,7 @@
 package com.example.backend.dto.review;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record ReviewResponse(
         Long reviewID,
@@ -9,5 +10,6 @@ public record ReviewResponse(
         String username,
         Integer rating,
         String comment,
-        LocalDateTime reviewDate
+        LocalDateTime reviewDate,
+        List<ReviewImageResponse> images
 ) {}

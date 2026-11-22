@@ -13,6 +13,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/reviews")
@@ -20,10 +24,19 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReviewController {
     private final ReviewService service;
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ReviewResponse update(@PathVariable Long id, @Valid @RequestBody ReviewRequest request,
                                  Authentication authentication) {
         return service.update(id, authentication.getName(), request);
+    }
+
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ReviewResponse updateWithImages(@PathVariable Long id,
+            @Valid @RequestPart("review") ReviewRequest request,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            @RequestPart(value = "removeImagePositions", required = false) List<Integer> removeImagePositions,
+            Authentication authentication) {
+        return service.update(id, authentication.getName(), request, images, removeImagePositions);
     }
 
     @DeleteMapping("/{id}")
