@@ -1,0 +1,58 @@
+@baseUrl = http://localhost:10000
+@token = REPLACE_WITH_BEARER_TOKEN
+@productId = 1
+@reviewId = 1
+
+### Create with images; repeat the images part for each file, at most five.
+POST {{baseUrl}}/api/products/{{productId}}/reviews
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=ReviewBoundary
+
+--ReviewBoundary
+Content-Disposition: form-data; name="review"
+Content-Type: application/json
+
+{"rating":5,"comment":"San pham tot"}
+--ReviewBoundary
+Content-Disposition: form-data; name="images"; filename="photo.png"
+Content-Type: image/png
+
+< ./photo.png
+--ReviewBoundary--
+
+### Update: remove positions from the latest GET, keep remaining order, append new images.
+### Positions start at zero and are compacted after removal. Omit removals to retain all.
+PUT {{baseUrl}}/api/reviews/{{reviewId}}
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=ReviewBoundary
+
+--ReviewBoundary
+Content-Disposition: form-data; name="review"
+Content-Type: application/json
+
+{"rating":4,"comment":"Cap nhat danh gia"}
+--ReviewBoundary
+Content-Disposition: form-data; name="removeImagePositions"
+Content-Type: application/json
+
+[0]
+--ReviewBoundary
+Content-Disposition: form-data; name="images"; filename="replacement.png"
+Content-Type: image/png
+
+< ./replacement.png
+--ReviewBoundary--
+
+### Public response includes images: [{"imageUrl":"https://...","imagePosition":0}].
+GET {{baseUrl}}/api/products/{{productId}}/reviews
+
+### Existing JSON update keeps all current images.
+PUT {{baseUrl}}/api/reviews/{{reviewId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{"rating":5,"comment":"Cap nhat noi dung"}
+
+### Delete review: delete its Cloudinary assets only after DB commit.
+DELETE {{baseUrl}}/api/reviews/{{reviewId}}
+Authorization: Bearer {{token}}
