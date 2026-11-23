@@ -10,6 +10,7 @@
     "test:profile": "node --test tests/profile.test.mjs",
     "test:about": "node scripts/test-about.mjs",
     "test:notifications": "node scripts/test-notifications.mjs",
+    "test:dashboard": "node scripts/test-dashboard.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

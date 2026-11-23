@@ -54,6 +54,7 @@ export async function api<T>(
                     : "Không thể kết nối cửa hàng. Vui lòng thử lại.";
     const body = await response.json().catch(() => null);
     throw Object.assign(new Error(userMessage(body, fallback)), {
+      status: response.status,
       notificationHandled: response.status === 401 && !isPublicAuth && Boolean(token),
     });
   }

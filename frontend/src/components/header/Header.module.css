@@ -283,6 +283,32 @@
   flex-direction: column;
 }
 
+.profileChevron { color: #85839b; flex-shrink: 0; transition: transform .15s; }
+.profileBtn[aria-expanded="true"] .profileChevron { transform: rotate(180deg); }
+.profileBtn:focus-visible, .dropdownItem:focus-visible { outline: 2px solid #818cf8; outline-offset: 3px; }
+.accountDropdown {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: 0;
+  z-index: 60;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  background: #fff;
+  border: 1px solid #eae7f7;
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(52, 40, 94, .12);
+  overflow: hidden;
+  text-align: left;
+}
+.dropdownIdentity { display: flex; flex-direction: column; gap: 5px; padding: 22px 24px 18px; border-bottom: 1px solid #f0edf7; }
+.dropdownIdentity strong { font-size: 16px; font-weight: 650; color: #20243a; overflow-wrap: anywhere; }
+.dropdownIdentity span { font-size: 14px; color: #858097; overflow-wrap: anywhere; }
+.dropdownActions { padding: 8px 12px; }
+.dropdownItem { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; border: 0; border-radius: 8px; background: transparent; color: #334155; font: inherit; font-size: 15px; text-decoration: none; cursor: pointer; text-align: left; }
+.dropdownItem:hover { background: #f6f5fc; }
+.dropdownLogout { color: #c44257; }
+.dropdownLogout:hover { background: #fff1f3; }
+
 .userName {
   font-size: 13px;
   font-weight: 700;

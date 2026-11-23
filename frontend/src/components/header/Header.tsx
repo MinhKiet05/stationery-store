@@ -1,14 +1,17 @@
 import { getCurrentUser, type UserInfoResponse } from "../../services/authService";
 import { API_BASE } from "../../services/api";
 import { notify } from "../../utils/notifications";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./Header.module.css";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";
 import {
   Bell,
+  ChevronDown,
   Flame,
   Headphones,
   LogIn,
+  LogOut,
+  UserRound,
   PackageSearch,
   Search,
   ShoppingBag,
@@ -70,6 +73,27 @@ export default function Header({
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") ?? "");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const outside = (event: PointerEvent) => {
+      if (!profileRef.current?.contains(event.target as Node)) setAccountMenuOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setAccountMenuOpen(false);
+        profileButtonRef.current?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', outside);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [accountMenuOpen]);
 
   const fetchCurrentUser = useCallback(async (signal?: AbortSignal) => {
     const token = localStorage.getItem(TOKEN_KEY);
@@ -192,15 +216,20 @@ export default function Header({
           </a>
 
           {/* Account Area */}
-          <div className={styles.profileContainer}>
+          <div ref={profileRef} className={styles.profileContainer} onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAccountMenuOpen(false);
+          }}>
             {loading ? (
               <div style={{ height: '40px', width: '120px', backgroundColor: '#f1f5f9', borderRadius: '8px' }} />
             ) : user ? (
               <>
                 <button
+                  ref={profileButtonRef}
                   type="button"
                   onClick={() => setAccountMenuOpen(!accountMenuOpen)}
                   className={styles.profileBtn}
+                  aria-expanded={accountMenuOpen}
+                  aria-controls="header-account-dropdown"
                 >
                   <span className={styles.avatar}>
                     {user.avatarUrl ? (
@@ -213,10 +242,17 @@ export default function Header({
                     <span className={styles.userName}>{user.fullName || user.username}</span>
                     <span className={styles.userRole}>{roleLabel(user.role)}</span>
                   </div>
+                  <ChevronDown size={16} className={styles.profileChevron} aria-hidden="true" />
                 </button>
-                {accountMenuOpen && <div className={styles.userInfo}>
-                  <a href={profileHref}>Tài khoản</a>
-                  <button type="button" onClick={logout}>Đăng xuất</button>
+                {accountMenuOpen && <div id="header-account-dropdown" className={styles.accountDropdown}>
+                  <div className={styles.dropdownIdentity}>
+                    <strong>{user.fullName || user.username}</strong>
+                    <span>{user.email}</span>
+                  </div>
+                  <div className={styles.dropdownActions}>
+                    <a href={profileHref} className={styles.dropdownItem}><UserRound size={19} aria-hidden="true" />Tài khoản</a>
+                    <button type="button" className={`${styles.dropdownItem} ${styles.dropdownLogout}`} onClick={logout}><LogOut size={19} aria-hidden="true" />Đăng xuất</button>
+                  </div>
                 </div>}
               </>
             ) : (

@@ -8,6 +8,13 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProductVariantRepository extends JpaRepository<ProductVariant, Long> {
+    @org.springframework.data.jpa.repository.Query(RESPONSE_SELECT + """
+         where v.product.isActive = true and v.stockQuantity < 10
+         order by v.stockQuantity asc, v.variantID asc
+         """)
+    org.springframework.data.domain.Page<com.example.backend.dto.productvariant.ProductVariantResponse> findLowStock(
+            org.springframework.data.domain.Pageable pageable);
+
     String RESPONSE_SELECT = """
         select new com.example.backend.dto.productvariant.ProductVariantResponse(
             v.variantID, v.product.productID, v.product.title, v.title, v.sku, v.available,
