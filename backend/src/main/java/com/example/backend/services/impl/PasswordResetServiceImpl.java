@@ -9,11 +9,14 @@ import com.example.backend.services.PasswordResetService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.mail.MailException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URLEncoder;
@@ -24,8 +27,10 @@ import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Locale;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class PasswordResetServiceImpl implements PasswordResetService {
     private static final int TOKEN_TTL_MINUTES = 15;
@@ -46,11 +51,12 @@ public class PasswordResetServiceImpl implements PasswordResetService {
     public void requestReset(String email) {
         // Return the same generic result for unknown / disabled accounts.
         if (email == null) return;
-        users.findByEmail(email.strip()).ifPresent(user -> {
+        users.findByEmail(email.strip().toLowerCase(Locale.ROOT)).ifPresent(user -> {
             if (!Boolean.TRUE.equals(user.getIsActive())) return;
 
             // Serialize requests for one user to prevent concurrent token issuance.
-            User locked = em.find(User.class, user.getUserID(), LockModeType.PESSIMISTIC_WRITE);
+            User locked = users.findForUpdateById(user.getUserID()).orElseThrow();
+            if (!Boolean.TRUE.equals(locked.getIsActive())) return;
             List<PasswordResetToken> existing = tokens.findByUser_UserID(locked.getUserID());
             LocalDateTime now = LocalDateTime.now();
             boolean tooSoon = existing.stream().anyMatch(t ->
@@ -70,7 +76,15 @@ public class PasswordResetServiceImpl implements PasswordResetService {
 
             String link = resetPasswordUrl + (resetPasswordUrl.contains("?") ? "&" : "?")
                     + "token=" + URLEncoder.encode(raw, StandardCharsets.UTF_8);
-            emailSender.sendResetLink(locked.getEmail(), link);
+            try {
+                emailSender.sendResetLink(locked.getEmail(), link);
+            } catch (MailException exception) {
+                // A different HTTP result only for registered emails would reveal accounts.
+                // Roll back issuance so delivery can be retried without consuming cooldown.
+                TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+                log.warn("Password reset email delivery failed; token issuance rolled back ({})",
+                        exception.getClass().getSimpleName());
+            }
         });
     }
 
@@ -87,14 +101,15 @@ public class PasswordResetServiceImpl implements PasswordResetService {
         PasswordResetToken token = tokens.findByTokenHash(sha256(rawToken.strip()))
                 .orElseThrow(this::invalidToken);
 
-        // Serializes simultaneous attempts with the same token.
-        token = em.find(PasswordResetToken.class, token.getTokenID(), LockModeType.PESSIMISTIC_WRITE);
+        // Lock in the same order as issuance. Refresh the already loaded token after
+        // waiting: find() alone can keep a stale 'used=false' in the persistence context.
+        User user = users.findForUpdateById(token.getUser().getUserID()).orElseThrow(this::invalidToken);
+        em.refresh(token, LockModeType.PESSIMISTIC_WRITE);
         if (Boolean.TRUE.equals(token.getUsed()) ||
                 token.getExpiresAt() == null ||
                 !token.getExpiresAt().isAfter(LocalDateTime.now())) {
             throw invalidToken();
         }
-        User user = em.find(User.class, token.getUser().getUserID(), LockModeType.PESSIMISTIC_WRITE);
         if (!Boolean.TRUE.equals(user.getIsActive())) throw invalidToken();
 
         user.setPasswordHash(passwordEncoder.encode(newPassword));
