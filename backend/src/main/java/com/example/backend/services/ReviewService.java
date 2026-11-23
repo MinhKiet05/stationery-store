@@ -13,4 +13,5 @@ public interface ReviewService {
     ReviewResponse update(Long reviewID, String username, ReviewRequest request,
                           List<MultipartFile> images, List<Integer> removeImagePositions);
     void delete(Long reviewID, String username);
+    void adminDelete(Long reviewID);
 }

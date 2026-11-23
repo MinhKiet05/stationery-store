@@ -60,6 +60,9 @@ public class CouponServiceImpl implements CouponService {
     public CouponResponse update(Long id, CouponRequest request) {
         validateDefinition(request);
         Coupon coupon = lockedCoupon(id);
+        if (request.expectedState() != null && !request.expectedState().equals(CouponResponse.from(coupon).stateToken())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Du lieu da thay doi. Vui long tai lai");
+        }
         if (request.usageLimit() != null && request.usageLimit() < usedCount(coupon)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Gioi han nho hon so luot da dung");
         }

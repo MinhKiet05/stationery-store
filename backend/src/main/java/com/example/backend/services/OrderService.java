@@ -7,5 +7,6 @@ public interface OrderService {
     OrderResponse getOrder(String username, Long orderID);
     OrderResponse cancelOrder(String username, Long orderID);
     List<OrderResponse> adminOrders();
+    AdminOrderDetailResponse adminOrder(Long orderID);
     OrderResponse adminChangeStatus(Long orderID, UpdateOrderStatusRequest request);
 }

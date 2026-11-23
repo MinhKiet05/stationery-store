@@ -15,6 +15,8 @@ public class AdminOrderController {
     private final OrderService service;
     @GetMapping
     public List<OrderResponse> all() { return service.adminOrders(); }
+    @GetMapping("/{id}")
+    public AdminOrderDetailResponse detail(@PathVariable Long id) { return service.adminOrder(id); }
     @PatchMapping("/{id}/status")
     public OrderResponse status(@PathVariable Long id, @Valid @RequestBody UpdateOrderStatusRequest request) {
         return service.adminChangeStatus(id, request);

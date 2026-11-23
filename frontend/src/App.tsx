@@ -19,6 +19,9 @@ import AppNotifications from "./components/notifications/AppNotifications";
 const AdminRoute = lazy(() => import('./routes/AdminRoute.jsx'));
 const DashboardLayout = lazy(() => import('./layouts/DashboardLayout.jsx'));
 const OverviewPage = lazy(() => import('./pages/dashboard/OverviewPage.jsx'));
+const ReviewsPage = lazy(() => import('./pages/dashboard/ReviewsPage.jsx'));
+const PromotionsPage = lazy(() => import('./pages/dashboard/PromotionsPage.jsx'));
+const ReturnsPage = lazy(() => import('./pages/dashboard/ReturnsPage.jsx'));
 const DashboardPlaceholder = lazy(() => import('./pages/dashboard/DashboardPlaceholder.jsx'));
 // Layout chung cho các trang có Header & Footer
 function MainLayout() {
@@ -59,9 +62,9 @@ function App() {
         <Route path="/dashboard" element={<Suspense fallback={<div role="status">Đang tải khu vực quản trị…</div>}><AdminRoute /></Suspense>}>
           <Route element={<DashboardLayout />}>
             <Route index element={<OverviewPage />} />
-            <Route path="reviews" element={<DashboardPlaceholder title="Đánh giá" />} />
-            <Route path="promotions" element={<DashboardPlaceholder title="Khuyến mãi & Voucher" />} />
-            <Route path="returns" element={<DashboardPlaceholder title="Trả hàng" />} />
+            <Route path="reviews" element={<ReviewsPage />} />
+            <Route path="promotions" element={<PromotionsPage />} />
+            <Route path="returns" element={<ReturnsPage />} />
             <Route path="orders" element={<DashboardPlaceholder title="Đơn hàng & Vận chuyển" />} />
             <Route path="products" element={<DashboardPlaceholder title="Sản phẩm & Tồn kho" />} />
             <Route path="users" element={<DashboardPlaceholder title="Người dùng" />} />

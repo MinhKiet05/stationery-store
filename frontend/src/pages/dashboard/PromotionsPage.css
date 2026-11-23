@@ -1,0 +1,59 @@
+.promotions-page { min-width: 0; }
+.promotions-kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.promotions-toolbar { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; padding: 24px 24px 16px; }
+.promotions-toolbar > label:not(.promotions-search), .voucher-form label { display: flex; flex-direction: column; gap: 7px; font-size: 13px; color: #52627b; min-width: 0; }
+.promotions-toolbar select, .voucher-form input:not([type=checkbox]), .voucher-form select { padding: 10px 12px; border: 1px solid #dbe2ef; border-radius: 7px; color: #26374e; background: white; min-height: 42px; font: inherit; font-size: 14px; width: 100%; min-width: 0; }
+.promotions-search { display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 1px solid #dbe2ef; border-radius: 7px; flex: 1; min-width: 190px; min-height: 42px; color: #657084; }
+.promotions-search input { width: 100%; background: transparent; border: 0; outline: none; padding: 10px 0; font: inherit; font-size: 14px; }
+.promotions-search:focus-within { outline: 2px solid #d97730; outline-offset: 2px; }
+.promotions-filter-note { color: #657084; font-size: 12px; padding: 0 24px 20px; }
+.promotions-status-filters { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 0 24px 16px; }
+.promotions-status-chip { display: inline-flex; align-items: center; justify-content: center; gap: 7px; border: 1px solid transparent; background: #eff3ff; color: #44546d; font-size: 12px !important; font-weight: 600 !important; padding: 7px 12px; border-radius: 20px; min-height: 34px; }
+.promotions-status-chip > span, .voucher-status-badge > span { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.promotions-status-green > span { color: #25835a; }
+.promotions-status-blue > span { color: #4266b5; }
+.promotions-status-muted > span { color: #7b8494; }
+.promotions-status-red > span { color: #bc3b42; }
+.promotions-status-chip:hover { background: #e4eafa; }
+.promotions-status-chip[aria-pressed=true] { color: white; background: #0c1729; border-color: #0c1729; }
+.promotions-status-chip[aria-pressed=true] > span { color: #ff8b42; }
+.promotions-table { min-width: 1120px; }
+.promotions-table th:first-child { width: 19%; }
+.promotions-table small { display: block; font-size: 12px; color: #657084; margin-top: 5px; }
+.voucher-code { color: #97440c; overflow-wrap: anywhere; letter-spacing: .3px; }
+.voucher-code-ticket { display: inline-flex; align-items: center; gap: 7px; padding: 5px 9px; background: #fff2e8; border: 1px dashed #dca67f; border-radius: 5px; font-size: 13px; }
+.voucher-code-ticket svg { flex-shrink: 0; }
+.voucher-discount { color: #b34e0b; font-size: 16px; }
+.promotions-table .voucher-discount-type { display: flex; align-items: center; gap: 5px; }
+.voucher-status-badge { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; border-radius: 5px; }
+.voucher-usage { min-width: 138px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.voucher-usage > span { display: block; white-space: nowrap; }
+.voucher-usage progress { display: block; width: 100%; height: 5px; margin-top: 10px; border: 0; border-radius: 4px; overflow: hidden; background: #e9effc; accent-color: #d65a0b; }
+.voucher-usage progress::-webkit-progress-bar { background: #e9effc; border-radius: 4px; }
+.voucher-usage progress::-webkit-progress-value { background: #d65a0b; border-radius: 4px; }
+.voucher-usage progress::-moz-progress-bar { background: #d65a0b; border-radius: 4px; }
+.voucher-usage.is-exhausted progress { accent-color: #b42336; }
+.voucher-usage.is-exhausted progress::-webkit-progress-value { background: #b42336; }
+.voucher-usage.is-exhausted progress::-moz-progress-bar { background: #b42336; }
+.voucher-usage.is-exhausted small { color: #b42336; }
+.voucher-form { display: grid; gap: 24px; }
+.voucher-form-section { min-width: 0; border: 0; padding: 0; margin: 0; }
+.voucher-form-section legend { font-size: 15px; font-weight: 700; color: #26354c; margin-bottom: 16px; }
+.voucher-form-section + .voucher-form-section { padding-top: 20px; border-top: 1px solid #edf1f9; }
+.voucher-form-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.voucher-form-wide { grid-column: 1 / -1; }
+.voucher-form .voucher-active { flex-direction: row; align-items: center; gap: 10px; margin-top: 24px; }
+.voucher-active input { width: 18px; height: 18px; accent-color: #c25a16; }
+.voucher-form input:disabled, .voucher-form select:disabled { opacity: .65; }
+.promotions-skeleton { display: grid; gap: 15px; padding: 24px; }
+.promotions-skeleton > div { height: 65px; border-radius: 7px; background: linear-gradient(90deg, #edf1f9, #f8faff, #edf1f9); background-size: 200% 100%; animation: promotions-shimmer 1.5s ease-in-out infinite; }
+@keyframes promotions-shimmer { to { background-position: -200% 0; } }
+@media (max-width: 1200px) { .promotions-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .promotions-kpi-grid { gap: 10px; } .promotions-kpi-grid .dashboard-stat { padding: 16px 12px; } .promotions-kpi-grid .dashboard-stat-value { font-size: 25px; } .promotions-kpi-grid .dashboard-stat-top { flex-direction: column-reverse; gap: 10px; }
+  .promotions-toolbar { padding: 16px; } .promotions-search { flex-basis: 100%; min-width: 0; } .promotions-toolbar > label:not(.promotions-search) { flex: 1 1 100%; } .promotions-filter-note { padding: 0 16px 16px; }
+  .promotions-status-filters { padding: 0 16px 16px; gap: 7px; }
+  .promotions-status-chip { padding: 7px 10px; font-size: 11px !important; }
+  .voucher-form-fields { grid-template-columns: 1fr; gap: 16px; } .voucher-form .voucher-active { margin-top: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .promotions-skeleton > div { animation: none; } }

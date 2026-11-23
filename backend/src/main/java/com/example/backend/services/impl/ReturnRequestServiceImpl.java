@@ -8,6 +8,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -99,12 +100,14 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
 
     @Override
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
     public List<ReturnResponse> all() {
         return returns.findAll().stream().map(this::toResponse).toList();
     }
 
     @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public ReturnResponse changeStatus(Long id, UpdateReturnStatusRequest request) {
         if (request == null || (request.status() != ReturnStatus.APPROVED && request.status() != ReturnStatus.REJECTED)) {
             throw bad("Chi co the duyet hoac tu choi yeu cau");
@@ -116,6 +119,8 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         Order order = orderLocks.lockById(orderID).orElseThrow(() -> notFound("Don hang khong ton tai"));
         ReturnRequest entity = em.find(ReturnRequest.class, id, LockModeType.PESSIMISTIC_WRITE);
         if (entity == null) throw notFound("Yeu cau tra hang khong ton tai");
+        // find() can return a cached PENDING entity after another transaction won the lock.
+        em.refresh(entity, LockModeType.PESSIMISTIC_WRITE);
         if (entity.getStatus() != ReturnStatus.PENDING) throw conflict("Yeu cau da duoc xu ly");
         entity.setStatus(request.status());
         entity.setAdminNote(request.adminNote());

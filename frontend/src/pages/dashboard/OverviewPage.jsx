@@ -7,6 +7,8 @@ import CategoryChart from '../../components/dashboard/CategoryChart';
 import RecentOrders from '../../components/dashboard/RecentOrders';
 import LowStockProducts from '../../components/dashboard/LowStockProducts';
 import DashboardState from '../../components/dashboard/DashboardState';
+import OrderDetailModal from '../../components/dashboard/OrderDetailModal';
+import StockDetailModal from '../../components/dashboard/StockDetailModal';
 import useDashboardResource from './useDashboardResource';
 import { initialRange, statisticsPath, dashboardPath, currency, number } from '../../services/dashboardApi';
 
@@ -45,11 +47,16 @@ function OverviewContent({ range }) {
   const [groupBy, setGroupBy] = useState('DAY');
   const [orderPage, setOrderPage] = useState(0);
   const [stockPage, setStockPage] = useState(0);
+  const [modal, setModal] = useState(null);
   const overview = useDashboardResource(statisticsPath('overview', range), onAccessDenied);
   const revenue = useDashboardResource(statisticsPath('revenue', range, { groupBy }), onAccessDenied);
   const statuses = useDashboardResource(statisticsPath('orders', range), onAccessDenied);
   const orders = useDashboardResource(dashboardPath('orders', { ...range, page: orderPage, size: 6 }), onAccessDenied);
   const stock = useDashboardResource(dashboardPath('low-stock', { page: stockPage, size: 5 }), onAccessDenied);
+  function refreshAfterChange() {
+    setOrderPage(0); setStockPage(0);
+    overview.retry(); revenue.retry(); statuses.retry(); orders.retry(); stock.retry();
+  }
   return <>
     <DashboardState resource={overview}><div className="dashboard-kpi-grid">
       <StatCard label="Doanh thu trong kỳ" value={currency(overview.data?.totalRevenue)} description="Đơn đã giao · trước hoàn tiền" icon={Wallet} tone="orange" />
@@ -63,7 +70,9 @@ function OverviewContent({ range }) {
       <StatCard label="Tồn kho thấp" value={number(stock.data?.totalElements)} description="Biến thể dưới 10 · tồn kho hiện tại" icon={PackageSearch} tone="red" />
     </DashboardState></div>
     <div className="dashboard-charts"><RevenueChart resource={revenue} groupBy={groupBy} setGroupBy={setGroupBy} /><CategoryChart resource={statuses} /></div>
-    <RecentOrders resource={orders} page={orderPage} setPage={setOrderPage} />
-    <LowStockProducts resource={stock} page={stockPage} setPage={setStockPage} />
+    <RecentOrders resource={orders} page={orderPage} setPage={setOrderPage} onView={id => setModal({ kind: 'order', id })} />
+    <LowStockProducts resource={stock} page={stockPage} setPage={setStockPage} onView={id => setModal({ kind: 'stock', id })} />
+    {modal?.kind === 'order' && <OrderDetailModal key={modal.id} orderID={modal.id} onClose={() => setModal(null)} onChanged={refreshAfterChange} onAccessDenied={onAccessDenied} />}
+    {modal?.kind === 'stock' && <StockDetailModal key={modal.id} variantID={modal.id} onClose={() => setModal(null)} onChanged={refreshAfterChange} onAccessDenied={onAccessDenied} />}
   </>;
 }

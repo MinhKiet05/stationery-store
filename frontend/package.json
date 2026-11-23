@@ -11,6 +11,9 @@
     "test:about": "node scripts/test-about.mjs",
     "test:notifications": "node scripts/test-notifications.mjs",
     "test:dashboard": "node scripts/test-dashboard.mjs",
+    "test:admin-reviews": "node scripts/test-admin-reviews.mjs",
+    "test:admin-promotions": "node scripts/test-admin-promotions.mjs",
+    "test:admin-returns": "node scripts/test-admin-returns.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

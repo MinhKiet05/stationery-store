@@ -9,15 +9,18 @@ export default function AdminRoute() {
   const [session, setSession] = useState(() => ({ token: localStorage.getItem('accessToken'), revision: 0 }));
   useEffect(() => {
     const sync = () => setSession(current => ({ token: localStorage.getItem('accessToken'), revision: current.revision + 1 }));
-    const visible = () => { if (document.visibilityState === 'visible') sync(); };
+    // Keep an in-flight mutation mounted when switching browser windows/tabs.
+    // Auth/storage changes still revoke immediately; every API enforces current DB roles.
+    const focus = () => { if (!document.querySelector('dialog[open][aria-busy="true"]')) sync(); };
+    const visible = () => { if (document.visibilityState === 'visible') focus(); };
     window.addEventListener('auth-changed', sync);
     window.addEventListener('storage', sync);
-    window.addEventListener('focus', sync);
+    window.addEventListener('focus', focus);
     document.addEventListener('visibilitychange', visible);
     return () => {
       window.removeEventListener('auth-changed', sync);
       window.removeEventListener('storage', sync);
-      window.removeEventListener('focus', sync);
+      window.removeEventListener('focus', focus);
       document.removeEventListener('visibilitychange', visible);
     };
   }, []);

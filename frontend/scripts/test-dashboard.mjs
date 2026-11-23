@@ -20,11 +20,16 @@ function mockApi() {
   window.__failure = null;
   window.__empty = false;
   window.__delay = Number(sessionStorage.getItem('identity-delay') || 0);
+  window.__detailDelay = 0;
+  window.__writeDelay = 0;
+  window.__orderStates = {};
+  window.__stocks = {};
   window.fetch = async (input, options = {}) => {
     const url = new URL(typeof input === 'string' ? input : input.url, location.href);
     if (!url.pathname.startsWith('/api/')) return nativeFetch(input, options);
     const route = url.pathname;
-    window.__requests.push({ route, query: Object.fromEntries(url.searchParams), authorization: new Headers(options.headers).get('Authorization') });
+    const method = options.method || 'GET';
+    window.__requests.push({ route, method, body: options.body, query: Object.fromEntries(url.searchParams), authorization: new Headers(options.headers).get('Authorization') });
     options.signal?.throwIfAborted();
     if (window.__failure?.route === route) return Response.json({ detail: 'SQL password=private-diagnostic' }, { status: window.__failure.status });
     if (route === '/api/auth/me') {
@@ -32,21 +37,60 @@ function mockApi() {
       options.signal?.throwIfAborted();
       return Response.json({ userID: 1, username: 'test-admin', fullName: 'Quản trị kiểm thử', email: 'admin@example.test', role: sessionStorage.getItem('test-role') || 'ADMIN' });
     }
+    const orderMatch = route.match(/^\/api\/admin\/orders\/(\d+)(\/status)?$/);
+    if (orderMatch) {
+      const id = Number(orderMatch[1]);
+      const original = ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURN_PENDING'][(100 - id) % 6];
+      const state = window.__orderStates[id] || original;
+      const order = { orderID: id, userID: 2, orderDate: '2026-11-23T14:30:00', status: state, isPaid: false,
+        shippingAddress: 'Địa chỉ giao hàng kiểm thử', contactPhone: '0901234567', paymentMethod: 'COD', couponCode: null,
+        subTotal: 200000, discountAmount: 20000, totalAmount: 180000, deliveredAt: state === 'DELIVERED' ? '2026-11-23T16:00:00' : null,
+        items: [{ orderDetailID: 1, variantID: 1, productID: 1, productTitle: 'Bút trong đơn kiểm thử', variantTitle: 'Mực xanh · 0.5mm', quantity: 2, unitPrice: 100000, subTotal: 200000, productImage: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Crect width="64" height="64" fill="%23e9effd"/%3E%3C/svg%3E', vendorName: 'Thương hiệu kiểm thử' }] };
+      await new Promise(resolve => setTimeout(resolve, method === 'PATCH' ? window.__writeDelay : window.__detailDelay));
+      options.signal?.throwIfAborted();
+      if (method === 'PATCH') {
+        const body = JSON.parse(options.body);
+        if (body.expectedStatus !== state || body.expectedPaid !== false) return Response.json({}, { status: 409 });
+        window.__orderStates[id] = body.status;
+        return Response.json({ ...order, status: body.status });
+      }
+      return Response.json({ order, customerName: 'Khách chi tiết kiểm thử', username: 'detail-customer', email: 'customer@example.test', variantSkus: { 1: 'ORDER-SKU-1' }, returns: [] });
+    }
+    const stockMatch = route.match(/^\/api\/(?:admin\/)?product-variants\/(\d+)(\/stock)?$/);
+    if (stockMatch) {
+      const id = Number(stockMatch[1]);
+      const variant = window.__stocks[id] || { variantID: id, productID: 1, productTitle: 'Bút gel kiểm thử', title: 'Mực xanh · 0.5mm', sku: `TEST-${id}`, price: 10000, option1: 'Xanh', option2: null, option3: null, stockQuantity: id - 1, version: 0, available: true };
+      await new Promise(resolve => setTimeout(resolve, method === 'PATCH' ? window.__writeDelay : window.__detailDelay));
+      options.signal?.throwIfAborted();
+      if (method === 'PATCH') {
+        const body = JSON.parse(options.body);
+        if (body.version !== variant.version) return Response.json({}, { status: 409 });
+        window.__stocks[id] = { ...variant, stockQuantity: body.stockQuantity, version: variant.version + 1 };
+        return Response.json(window.__stocks[id]);
+      }
+      return Response.json(variant);
+    }
     const range = { startDate: url.searchParams.get('startDate'), endDate: url.searchParams.get('endDate') };
     if (route === '/api/admin/statistics/overview') return Response.json({ ...range, totalOrders: window.__empty ? 0 : 12, successfulOrders: 4, totalRevenue: window.__empty ? 0 : 9876543, totalDiscount: 0, quantitySold: 5, totalCustomers: 34, newCustomers: 2 });
+    if (route === '/api/admin/returns') return Response.json({ content: [], totalElements: 0, totalPages: 0 });
+    if (route === '/api/admin/returns/statistics') return Response.json({ totalRequests: 0, pendingRequests: 0, approvedRequests: 0, rejectedRequests: 0 });
+    if (route === '/api/admin/promotions') return Response.json({ content: [], totalElements: 0, totalPages: 0 });
+    if (route === '/api/admin/promotions/statistics') return Response.json({ totalCoupons: 0, activeCoupons: 0, expiredCoupons: 0, totalUses: 0 });
+    if (route === '/api/admin/reviews') return Response.json({ content: [], totalElements: 0, totalPages: 0 });
+    if (route === '/api/admin/reviews/statistics') return Response.json({ totalReviews: 0, averageRating: null, fiveStarReviews: 0, lowStarReviews: 0 });
     if (route === '/api/admin/statistics/revenue') return Response.json({ ...range, groupBy: url.searchParams.get('groupBy'), totalRevenue: 9876543, periods: window.__empty ? [] : [
       { periodStart: range.startDate, orderCount: 2, totalRevenue: 1234567 },
       { periodStart: range.endDate, orderCount: 2, totalRevenue: 8641976 },
     ] });
     if (route === '/api/admin/statistics/orders') return Response.json({ ...range, totalOrders: window.__empty ? 0 : 12,
-      statusCounts: { PENDING: window.__empty ? 0 : 3, PROCESSING: window.__empty ? 0 : 2, SHIPPED: window.__empty ? 0 : 1, DELIVERED: window.__empty ? 0 : 4, CANCELLED: window.__empty ? 0 : 1, RETURN_PENDING: window.__empty ? 0 : 1 }, returnRequestCounts: { PENDING: 2, APPROVED: 0, REJECTED: 0, COMPLETED: 0 } });
+      statusCounts: { PENDING: window.__empty ? 0 : window.__orderStates[100] ? 2 : 3, PROCESSING: window.__empty ? 0 : window.__orderStates[100] === 'PROCESSING' ? 3 : 2, SHIPPED: window.__empty ? 0 : 1, DELIVERED: window.__empty ? 0 : 4, CANCELLED: window.__empty ? 0 : 1, RETURN_PENDING: window.__empty ? 0 : 1 }, returnRequestCounts: { PENDING: 2, APPROVED: 0, REJECTED: 0, COMPLETED: 0 } });
     if (route === '/api/admin/dashboard/orders') {
       const page = Number(url.searchParams.get('page') || 0);
-      return Response.json({ content: window.__empty ? [] : Array.from({ length: page ? 2 : 6 }, (_, index) => ({ orderID: 100 - page * 6 - index, orderDate: `${range.endDate}T14:30:00`, customerName: `Khách kiểm thử ${index + 1}`, username: `customer${index}`, totalAmount: 250000 + index * 10000, status: ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURN_PENDING'][index], paymentMethod: 'COD', isPaid: index % 2 === 1 })), totalElements: window.__empty ? 0 : 8, totalPages: window.__empty ? 0 : 2, number: page });
+      return Response.json({ content: window.__empty ? [] : Array.from({ length: page ? 2 : 6 }, (_, index) => ({ orderID: 100 - page * 6 - index, orderDate: `${range.endDate}T14:30:00`, customerName: `Khách kiểm thử ${index + 1}`, username: `customer${index}`, totalAmount: 250000 + index * 10000, status: window.__orderStates[100 - page * 6 - index] || ['PENDING', 'PROCESSING', 'SHIPPED', 'DELIVERED', 'CANCELLED', 'RETURN_PENDING'][index], paymentMethod: 'COD', isPaid: index % 2 === 1 })), totalElements: window.__empty ? 0 : 8, totalPages: window.__empty ? 0 : 2, number: page });
     }
     if (route === '/api/admin/dashboard/low-stock') {
       const page = Number(url.searchParams.get('page') || 0);
-      return Response.json({ content: window.__empty ? [] : Array.from({ length: page ? 2 : 5 }, (_, index) => ({ variantID: page * 5 + index + 1, productID: index + 1, productTitle: `Bút gel kiểm thử ${page * 5 + index + 1}`, title: 'Mực xanh · 0.5 mm', sku: `TEST-${page * 5 + index + 1}`, stockQuantity: index, available: true })), totalElements: window.__empty ? 0 : 7, totalPages: window.__empty ? 0 : 2 });
+      return Response.json({ content: window.__empty ? [] : Array.from({ length: page ? 2 : 5 }, (_, index) => ({ variantID: page * 5 + index + 1, productID: index + 1, productTitle: `Bút gel kiểm thử ${page * 5 + index + 1}`, title: 'Mực xanh · 0.5 mm', sku: `TEST-${page * 5 + index + 1}`, stockQuantity: index, available: true })).filter(item => (window.__stocks[item.variantID]?.stockQuantity ?? item.stockQuantity) < 10), totalElements: window.__empty ? 0 : 7 - Object.values(window.__stocks).filter(item => item.stockQuantity >= 10).length, totalPages: window.__empty ? 0 : 2 });
     }
     // Login/store routes can render during redirects; keep all their reads isolated too.
     if (route === '/api/cart/items') return Response.json({ items: [], subtotal: 0 });
@@ -106,7 +150,7 @@ try {
   await send('Page.addScriptToEvaluateOnNewDocument', { source: `(${mockApi.toString()})()` });
   const navigate = async route => { await send('Page.navigate', { url: base + route }); await until(() => evaluate(`location.pathname === ${JSON.stringify(route)} && !!window.__requests`), route); };
   const loaded = () => until(() => evaluate("document.querySelectorAll('.dashboard-stat').length === 6 && !!document.querySelector('.dashboard-table tbody tr')"), 'dashboard data');
-  const click = async selector => { assert.equal(await evaluate(`(() => {const node=document.querySelector(${JSON.stringify(selector)});if(!node || node.disabled)return false;node.click();return true})()`), true, selector); };
+  const click = async selector => { assert.equal(await evaluate(`(() => {const node=document.querySelector(${JSON.stringify(selector)});if(!node || node.disabled)return false;node.focus();node.click();return true})()`), true, selector); };
   const text = () => evaluate('document.body.textContent');
   const capture = async name => {
     await fs.mkdir(artifacts, { recursive: true });
@@ -169,8 +213,8 @@ try {
     assert.equal(await evaluate("document.querySelector('.dashboard-shell').classList.contains('is-collapsed')"), true);
     for (const route of ['reviews', 'promotions', 'returns', 'orders', 'products', 'users']) {
       await click(`.dashboard-sidebar a[href="/dashboard/${route}"]`);
-      await until(() => evaluate(`location.pathname==='/dashboard/${route}'&&!!document.querySelector('.dashboard-placeholder')`), route);
-      assert.match(await text(), /Chức năng đang được phát triển/);
+      await until(() => evaluate(`location.pathname==='/dashboard/${route}'&&!!document.querySelector('${route === 'reviews' ? '.reviews-page' : route === 'promotions' ? '.promotions-page' : route === 'returns' ? '.returns-page' : '.dashboard-placeholder'}')`), route);
+      assert.match(await text(), route === 'returns' ? /RET|yêu cầu/ : route === 'promotions' ? /Voucher/ : route === 'reviews' ? /Quản lý đánh giá/ : /Chức năng đang được phát triển/);
       assert.equal(await evaluate("document.querySelectorAll('header').length"), 1);
       assert.equal(await evaluate("document.querySelectorAll('.dashboard-nav-link.active').length"), 1);
     }
@@ -184,7 +228,7 @@ try {
     await click('[aria-controls="dashboard-sidebar"]'); await delay(250);
     assert.equal(await evaluate("document.querySelector('.dashboard-sidebar').getAttribute('aria-modal')"), 'true');
     await capture('mobile-drawer.png');
-    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape' });
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
     await until(() => evaluate("!document.querySelector('.dashboard-overlay')"), 'escape closes drawer');
     await click('[aria-controls="dashboard-sidebar"]'); await click('.dashboard-overlay');
     await click('[aria-controls="dashboard-sidebar"]'); await click('.dashboard-sidebar a[href="/dashboard/users"]');
@@ -204,6 +248,117 @@ try {
     await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
     await until(() => evaluate("!document.querySelector('.dashboard-overlay') && document.body.style.overflow !== 'hidden'"), 'desktop resize releases modal');
     await capture('desktop.png');
+  });
+  await test('Order detail opens in place, loads backend fields, and Escape restores focus', async () => {
+    await evaluate('window.__detailDelay=600');
+    await click('[aria-label="Xem chi tiết đơn #ST-100"]');
+    await until(() => evaluate("document.querySelector('dialog[open]')?.textContent.includes('Đang tải chi tiết')"), 'modal loading');
+    assert.equal(await evaluate('location.pathname'), '/dashboard');
+    await until(() => evaluate("document.querySelector('dialog[open]')?.textContent.includes('ORDER-SKU-1')"), 'order detail');
+    const content = await evaluate("document.querySelector('dialog[open]').textContent");
+    for (const field of ['Khách chi tiết kiểm thử', '0901234567', 'Địa chỉ giao hàng kiểm thử', '180.000', 'Mực xanh', 'COD']) assert.ok(content.includes(field), field);
+    assert.equal(content.includes('Phí vận chuyển'), false);
+    await capture('order-detail-desktop.png');
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    await until(() => evaluate("!document.querySelector('dialog[open]')"), 'escape detail');
+    assert.equal(await evaluate("document.activeElement.getAttribute('aria-label')"), 'Xem chi tiết đơn #ST-100');
+    await evaluate('window.__detailDelay=0');
+  });
+  await test('Order detail 404/500 errors stay in the modal and support retry', async () => {
+    for (const status of [404, 500]) {
+      await evaluate(`window.__failure={route:'/api/admin/orders/100',status:${status}}`);
+      await click('[aria-label="Xem chi tiết đơn #ST-100"]');
+      await until(() => evaluate("!!document.querySelector('dialog[open] [role=alert]')"), 'detail load error');
+      assert.equal(await evaluate("document.querySelector('dialog[open]').textContent.includes('private-diagnostic')"), false);
+      await evaluate("window.__failure=null;document.querySelector('dialog[open] [role=alert] button').click()");
+      await until(() => evaluate("document.querySelector('dialog[open]')?.textContent.includes('ORDER-SKU-1')"), 'detail retry');
+      await click('dialog[open] [aria-label="Đóng hộp thoại"]');
+    }
+  });
+  await test('Order action requires confirmation, blocks duplicates/closing, and refreshes modal plus dashboard', async () => {
+    await evaluate('window.__writeDelay=1000');
+    await click('[aria-label="Xem chi tiết đơn #ST-100"]');
+    await until(() => evaluate("document.querySelector('dialog[open]')?.textContent.includes('ORDER-SKU-1')"), 'order action detail');
+    const count = await evaluate("window.__requests.filter(r=>r.route==='/api/admin/statistics/overview').length");
+    await evaluate("[...document.querySelector('dialog[open]').querySelectorAll('button')].find(b=>b.textContent==='Xác nhận đơn hàng').click()");
+    await until(() => evaluate("document.querySelectorAll('dialog[open]').length===2"), 'confirmation');
+    assert.equal(await evaluate("window.__requests.filter(r=>r.method==='PATCH').length"), 0);
+    await evaluate("const d=[...document.querySelectorAll('dialog[open]')].at(-1);const b=[...d.querySelectorAll('button')].find(b=>b.textContent==='Xác nhận');b.click();b.click()");
+    await until(() => evaluate("[...document.querySelectorAll('dialog[open]')].at(-1)?.getAttribute('aria-busy')==='true'"), 'pending write');
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+    assert.equal(await evaluate("document.querySelectorAll('dialog[open]').length"), 2);
+    await evaluate("window.dispatchEvent(new Event('focus'))");
+    assert.equal(await evaluate("document.querySelectorAll('dialog[open]').length"), 2);
+    assert.equal(await evaluate("[...document.querySelectorAll('dialog[open]')].every(d=>d.querySelector('[aria-label=\"Đóng hộp thoại\"]').disabled)"), true);
+    await until(() => evaluate("document.querySelectorAll('dialog[open]').length===1 && document.querySelector('dialog[open]').textContent.includes('Xác nhận giao vận chuyển')"), 'updated detail');
+    await loaded();
+    assert.equal(await evaluate("window.__requests.filter(r=>r.route==='/api/admin/orders/100/status'&&r.method==='PATCH').length"), 1);
+    assert.ok(await evaluate("window.__requests.filter(r=>r.route==='/api/admin/statistics/overview').length") > count);
+    assert.deepEqual(await evaluate("JSON.parse(window.__requests.find(r=>r.route==='/api/admin/orders/100/status').body)"), { status: 'PROCESSING', expectedStatus: 'PENDING', expectedPaid: false });
+    assert.equal(await evaluate("document.querySelector('.dashboard-table tbody tr').textContent.includes('Đang xử lý')"), true);
+    assert.equal(await evaluate("!!document.querySelector('dialog[open] .Toastify__toast--success')"), true);
+    await click('dialog[open] [aria-label="Đóng hộp thoại"]');
+    await evaluate('window.__writeDelay=0');
+  });
+  await test('Order action conflict keeps detail open and requires reload without claiming success', async () => {
+    await click('[aria-label="Xem chi tiết đơn #ST-100"]');
+    await until(() => evaluate("document.querySelector('dialog[open]')?.textContent.includes('ORDER-SKU-1')"), 'conflict detail');
+    await evaluate("window.__failure={route:'/api/admin/orders/100/status',status:409};[...document.querySelector('dialog[open]').querySelectorAll('button')].find(b=>b.textContent==='Xác nhận giao vận chuyển').click()");
+    await until(() => evaluate("document.querySelectorAll('dialog[open]').length===2"), 'conflict confirm');
+    await evaluate("[...[...document.querySelectorAll('dialog[open]')].at(-1).querySelectorAll('button')].find(b=>b.textContent==='Xác nhận').click()");
+    await until(() => evaluate("document.querySelectorAll('dialog[open]').length===1 && !!document.querySelector('dialog[open] [role=alert]')"), 'conflict error');
+    assert.equal(await evaluate("[...document.querySelector('dialog[open]').querySelectorAll('button')].find(b=>b.textContent==='Xác nhận giao vận chuyển').disabled"), true);
+    assert.equal(await evaluate("window.__orderStates[100]"), 'PROCESSING');
+    await evaluate("window.__failure=null;[...document.querySelector('dialog[open]').querySelectorAll('button')].find(b=>b.textContent==='Tải lại chi tiết').click()");
+    await until(() => evaluate("!![...document.querySelector('dialog[open]').querySelectorAll('button')].find(b=>b.textContent==='Xác nhận giao vận chuyển'&&!b.disabled)"), 'fresh read unlocks action');
+    await click('dialog[open] [aria-label="Đóng hộp thoại"]');
+  });
+  await test('Stock detail validates input and updates only inventory with a version then refreshes warnings', async () => {
+    await click('[aria-label="Xem chi tiết biến thể TEST-1"]');
+    await until(() => evaluate("!!document.querySelector('[aria-label=\"Số lượng tồn kho mới\"]')"), 'stock detail');
+    const input = async value => evaluate(`(() => {const input=document.querySelector('[aria-label="Số lượng tồn kho mới"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,${JSON.stringify(value)});input.dispatchEvent(new Event('input',{bubbles:true}));})()`);
+    await input('-1'); await delay(50);
+    assert.equal(await evaluate("[...document.querySelector('dialog[open]').querySelectorAll('button')].find(b=>b.textContent==='Cập nhật tồn kho').disabled"), true);
+    await input('20'); await delay(50);
+    await evaluate("[...document.querySelector('dialog[open]').querySelectorAll('button')].find(b=>b.textContent==='Cập nhật tồn kho').click()");
+    await until(() => evaluate("document.querySelectorAll('dialog[open]').length===2"), 'stock confirm');
+    await evaluate("[...[...document.querySelectorAll('dialog[open]')].at(-1).querySelectorAll('button')].find(b=>b.textContent==='Xác nhận').click()");
+    await until(() => evaluate("document.querySelectorAll('dialog[open]').length===1 && document.querySelector('.admin-stock-count')?.textContent==='20'"), 'stock update');
+    assert.deepEqual(await evaluate("JSON.parse(window.__requests.find(r=>r.route==='/api/admin/product-variants/1/stock').body)"), { stockQuantity: 20, version: 0 });
+    await until(() => evaluate("!!document.querySelector('.dashboard-stock-list') && !document.querySelector('[aria-label=\"Xem chi tiết biến thể TEST-1\"]')"), 'refreshed stock list');
+    assert.equal(await evaluate("[...document.querySelectorAll('.dashboard-stat')].find(n=>n.textContent.includes('TỒN KHO THẤP')||n.textContent.includes('Tồn kho thấp')).querySelector('.dashboard-stat-value').textContent"), '6');
+    await click('dialog[open] [aria-label="Đóng hộp thoại"]');
+  });
+  await test('Stock conflict preserves modal and prior stock; it never overwrites with a stale version', async () => {
+    await click('[aria-label="Xem chi tiết biến thể TEST-2"]');
+    await until(() => evaluate("!!document.querySelector('[aria-label=\"Số lượng tồn kho mới\"]')"), 'stock conflict detail');
+    await evaluate("window.__failure={route:'/api/admin/product-variants/2/stock',status:409};const i=document.querySelector('[aria-label=\"Số lượng tồn kho mới\"]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(i,'30');i.dispatchEvent(new Event('input',{bubbles:true}))");
+    await delay(50);
+    await evaluate("[...document.querySelector('dialog[open]').querySelectorAll('button')].find(b=>b.textContent==='Cập nhật tồn kho').click()");
+    await until(() => evaluate("document.querySelectorAll('dialog[open]').length===2"), 'stock conflict confirm');
+    await evaluate("[...[...document.querySelectorAll('dialog[open]')].at(-1).querySelectorAll('button')].find(b=>b.textContent==='Xác nhận').click()");
+    await until(() => evaluate("document.querySelectorAll('dialog[open]').length===1 && !!document.querySelector('dialog[open] [role=alert]')"), 'stock conflict');
+    assert.equal(await evaluate("document.querySelector('.admin-stock-count').textContent"), '1');
+    assert.equal(await evaluate("document.querySelector('[aria-label=\"Số lượng tồn kho mới\"]').disabled"), true);
+    await evaluate('window.__failure=null'); await click('dialog[open] [aria-label="Đóng hộp thoại"]');
+  });
+  await test('Modal remains inside mobile viewport and keyboard focus stays in the dialog', async () => {
+    await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+    await click('[aria-label="Xem chi tiết đơn #ST-100"]');
+    await until(() => evaluate("document.querySelector('dialog[open]')?.textContent.includes('ORDER-SKU-1')"), 'mobile detail');
+    assert.equal(await evaluate("(() => {const r=document.querySelector('dialog[open]').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth&&r.top>=0&&r.bottom<=innerHeight})()"), true);
+    for (let index = 0; index < 10; index++) await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Tab', code: 'Tab', windowsVirtualKeyCode: 9 });
+    assert.equal(await evaluate("document.querySelector('dialog[open]').contains(document.activeElement)"), true);
+    await capture('order-detail-mobile.png');
+    await click('dialog[open] [aria-label="Đóng hộp thoại"]');
+    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
+  });
+  await test('Forbidden detail removes protected dashboard and modal immediately', async () => {
+    await evaluate("window.__failure={route:'/api/admin/orders/100',status:403}");
+    await click('[aria-label="Xem chi tiết đơn #ST-100"]');
+    await until(() => evaluate("document.body.textContent.includes('403')"), 'forbidden detail');
+    assert.equal(await evaluate("!!document.querySelector('dialog[open]')"), false);
+    await navigate('/dashboard'); await loaded();
   });
   await test('CUSTOMER with a forged local role cannot access overview or any child route', async () => {
     await evaluate("sessionStorage.setItem('test-role','CUSTOMER');localStorage.setItem('role','ADMIN')");
