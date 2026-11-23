@@ -6,6 +6,7 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.MailPreparationException;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.HtmlUtils;
@@ -147,7 +148,7 @@ public class SmtpPasswordResetEmailSender implements PasswordResetEmailSender {
             mailSender.send(message);
 
         } catch (MessagingException e) {
-            throw new IllegalStateException(
+            throw new MailPreparationException(
                     "Không thể tạo email đặt lại mật khẩu", e);
         }
     }
