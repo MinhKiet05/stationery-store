@@ -1,18 +1,15 @@
 import { useCurrentUser, useCart } from "../../services/storeQueries";
 import { getGuestCart } from "../../utils/guestCart";
 import { API_BASE } from "../../services/api";
-import { notify } from "../../utils/notifications";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Header.module.css";
+import UserAccountDropdown from "../userAccountDropdown/UserAccountDropdown";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";
 import {
   Bell,
-  ChevronDown,
   Flame,
   Headphones,
   LogIn,
-  LogOut,
-  UserRound,
   PackageSearch,
   Search,
   ShoppingBag,
@@ -43,22 +40,6 @@ const navigation = [
 
 const TOKEN_KEY = "accessToken";
 
-function roleLabel(role: string) {
-  switch (role.toUpperCase()) {
-    case "ADMIN":
-    case "SUPER_ADMIN":
-      return "Quản trị viên";
-    case "CUSTOMER":
-      return "Thành viên Bạc"; // Cập nhật text cứng hiển thị tương tự ảnh thiết kế
-    default:
-      return role;
-  }
-}
-
-function initials(name: string) {
-  return name.trim().split(/\s+/).slice(-2).map((word) => word[0] || "").join("").toUpperCase();
-}
-
 export default function Header({
   apiBaseUrl = API_BASE,
   loginHref = "/login",
@@ -82,43 +63,12 @@ export default function Header({
   const user = localStorage.getItem(TOKEN_KEY) ? identity.data : null;
   const loading = !!localStorage.getItem(TOKEN_KEY) && identity.isPending;
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") ?? "");
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
-  const profileButtonRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (!accountMenuOpen) return;
-    const outside = (event: PointerEvent) => {
-      if (!profileRef.current?.contains(event.target as Node)) setAccountMenuOpen(false);
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setAccountMenuOpen(false);
-        profileButtonRef.current?.focus();
-      }
-    };
-    document.addEventListener('pointerdown', outside);
-    document.addEventListener('keydown', escape);
-    return () => {
-      document.removeEventListener('pointerdown', outside);
-      document.removeEventListener('keydown', escape);
-    };
-  }, [accountMenuOpen]);
-
   function submitSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const query = search.trim();
     if (!query) return;
     if (onSearch) onSearch(query);
     else window.location.href = `/search?search=${encodeURIComponent(query)}`;
-  }
-
-  function logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    setAccountMenuOpen(false);
-    onLogout?.();
-    window.dispatchEvent(new Event("auth-changed"));
-    notify.success("Đăng xuất thành công.");
   }
 
   return (
@@ -188,52 +138,11 @@ export default function Header({
             )}
           </a>
 
-          {/* Account Area */}
-          <div ref={profileRef} className={styles.profileContainer} onBlur={(event) => {
-            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setAccountMenuOpen(false);
-          }}>
-            {loading ? (
-              <div style={{ height: '40px', width: '120px', backgroundColor: '#f1f5f9', borderRadius: '8px' }} />
-            ) : user ? (
-              <>
-                <button
-                  ref={profileButtonRef}
-                  type="button"
-                  onClick={() => setAccountMenuOpen(!accountMenuOpen)}
-                  className={styles.profileBtn}
-                  aria-expanded={accountMenuOpen}
-                  aria-controls="header-account-dropdown"
-                >
-                  <span className={styles.avatar}>
-                    {user.avatarUrl ? (
-                      <img src={user.avatarUrl} alt="Avatar" className={styles.avatarImg} />
-                    ) : (
-                      initials(user.fullName || user.username)
-                    )}
-                  </span>
-                  <div className={styles.userInfo}>
-                    <span className={styles.userName}>{user.fullName || user.username}</span>
-                    <span className={styles.userRole}>{roleLabel(user.role)}</span>
-                  </div>
-                  <ChevronDown size={16} className={styles.profileChevron} aria-hidden="true" />
-                </button>
-                {accountMenuOpen && <div id="header-account-dropdown" className={styles.accountDropdown}>
-                  <div className={styles.dropdownIdentity}>
-                    <strong>{user.fullName || user.username}</strong>
-                    <span>{user.email}</span>
-                  </div>
-                  <div className={styles.dropdownActions}>
-                    <a href={profileHref} className={styles.dropdownItem}><UserRound size={19} aria-hidden="true" />Tài khoản</a>
-                    <button type="button" className={`${styles.dropdownItem} ${styles.dropdownLogout}`} onClick={logout}><LogOut size={19} aria-hidden="true" />Đăng xuất</button>
-                  </div>
-                </div>}
-              </>
-            ) : (
-              <a href={loginHref} className={styles.loginBtn}>
-                <LogIn size={18} /> Đăng nhập
-              </a>
-            )}
-          </div>
+          {loading ? (
+            <div style={{ height: 40, width: 120, backgroundColor: '#f1f5f9', borderRadius: 8 }} />
+          ) : user ? <UserAccountDropdown user={user} profileHref={profileHref} onLogout={onLogout} /> : (
+            <div className={styles.profileContainer}><a href={loginHref} className={styles.loginBtn}><LogIn size={18} /> Đăng nhập</a></div>
+          )}
         </div>
       </div>
 
