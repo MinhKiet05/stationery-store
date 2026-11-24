@@ -1,6 +1,7 @@
+import ImportExcelModal from '../../components/dashboard/ImportExcelModal';
 import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Download, Plus, Search, RotateCcw, Ticket, BadgeCheck, Clock, Repeat, Percent, Banknote, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Upload, Download, Plus, Search, RotateCcw, Ticket, BadgeCheck, Clock, Repeat, Percent, Banknote, ChevronLeft, ChevronRight } from 'lucide-react';
 import StatCard from '../../components/dashboard/StatCard';
 import DashboardPageIntro from '../../components/dashboard/DashboardPageIntro';
 import DashboardListHeading from '../../components/dashboard/DashboardListHeading';
@@ -17,6 +18,7 @@ const defaults = { search: '', status: '', discountType: '', sort: 'ID_DESC' };
 export default function PromotionsPage() {
   const { onAccessDenied } = useOutletContext();
   const [filters, setFilters] = useState(defaults), [search, setSearch] = useState(''), [page, setPage] = useState(0), [selected, setSelected] = useState(null), [creating, setCreating] = useState(false), [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const exportRef = useRef(null);
   const list = useDashboardResource(promotionsPath(filters, page), onAccessDenied), stats = useDashboardResource(promotionStatisticsPath(filters), onAccessDenied);
   useEffect(() => {
@@ -46,6 +48,7 @@ export default function PromotionsPage() {
   const summary = stats.data;
   return <div className="promotions-page dashboard-management-page">
     <DashboardPageIntro className="promotions-heading" title="Quản lý khuyến mãi & Voucher" breadcrumb="Khuyến mãi & Voucher" description="Thiết lập điều kiện giảm giá, quản lý thời hạn và theo dõi lượt sử dụng mã ưu đãi.">
+      <button className="dashboard-button" onClick={() => setImporting(true)}><Upload size={17} />Import Excel</button>
       <button className="dashboard-button" disabled={exporting} onClick={download}><Download size={17} />{exporting ? 'Đang xuất Excel…' : 'Xuất Excel'}</button><button className="dashboard-button dashboard-button-accent" onClick={() => setCreating(true)}><Plus size={17} />Tạo mã giảm giá</button>
     </DashboardPageIntro>
     <DashboardState resource={stats}><div className="promotions-kpi-grid">
@@ -76,6 +79,7 @@ export default function PromotionsPage() {
       </tbody></table></div></DashboardState>}
       {list.status === 'ready' && list.data.totalElements > 0 && <div className="dashboard-pagination"><span>{number(list.data.totalElements)} voucher · bộ lọc hiện tại</span><div><button className="dashboard-icon-button" aria-label="Trang voucher trước" disabled={page === 0} onClick={() => setPage(page - 1)}><ChevronLeft size={18} /></button><span>Trang {page + 1} / {Math.max(list.data.totalPages, 1)}</span><button className="dashboard-icon-button" aria-label="Trang voucher tiếp theo" disabled={page + 1 >= list.data.totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={18} /></button></div></div>}
     </section>
+    {importing && <ImportExcelModal kind="promotions" onClose={() => setImporting(false)} onChanged={() => { list.retry(); stats.retry(); }} onAccessDenied={onAccessDenied} />}
     {selected != null && <VoucherDetailModal key={selected} voucherID={selected} onClose={() => setSelected(null)} onChanged={refresh} onAccessDenied={onAccessDenied} />}
     {creating && <VoucherFormModal onClose={() => setCreating(false)} onSaved={() => { setCreating(false); refresh(); }} onAccessDenied={onAccessDenied} />}
   </div>;

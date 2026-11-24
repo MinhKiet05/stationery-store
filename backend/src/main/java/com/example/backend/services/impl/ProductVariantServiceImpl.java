@@ -81,6 +81,27 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         return toResponse(variantRepository.saveAndFlush(variant));
     }
 
+    @Override @PreAuthorize("hasRole('ADMIN')")
+    public List<ProductVariantResponse> createBatch(List<ProductVariantRequest> requests) {
+        var skus = new java.util.HashSet<String>();
+        var ids = new java.util.HashSet<Long>();
+        for (var r : requests) {
+            validate(r);
+            String sku=normalizeSku(r.sku());
+            if(sku==null || !skus.add(sku))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"SKU trong hoac trung lap");
+            ids.add(r.productID());
+        }
+        if(!skus.isEmpty() && !em.createQuery("select v.sku from ProductVariant v where v.sku in :skus",String.class).setParameter("skus",skus).getResultList().isEmpty())throw new ResponseStatusException(HttpStatus.CONFLICT,"SKU da ton tai");
+        var parents=productRepository.findAllById(ids).stream().collect(java.util.stream.Collectors.toMap(Product::getProductID,java.util.function.Function.identity()));
+        var result=new java.util.ArrayList<ProductVariant>();
+        for(var r:requests){
+            var p=parents.get(r.productID());
+            if(p==null || !Boolean.TRUE.equals(p.getIsActive()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"San pham khong hop le");
+            var v=new ProductVariant();applyRequest(v,r,p,normalizeSku(r.sku()));result.add(variantRepository.save(v));
+        }
+        em.flush();return result.stream().map(this::toResponse).toList();
+    }
+
     @Override
     public ProductVariantResponse updateVariant(Long id, ProductVariantRequest request) {
         validate(request);

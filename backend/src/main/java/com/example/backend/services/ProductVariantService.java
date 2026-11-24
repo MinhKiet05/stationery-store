@@ -11,6 +11,7 @@ public interface ProductVariantService {
     List<ProductVariantResponse> getVariantsByProduct(Long productID);
     ProductVariantResponse getVariantById(Long id);
     ProductVariantResponse createVariant(ProductVariantRequest request);
+    List<ProductVariantResponse> createBatch(List<ProductVariantRequest> requests);
     ProductVariantResponse updateVariant(Long id, ProductVariantRequest request);
     void deleteVariant(Long id); // Disable sales; do not physically delete history
 }

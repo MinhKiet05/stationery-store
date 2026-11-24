@@ -33,7 +33,7 @@ import static org.mockito.Mockito.when;
         "spring.jpa.show-sql=false", "logging.level.root=WARN", "logging.level.org.hibernate.SQL=OFF"
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({UserServiceImpl.class, UserProfileIntegrationTest.MethodSecurity.class})
+@Import({UserServiceImpl.class, AdminUserService.class, com.example.backend.repositories.AdminUserRepository.class, UserProfileIntegrationTest.MethodSecurity.class})
 class UserProfileIntegrationTest {
     @Autowired EntityManager em;
     @Autowired UserService users;
@@ -103,6 +103,8 @@ class UserProfileIntegrationTest {
     @WithMockUser(roles = "ADMIN")
     void adminUpdatesStatusWithoutRefreshingCartOrChangingPassword() {
         User user = fixture(true);
+        em.persist(User.builder().username("user").email("admin-status@example.test").passwordHash("test-only").role(com.example.backend.model.UserRole.ADMIN).build());
+        em.flush();
         var response = users.updateStatus(user.getUserID(), new UpdateUserStatusRequest(false));
         assertThat(response.isActive()).isFalse();
         em.flush();

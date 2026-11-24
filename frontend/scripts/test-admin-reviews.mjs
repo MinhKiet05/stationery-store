@@ -27,7 +27,7 @@ function installApi() {
     const route = url.pathname, method = options.method || 'GET';
     window.__requests.push({ route, method, query: Object.fromEntries(url.searchParams), auth: new Headers(options.headers).get('Authorization') });
     options.signal?.throwIfAborted();
-    if (route === '/api/auth/me') return Response.json({ username: 'review-admin', fullName: 'Quản trị kiểm thử', email: 'admin@example.test', role: sessionStorage.getItem('test-role') || 'ADMIN' });
+    if (route === '/api/auth/me') return Response.json({ username: 'review-admin', fullName: 'Quản trị kiểm thử', email: 'admin@example.test', role: (window.__failure?.status === 403 ? 'CUSTOMER' : sessionStorage.getItem('test-role') || 'ADMIN') });
     if (window.__failure?.route === route && (!window.__failure.method || window.__failure.method === method)) return Response.json({ detail: 'SQL password=private-diagnostic' }, { status: window.__failure.status });
     const match = route.match(/^\/api\/admin\/reviews\/(\d+)$/);
     if (match) {
@@ -145,6 +145,7 @@ try {
     await click('[aria-label="Phóng to ảnh đánh giá 1"]'); await until(() => evaluate("document.querySelectorAll('dialog[open]').length===2"), 'image viewer');
     await click('[aria-label="Ảnh đánh giá tiếp theo"]');
     assert.equal(await evaluate("document.querySelector('.reviews-image-expanded').getAttribute('alt')"), 'Ảnh đánh giá 2');
+    assert.equal(await evaluate("[...document.querySelectorAll('dialog[open]')].at(-1).contains(document.activeElement)"), true, 'Disabling the last-image button retains modal focus');
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
     await until(() => evaluate("document.querySelectorAll('dialog[open]').length===1"), 'close viewer');
     await click('dialog[open] [aria-label="Đóng hộp thoại"]');

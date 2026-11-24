@@ -23,6 +23,7 @@ import java.util.Locale;
 public class UserServiceImpl implements UserService {
     private final UserRepository users;
     private final PasswordEncoder passwordEncoder;
+    private final com.example.backend.services.AdminUserService adminUsers;
 
     @Override
     public UserResponse getMe(String username) {
@@ -78,11 +79,10 @@ public class UserServiceImpl implements UserService {
     @Transactional
     @PreAuthorize("hasRole('ADMIN')")
     public UserResponse updateStatus(Long id, UpdateUserStatusRequest request) {
-        User user = users.findForUpdateById(id).orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay tai khoan"));
-        user.setIsActive(request.isActive());
-        // Existing JWT authentication reloads isActive from DB on every subsequent request.
-        return UserResponse.from(user);
+        var row = adminUsers.legacyStatus(id, request.isActive());
+        User user = requireUser(id);
+        return new UserResponse(row.userID(), row.username(), row.email(), row.fullName(),
+                row.phoneNumber(), user.getAddress(), row.role(), row.isActive(), row.createdAt());
     }
 
     private User currentUser(String username) {

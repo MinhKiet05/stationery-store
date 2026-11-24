@@ -35,7 +35,7 @@ function mockApi() {
     if (route === '/api/auth/me') {
       await new Promise(resolve => setTimeout(resolve, window.__delay));
       options.signal?.throwIfAborted();
-      return Response.json({ userID: 1, username: 'test-admin', fullName: 'Quản trị kiểm thử', email: 'admin@example.test', role: sessionStorage.getItem('test-role') || 'ADMIN' });
+      return Response.json({ userID: 1, username: 'test-admin', fullName: 'Quản trị kiểm thử', email: 'admin@example.test', role: (window.__failure?.status === 403 ? 'CUSTOMER' : sessionStorage.getItem('test-role') || 'ADMIN') });
     }
     const orderMatch = route.match(/^\/api\/admin\/orders\/(\d+)(\/status)?$/);
     if (orderMatch) {
@@ -72,6 +72,8 @@ function mockApi() {
     }
     const range = { startDate: url.searchParams.get('startDate'), endDate: url.searchParams.get('endDate') };
     if (route === '/api/admin/statistics/overview') return Response.json({ ...range, totalOrders: window.__empty ? 0 : 12, successfulOrders: 4, totalRevenue: window.__empty ? 0 : 9876543, totalDiscount: 0, quantitySold: 5, totalCustomers: 34, newCustomers: 2 });
+    if (route === '/api/admin/users') return Response.json({ content: [], totalElements: 0, totalPages: 0 });
+    if (route === '/api/admin/users/statistics') return Response.json({totalUsers:0,customers:0,admins:0,lockedUsers:0});
     if (route === '/api/admin/orders') return Response.json({ content: [], totalElements: 0, totalPages: 0 });
     if (route === '/api/admin/orders/statistics') return Response.json({ totalOrders: 0, pendingOrders: 0, shippedOrders: 0, deliveredOrders: 0 });
     if (route === '/api/admin/products') return Response.json({ content: [], totalElements: 0, totalPages: 0 });
@@ -213,13 +215,13 @@ try {
     assert.match(await evaluate("document.querySelector('.dashboard-stat-value').textContent"), /0/);
     await evaluate('window.__empty=false'); await click('.dashboard-filter-buttons button[type=button]'); await loaded();
   });
-  await test('Desktop sidebar collapses and every placeholder link remains in the admin layout', async () => {
+  await test('Desktop sidebar collapses and every management link remains in the admin layout', async () => {
     await click('[aria-controls="dashboard-sidebar"]');
     assert.equal(await evaluate("document.querySelector('.dashboard-shell').classList.contains('is-collapsed')"), true);
     for (const route of ['reviews', 'promotions', 'returns', 'orders', 'products', 'users']) {
       await click(`.dashboard-sidebar a[href="/dashboard/${route}"]`);
-      await until(() => evaluate(`location.pathname==='/dashboard/${route}'&&!!document.querySelector('${route === 'reviews' ? '.reviews-page' : route === 'promotions' ? '.promotions-page' : route === 'returns' ? '.returns-page' : route === 'orders' ? '.orders-page' : route === 'products' ? '.products-page' : '.dashboard-placeholder'}')`), route);
-      assert.match(await text(), route === 'products' ? /Quản lý sản phẩm/ : route === 'orders' ? /Quản lý Đơn hàng/ : route === 'returns' ? /RET|yêu cầu/ : route === 'promotions' ? /Voucher/ : route === 'reviews' ? /Quản lý đánh giá/ : /Chức năng đang được phát triển/);
+      await until(() => evaluate(`location.pathname==='/dashboard/${route}'&&!!document.querySelector('${route === 'reviews' ? '.reviews-page' : route === 'promotions' ? '.promotions-page' : route === 'returns' ? '.returns-page' : route === 'orders' ? '.orders-page' : route === 'products' ? '.products-page' : '.users-page'}')`), route);
+      assert.match(await text(), route === 'products' ? /Quản lý sản phẩm/ : route === 'orders' ? /Quản lý Đơn hàng/ : route === 'returns' ? /RET|yêu cầu/ : route === 'promotions' ? /Voucher/ : route === 'reviews' ? /Quản lý đánh giá/ : /Quản lý Người dùng/);
       assert.equal(await evaluate("document.querySelectorAll('header').length"), 1);
       assert.equal(await evaluate("document.querySelectorAll('.dashboard-nav-link.active').length"), 1);
     }

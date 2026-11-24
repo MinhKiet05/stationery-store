@@ -22,7 +22,7 @@ function installApi() {
     const u=new URL(typeof input==='string'?input:input.url,location.href);if(!u.pathname.startsWith('/api/'))return realFetch(input,options);
     const route=u.pathname,method=options.method||'GET',body=options.body?JSON.parse(options.body):null;
     window.__requests.push({route,method,query:Object.fromEntries(u.searchParams),auth:new Headers(options.headers).get('Authorization'),body});options.signal?.throwIfAborted();
-    if(route==='/api/auth/me')return Response.json({username:'admin',fullName:'Quản trị kiểm thử',role:sessionStorage.getItem('test-role')||'ADMIN'});
+    if(route==='/api/auth/me')return Response.json({username:'admin',fullName:'Quản trị kiểm thử',role: (window.__failure?.status === 403 ? 'CUSTOMER' : sessionStorage.getItem('test-role') || 'ADMIN')});
     if(window.__failure?.route===route&&(!window.__failure.method||window.__failure.method===method))return Response.json({detail:'SQL password=private-diagnostic'},{status:window.__failure.status});
     if(route.startsWith('/api/admin/products')||route.startsWith('/api/admin/product-variants')){await new Promise(resolve=>setTimeout(resolve,window.__delay));options.signal?.throwIfAborted();}
     if(route==='/api/admin/products/options')return Response.json({categories:[{id:1,name:'Bút',active:true},{id:2,name:'Sổ',active:true}],vendors:[{id:1,name:'Brand A',active:true},{id:2,name:'Brand B',active:true}],tags:[{id:1,name:'Học tập',active:true}]});

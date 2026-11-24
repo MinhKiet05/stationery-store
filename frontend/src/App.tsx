@@ -16,12 +16,14 @@ import OrderHistoryTab from "./pages/myProfile/tabs/OrderHistoryTab";
 import SecurityTab from "./pages/myProfile/tabs/SecurityTab";
 import WishlistTab from "./pages/myProfile/tabs/WishlistTab";
 import AppNotifications from "./components/notifications/AppNotifications";
+import { useAdminSessionEvents } from './services/adminSession';
 const AdminRoute = lazy(() => import('./routes/AdminRoute.jsx'));
 const DashboardLayout = lazy(() => import('./layouts/DashboardLayout.jsx'));
 const OverviewPage = lazy(() => import('./pages/dashboard/OverviewPage.jsx'));
 const ReviewsPage = lazy(() => import('./pages/dashboard/ReviewsPage.jsx'));
 const PromotionsPage = lazy(() => import('./pages/dashboard/PromotionsPage.jsx'));
 const ProductsPage = lazy(() => import('./pages/dashboard/ProductsPage.jsx'));
+const UsersPage = lazy(() => import('./pages/dashboard/UsersPage.jsx'));
 const OrdersPage = lazy(() => import('./pages/dashboard/OrdersPage.jsx'));
 const ReturnsPage = lazy(() => import('./pages/dashboard/ReturnsPage.jsx'));
 const DashboardPlaceholder = lazy(() => import('./pages/dashboard/DashboardPlaceholder.jsx'));
@@ -58,6 +60,7 @@ function ProductSearchRedirect() {
 }
 
 function App() {
+  useAdminSessionEvents();
   return (
     <BrowserRouter>
       <Routes>
@@ -69,7 +72,7 @@ function App() {
             <Route path="returns" element={<ReturnsPage />} />
             <Route path="orders" element={<OrdersPage />} />
             <Route path="products" element={<ProductsPage />} />
-            <Route path="users" element={<DashboardPlaceholder title="Người dùng" />} />
+            <Route path="users" element={<UsersPage />} />
             <Route path="*" element={<DashboardPlaceholder title="Trang quản trị" />} />
           </Route>
         </Route>

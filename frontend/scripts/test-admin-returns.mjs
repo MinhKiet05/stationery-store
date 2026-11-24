@@ -29,7 +29,7 @@ function installApi() {
     if (!url.pathname.startsWith('/api/')) return realFetch(input, options);
     const route = url.pathname, method = options.method || 'GET', body = options.body ? JSON.parse(options.body) : null;
     window.__requests.push({ route, method, query: Object.fromEntries(url.searchParams), auth: new Headers(options.headers).get('Authorization'), body }); options.signal?.throwIfAborted();
-    if (route === '/api/auth/me') return Response.json({ username: 'return-admin', fullName: 'Quản trị kiểm thử', email: 'admin@example.test', role: sessionStorage.getItem('test-role') || 'ADMIN' });
+    if (route === '/api/auth/me') return Response.json({ username: 'return-admin', fullName: 'Quản trị kiểm thử', email: 'admin@example.test', role: (window.__failure?.status === 403 ? 'CUSTOMER' : sessionStorage.getItem('test-role') || 'ADMIN') });
     if (window.__failure?.route === route && (!window.__failure.method || window.__failure.method === method)) return Response.json({ detail: 'SQL password=private-diagnostic' }, { status: window.__failure.status });
     const match = route.match(/^\/api\/admin\/returns\/(\d+)(?:\/(status|receive|restock))?$/);
     if (match) {
