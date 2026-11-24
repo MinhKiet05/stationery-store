@@ -406,7 +406,7 @@ try {
   });
   await test('Logout uses the existing token/event flow', async () => {
     await evaluate("localStorage.setItem('accessToken','browser-test-token')"); await navigate('/dashboard'); await loaded();
-    await click('.dashboard-account summary'); await click('.dashboard-account-menu button');
+    await click('.dashboard-header [data-user-account-trigger]'); await click('.dashboard-header [data-user-account-menu] button');
     await until(() => evaluate("location.pathname==='/login'"), 'logout');
     assert.equal(await evaluate("localStorage.getItem('accessToken')"), null);
   });

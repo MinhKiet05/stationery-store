@@ -90,7 +90,7 @@ try {
   const focus=()=>evaluate("window.dispatchEvent(new Event('focus'));document.dispatchEvent(new Event('visibilitychange'))");
   const go=async route=>{await evaluate(`history.pushState({},'',${JSON.stringify(route)});window.dispatchEvent(new PopStateEvent('popstate'))`);await until(()=>evaluate(`location.pathname===${JSON.stringify(route)}`),'SPA route');};
   const signIn=async token=>{await evaluate(`localStorage.setItem('accessToken',${JSON.stringify(token)});window.dispatchEvent(new Event('auth-changed'))`);};
-  await test('Initial ADMIN verification is single-flight even under StrictMode',async()=>{assert.equal(await identityCalls(),1);assert.equal(await evaluate("document.querySelector('.dashboard-account-name').textContent.includes('session-A')"),true);});
+  await test('Initial ADMIN verification is single-flight even under StrictMode',async()=>{assert.equal(await identityCalls(),1);assert.equal(await evaluate("document.querySelector('.dashboard-header [data-user-account-trigger]').textContent.includes('session-A')"),true);});
   await test('Every nested route keeps the same header/sidebar/layout and never repeats the auth gate or identity request',async()=>{
     await evaluate("window.__shell=document.querySelector('.dashboard-shell');window.__header=document.querySelector('.dashboard-header');window.__sidebar=document.querySelector('.dashboard-sidebar');window.__gates=0;window.__observer=new MutationObserver(()=>{if(document.querySelector('.dashboard-gate'))window.__gates++});window.__observer.observe(document.body,{childList:true,subtree:true})");
     await click('[aria-controls="dashboard-sidebar"]');
@@ -134,7 +134,7 @@ try {
     try{await request('Page.enable');await request('Page.addScriptToEvaluateOnNewDocument',{source:`(${installApi.toString()})()`});await request('Page.navigate',{url:base+'/dashboard/users'});await until(()=>read("!!document.querySelector('.dashboard-shell')"),'new tab');assert.equal(await read('window.__identityCalls'),1);assert.equal(await read("localStorage.getItem('accessToken')"),'session-A');}finally{await request('Page.close').catch(()=>{});secondary.close();}
   });
   await test('Logout clears the cache and re-login with the same token cannot reuse the previous ADMIN proof',async()=>{
-    await click('.dashboard-account summary');await click('.dashboard-account-menu button');await until(()=>evaluate("location.pathname==='/login'"),'logout');const before=await identityCalls();
+    await click('.dashboard-header [data-user-account-trigger]');await click('.dashboard-header [data-user-account-menu] button');await until(()=>evaluate("location.pathname==='/login'"),'logout');const before=await identityCalls();
     await signIn('session-A');await go('/dashboard/users');await loaded();assert.equal(await identityCalls(),before+1);
   });
   await test('Changing accounts drops protected content and late old-session 401 cannot log out the new account',async()=>{
@@ -142,7 +142,7 @@ try {
     await evaluate("window.__ignoreIdentityAbort=true;window.__identityDelays['session-A']=700;window.__identityFailures['session-A']=401;window.__clockOffset+=300001");await focus();await delay(80);
     await evaluate("window.__profileDone=false;void window.__profileApi.getCurrentUser(location.origin).then(()=>{window.__profileDone=true})");
     await evaluate("window.__identityDelays['session-B']=250");await signIn('session-B');await until(()=>evaluate("!!document.querySelector('.dashboard-gate')"),'new session gate');assert.equal(await evaluate("!!document.querySelector('.dashboard-shell')"),false);
-    await loaded();await delay(800);assert.equal(await evaluate('window.__profileDone'),true);assert.equal(await evaluate("localStorage.getItem('accessToken')"),'session-B');assert.equal(await evaluate("document.querySelector('.dashboard-account-name').textContent.includes('session-B')"),true);
+    await loaded();await delay(800);assert.equal(await evaluate('window.__profileDone'),true);assert.equal(await evaluate("localStorage.getItem('accessToken')"),'session-B');assert.equal(await evaluate("document.querySelector('.dashboard-header [data-user-account-trigger]').textContent.includes('session-B')"),true);
     await evaluate("window.__ignoreIdentityAbort=false;window.__identityFailures={};window.__identityDelays={}");
   });
   await test('Revoked ADMIN role is removed as soon as background verification detects the database role change',async()=>{
