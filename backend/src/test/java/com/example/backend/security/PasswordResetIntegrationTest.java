@@ -46,12 +46,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.datasource.hikari.connection-init-sql=CREATE SCHEMA IF NOT EXISTS store; SET SCHEMA store",
         "spring.jpa.hibernate.ddl-auto=validate",
         "app.jwt.secret-base64=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
-        "spring.mail.username=test@example.test", "spring.mail.password=", "app.mail.from=test@example.test",
+        "app.mail.provider=smtp", "spring.mail.username=test@example.test", "spring.mail.password=", "app.mail.from=test@example.test",
         "app.frontend.url=https://stationery-store-nu.vercel.app",
         "app.frontend.reset-password-url=https://stationery-store-nu.vercel.app/reset-password",
         "app.ai.enabled=false", "app.ai.vector-url=", "logging.level.root=WARN", "app.redis.enabled=false"
 })
 @AutoConfigureMockMvc
+@org.junit.jupiter.api.extension.ExtendWith(org.springframework.boot.test.system.OutputCaptureExtension.class)
 class PasswordResetIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired UserRepository users;
@@ -82,6 +83,7 @@ class PasswordResetIntegrationTest {
         assertThat(raw).matches("[A-Za-z0-9_-]{43}");
         assertThat(stored.getTokenHash()).isEqualTo(hash(raw)).isNotEqualTo(raw);
         assertThat(stored.getUsed()).isFalse();
+        assertThat((String) capturedEmail().getContent()).contains("15 ph\u00fat", "#f97316", "#0b1425");
         assertThat(stored.getCreatedAt()).isBetween(before, LocalDateTime.now());
         assertThat(stored.getExpiresAt()).isBetween(before.plusMinutes(15), LocalDateTime.now().plusMinutes(15));
     }
@@ -196,11 +198,13 @@ class PasswordResetIntegrationTest {
     }
 
     @Test
-    void smtpFailureDoesNotRevealAccountOrConsumeCooldownAndRollsBackToken() throws Exception {
+    void smtpFailureDoesNotRevealAccountOrConsumeCooldownAndRollsBackToken(org.springframework.boot.test.system.CapturedOutput output) throws Exception {
         doThrow(new MailAuthenticationException("secret SMTP diagnostic")).when(mail).send(any(MimeMessage.class));
         var failed = forgot(user.getEmail(), null);
         assertThat(failed).isEqualTo(forgot("unknown@example.test", null)).doesNotContain("secret SMTP");
         assertThat(tokens.count()).isZero();
+        assertThat(output.getAll()).contains("stage=email_delivery_failed", "reason=authentication_failed", "cause_type=MailAuthenticationException")
+                .doesNotContain("secret SMTP diagnostic");
         doNothing().when(mail).send(any(MimeMessage.class));
         forgot(user.getEmail(), null);
         assertThat(tokens.count()).isEqualTo(1);
@@ -264,6 +268,21 @@ class PasswordResetIntegrationTest {
         var matcher = Pattern.compile("https://stationery-store-nu.vercel.app/reset-password\\?token=([A-Za-z0-9_-]+)").matcher(html);
         assertThat(matcher.find()).isTrue();
         return matcher.group(1);
+    }
+
+    private MimeMessage capturedEmail() {
+        var captor = ArgumentCaptor.forClass(MimeMessage.class);
+        verify(mail).send(captor.capture());
+        return captor.getValue();
+    }
+
+    @Test
+    void legacyMixedCaseAccountEmailCanReceiveResetLink() throws Exception {
+        user.setEmail("Reset@Example.Test");
+        users.saveAndFlush(user);
+        forgot("reset@example.test", null);
+        assertThat(tokens.count()).isEqualTo(1);
+        emailedToken();
     }
 
     private String expiredJwt() {

@@ -7,6 +7,7 @@ import HomePage from "./pages/homePage/HomePage";
 const ProductDetail = lazy(() => import('./pages/productDetail/ProductDetail'));
 const Login = lazy(() => import('./pages/login/Login'));
 const ForgotPassword = lazy(() => import('./pages/forgotPassword/ForgotPassword'));
+const ResetPassword = lazy(() => import('./pages/forgotPassword/ResetPassword'));
 const AboutUs = lazy(() => import('./pages/aboutUs/AboutUs'));
 const Policy = lazy(() => import('./pages/policy/Policy'));
 const SearchPage = lazy(() => import('./pages/searchPage/SearchPage'));
@@ -48,11 +49,6 @@ function StoreChat() {
 function ProductDetailWrapper() {
   const { handle = "" } = useParams();
   return <ProductDetail handle={decodeURIComponent(handle)} />;
-}
-
-function ResetPasswordRedirect() {
-  const { search, hash } = useLocation();
-  return <Navigate to={{ pathname: "/forgot-password", search, hash }} replace />;
 }
 
 function ProductSearchRedirect() {
@@ -99,7 +95,7 @@ function App() {
         {/* Nhóm trang Auth độc lập */}
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPasswordRedirect />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes></Suspense>
 
       <StoreChat />

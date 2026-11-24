@@ -30,12 +30,15 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class PasswordResetServiceImpl implements PasswordResetService {
-    private static final int TOKEN_TTL_MINUTES = 15;
+    private static final int TOKEN_TTL_MINUTES = PasswordResetEmailTemplate.TTL_MINUTES;
     @Value("${app.password-reset.resend-seconds:60}")
     private int minRequestIntervalSeconds = 60;
     private static final SecureRandom RNG = new SecureRandom();
@@ -63,11 +66,17 @@ public class PasswordResetServiceImpl implements PasswordResetService {
     @Override
     @Transactional
     public void requestReset(String email) {
+        long started = System.nanoTime();
+        String requestId = UUID.randomUUID().toString();
+        stage(requestId, "request_received", started);
         // Check before account lookup so an outage does not distinguish existing emails.
         if (redisTokens != null) redisTokens.checkAvailable();
         // Return the same generic result for unknown / disabled accounts.
         if (email == null) return;
-        users.findByEmail(email.strip().toLowerCase(Locale.ROOT)).ifPresent(user -> {
+        long lookupStarted = System.nanoTime();
+        var account = users.findByEmailIgnoreCase(email.strip().toLowerCase(Locale.ROOT));
+        stage(requestId, "account_lookup_completed", lookupStarted);
+        account.ifPresent(user -> {
             if (!Boolean.TRUE.equals(user.getIsActive())) return;
 
             // Serialize requests for one user to prevent concurrent token issuance.
@@ -77,10 +86,11 @@ public class PasswordResetServiceImpl implements PasswordResetService {
             LocalDateTime now = LocalDateTime.now();
             boolean tooSoon = existing.stream().anyMatch(t ->
                     now.isBefore(t.getCreatedAt().plusSeconds(minRequestIntervalSeconds)));
-            if (tooSoon) return;
+            if (tooSoon) { stage(requestId, "issuance_throttled", started); return; }
             if (redisTokens != null && !redisTokens.canIssue(locked.getUserID())) return;
 
-            // Keep previous valid tokens usable until SMTP succeeds; rollback if email fails.
+            long tokenStarted = System.nanoTime();
+            // Keep previous valid links usable until the provider accepts; rollback on failure.
             byte[] bytes = new byte[32];
             RNG.nextBytes(bytes);
             String raw = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
@@ -97,18 +107,23 @@ public class PasswordResetServiceImpl implements PasswordResetService {
                 tokens.saveAndFlush(token);
             }
 
+            stage(requestId, "token_generated", tokenStarted);
             String link = resetPasswordUrl + (resetPasswordUrl.contains("?") ? "&" : "?")
                     + "token=" + URLEncoder.encode(raw, StandardCharsets.UTF_8);
+            long deliveryStarted = System.nanoTime();
+            stage(requestId, "email_delivery_attempted", deliveryStarted);
             try {
                 emailSender.sendResetLink(locked.getEmail(), link);
             } catch (MailException exception) {
                 // A different HTTP result only for registered emails would reveal accounts.
                 // Roll back issuance so delivery can be retried without consuming cooldown.
                 TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
-                log.warn("Password reset email delivery failed; token issuance rolled back ({})",
-                        exception.getClass().getSimpleName());
+                var diagnostic = MailFailureDiagnostics.describe(exception);
+                log.warn("event=password_reset stage=email_delivery_failed request_id={} reason={} cause_type={} elapsed_ms={} issuance=rolled_back",
+                        requestId, diagnostic.reason(), diagnostic.causeType(), elapsed(deliveryStarted));
                 return;
             }
+            stage(requestId, "email_provider_accepted", deliveryStarted);
             // Do not replace an active link or consume cooldown until delivery succeeds.
             if (redisTokens != null) {
                 existing.forEach(item -> item.setUsed(true));
@@ -117,12 +132,16 @@ public class PasswordResetServiceImpl implements PasswordResetService {
             } else {
                 existing.forEach(item -> item.setUsed(true));
             }
+            afterCommit(requestId, "token_issuance_committed", started);
         });
+        stage(requestId, "request_processed", started);
     }
 
     @Override
     @Transactional
     public void resetPassword(String rawToken, String newPassword) {
+        long started = System.nanoTime();
+        String requestId = UUID.randomUUID().toString();
         if (rawToken == null || rawToken.isBlank() || rawToken.length() > 256) {
             throw invalidToken();
         }
@@ -130,8 +149,12 @@ public class PasswordResetServiceImpl implements PasswordResetService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Mat khau phai co tu 8 den 72 ky tu");
         }
+        if (newPassword.getBytes(StandardCharsets.UTF_8).length > 72) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mat khau moi vuot qua 72 byte UTF-8");
+        }
         if (redisTokens != null) {
             resetUsingRedis(rawToken.strip(), newPassword);
+            afterCommit(requestId, "reset_completed", started);
             return;
         }
         PasswordResetToken token = tokens.findByTokenHash(sha256(rawToken.strip()))
@@ -153,6 +176,7 @@ public class PasswordResetServiceImpl implements PasswordResetService {
         token.setUsed(true);
         users.save(user);
         tokens.flush();
+        afterCommit(requestId, "reset_completed", started);
         // Existing stateless JWTs stay valid until expiration unless a token-revocation
         // mechanism is added separately to SecurityConfig / JWT validation.
     }
@@ -168,6 +192,18 @@ public class PasswordResetServiceImpl implements PasswordResetService {
         tokens.findByUser_UserID(userID).forEach(item -> item.setUsed(true));
         users.save(user);
         tokens.flush();
+    }
+
+    private static long elapsed(long started) { return (System.nanoTime() - started) / 1_000_000; }
+
+    private void stage(String requestId, String stage, long started) {
+        log.info("event=password_reset stage={} request_id={} elapsed_ms={}", stage, requestId, elapsed(started));
+    }
+
+    private void afterCommit(String requestId, String stage, long started) {
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override public void afterCommit() { stage(requestId, stage, started); }
+        });
     }
 
     private String sha256(String value) {

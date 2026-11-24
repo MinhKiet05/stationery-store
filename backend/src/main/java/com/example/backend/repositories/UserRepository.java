@@ -30,6 +30,7 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
     Optional<User> findForUpdateById(@Param("id") Long id);
 
     Optional<User> findByEmail(String email);
+    Optional<User> findByEmailIgnoreCase(String email);
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
     List<User> findByRole(UserRole role);
