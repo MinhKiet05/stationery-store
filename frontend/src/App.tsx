@@ -1,3 +1,4 @@
+import ScrollToTop from './components/ScrollToTop';
 import { BrowserRouter, Routes, Route, useParams, useLocation, Navigate, Outlet } from "react-router-dom";
 import { lazy, Suspense } from 'react';
 import Header from "./components/header/Header";
@@ -63,6 +64,7 @@ function App() {
   useAdminSessionEvents();
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Suspense fallback={<p role="status">Đang tải trang…</p>}><Routes>
         <Route path="/dashboard" element={<Suspense fallback={<div role="status">Đang tải khu vực quản trị…</div>}><AdminRoute /></Suspense>}>
           <Route element={<DashboardLayout />}>

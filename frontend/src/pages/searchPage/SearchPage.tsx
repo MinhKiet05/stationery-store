@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys, cacheTimes } from '../../services/queryCache';
-import { useEffect, useRef, useState } from "react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   BadgeCheck,
   ChevronDown,
@@ -35,10 +35,8 @@ const priceRanges = [
 ];
 const catalogSorts: Record<string, string> = { popular: 'productID,asc', newest: 'productID,desc',
   'price-asc': 'price,asc', 'price-desc': 'price,desc', rating: 'ratingAverage,desc', name: 'title,asc' };
-const searchScroll = new Map<string, number>();
 
 export default function SearchPage() {
-  const location = useLocation(), restored = useRef<string | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("search")?.trim() ?? "";
   const rawCategory = searchParams.get('category');
@@ -88,21 +86,6 @@ export default function SearchPage() {
   const catalogProducts = catalog.data?.products ?? [], categories = catalog.data?.categories ?? [];
   const loading = catalog.isPending;
   const loadError = catalog.isError && !catalog.data ? userMessage(catalog.error, 'Không tải được sản phẩm. Vui lòng thử lại.') : '';
-  useEffect(() => {
-    const remember = () => {
-      searchScroll.delete(location.key); searchScroll.set(location.key, window.scrollY);
-      if (searchScroll.size > 20) searchScroll.delete(searchScroll.keys().next().value!);
-    };
-    window.addEventListener('scroll', remember, { passive: true });
-    return () => window.removeEventListener('scroll', remember);
-  }, [location.key]);
-  useEffect(() => {
-    if (loading || !catalog.data || restored.current === location.key) return;
-    const y = searchScroll.get(location.key);
-    const frame = requestAnimationFrame(() => { restored.current = location.key; if (y != null) window.scrollTo(0, y); });
-    return () => cancelAnimationFrame(frame);
-  }, [loading, catalog.data, location.key]);
-
   useEffect(() => {
     document.title = query
       ? `Tìm kiếm “${query}” | StationeryStore`

@@ -101,6 +101,7 @@ try {
     const scroll=await evaluate('scrollY'), url=await evaluate('location.search');
     await click(image); await detail();
     assert.equal(await evaluate('location.pathname'),'/products/so-test');
+    assert.equal(await evaluate('scrollY'),0);
     assert.equal(await evaluate('window.__spaMarker'),1);
     assert.equal(await evaluate("window.__requests.filter(r=>r.route==='/api/products/handle/so-test').length"),reads);
     assert.equal(await evaluate('!!document.querySelector("#catalog-product-dialog")'),false);
