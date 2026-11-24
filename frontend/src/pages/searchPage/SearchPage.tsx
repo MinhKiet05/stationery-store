@@ -8,12 +8,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Columns3,
-  Heart,
   LayoutGrid,
   PackageCheck,
   RotateCcw,
   Search,
-  ShoppingCart,
   SlidersHorizontal,
   Star,
   Truck,
@@ -23,11 +21,11 @@ import {
 import {
   money,
   normalize,
-  type CatalogProduct,
 } from "./catalogData";
 import { catalogOptions, getCatalogVendors } from "../../services/catalogService";
 import { userMessage } from "../../utils/notifications";
 import styles from "./SearchPage.module.css";
+import SearchProductCard from "./SearchProductCard";
 
 const priceRanges = [
   { label: "< 50.000đ", min: "0", max: "50000" },
@@ -48,35 +46,38 @@ export default function SearchPage() {
   const rawPage = searchParams.get('page') ?? '1';
   const page = /^[1-9]\d*$/.test(rawPage) && Number.isSafeInteger(Number(rawPage)) ? Number(rawPage) : 1;
   const pageSize = [12, 24, 48].includes(Number(searchParams.get('size'))) ? Number(searchParams.get('size')) : 24;
-  function updateParameter(name: string, value: string | null, resetPage = true) {
+  function updateParameters(values: Record<string, string | string[] | null>, resetPage = true) {
     setSearchParams(current => {
       const next = new URLSearchParams(current);
-      if (value == null) next.delete(name); else next.set(name, value);
+      for (const [name, value] of Object.entries(values)) {
+        next.delete(name);
+        if (Array.isArray(value)) value.forEach(item => next.append(name, item));
+        else if (value != null) next.set(name, value);
+      }
       if (resetPage) next.delete('page');
       return next;
     });
   }
+  const updateParameter = (name: string, value: string | null, resetPage = true) => updateParameters({ [name]: value }, resetPage);
   const setCategory = (value: string) => updateParameter('category', value === 'all' ? null : value);
   const setSort = (value: string) => updateParameter('sort', value === 'popular' ? null : value);
   const setPage = (value: number) => updateParameter('page', value === 1 ? null : String(value), false);
   const setPageSize = (value: number) => updateParameter('size', String(value));
-  const [brands, setBrands] = useState<string[]>([]);
+  const brands = searchParams.getAll('brands');
   const [brandSearch, setBrandSearch] = useState("");
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
-  const [price, setPrice] = useState({ min: "", max: "" });
+  const price = { min: searchParams.get('minPrice') ?? '', max: searchParams.get('maxPrice') ?? '' };
+  const [minPrice, setMinPrice] = useState(price.min);
+  const [maxPrice, setMaxPrice] = useState(price.max);
+  const setPrice = (value: typeof price) => updateParameters({ minPrice: value.min || null, maxPrice: value.max || null });
   const [priceError, setPriceError] = useState("");
-  const [rating, setRating] = useState(0);
-  const [inStock, setInStock] = useState(false);
-  const [onSale, setOnSale] = useState(false);
-  const [express, setExpress] = useState(false);
+  const rating = [3, 4, 5].includes(Number(searchParams.get('rating'))) ? Number(searchParams.get('rating')) : 0;
+  const setRating = (value: number) => updateParameter('rating', value ? String(value) : null);
+  const inStock = searchParams.get('inStock') === 'true', onSale = searchParams.get('onSale') === 'true', express = searchParams.get('express') === 'true';
+  const setInStock = (value: boolean) => updateParameter('inStock', value ? 'true' : null);
+  const setOnSale = (value: boolean) => updateParameter('onSale', value ? 'true' : null);
+  const setExpress = (value: boolean) => updateParameter('express', value ? 'true' : null);
   const [view, setView] = useState("grid");
   const [mobileFilters, setMobileFilters] = useState(false);
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(
-    null,
-  );
-  const [notice, setNotice] = useState("");
   const catalogFilters = { page: page - 1, size: pageSize, keyword: query, productTypeID: category === 'all' ? '' : category,
     brands: [...brands].sort(), minPrice: price.min, maxPrice: price.max, rating, inStock, onSale,
     sort: catalogSorts[sort] };
@@ -85,25 +86,11 @@ export default function SearchPage() {
   const catalogProducts = catalog.data?.products ?? [], categories = catalog.data?.categories ?? [];
   const loading = catalog.isPending;
   const loadError = catalog.isError && !catalog.data ? userMessage(catalog.error, 'Không tải được sản phẩm. Vui lòng thử lại.') : '';
-
   useEffect(() => {
     document.title = query
       ? `Tìm kiếm “${query}” | StationeryStore`
       : "Tìm kiếm sản phẩm | StationeryStore";
   }, [query]);
-
-  useEffect(() => {
-    if (!selectedProduct) return;
-    const previousFocus = document.activeElement as HTMLElement | null;
-    const dialog = document.querySelector<HTMLDialogElement>(
-      "#catalog-product-dialog",
-    );
-    dialog?.showModal();
-    return () => {
-      dialog?.close();
-      previousFocus?.focus();
-    };
-  }, [selectedProduct]);
 
   const brandOptions = (vendors.data ?? []).map(v => v.name);
   const totalElements = catalog.data?.totalElements ?? 0;
@@ -121,25 +108,14 @@ export default function SearchPage() {
     Number(express);
 
   function reset() {
-    setBrands([]);
-    setCategory("all");
-    setPrice({ min: "", max: "" });
+    updateParameters({ category: null, brands: null, minPrice: null, maxPrice: null, rating: null, inStock: null, onSale: null, express: null });
     setMinPrice("");
     setMaxPrice("");
-    setRating(0);
-    setInStock(false);
-    setOnSale(false);
-    setExpress(false);
     setPriceError("");
   }
 
   function toggleBrand(brand: string) {
-    setBrands((current) =>
-      current.includes(brand)
-        ? current.filter((item) => item !== brand)
-        : [...current, brand],
-    );
-    setPage(1);
+    updateParameters({ brands: brands.includes(brand) ? brands.filter(item => item !== brand) : [...brands, brand] });
   }
 
   function applyPrice(min = minPrice, max = maxPrice) {
@@ -155,7 +131,6 @@ export default function SearchPage() {
     setMinPrice(min);
     setMaxPrice(max);
     setPrice({ min, max });
-    setPage(1);
   }
 
   const chip = (label: string, remove: () => void) => (
@@ -413,7 +388,6 @@ export default function SearchPage() {
                     checked={rating === value}
                     onChange={() => {
                       setRating(value);
-                      setPage(1);
                     }}
                   />
                   <span className={styles.stars} aria-label={`${value} sao`}>
@@ -443,7 +417,6 @@ export default function SearchPage() {
                   checked={inStock}
                   onChange={(event) => {
                     setInStock(event.target.checked);
-                    setPage(1);
                   }}
                 />
                 <span>Còn hàng sẵn (In stock)</span>
@@ -455,7 +428,6 @@ export default function SearchPage() {
                   checked={onSale}
                   onChange={(event) => {
                     setOnSale(event.target.checked);
-                    setPage(1);
                   }}
                 />
                 <span>Đang giảm giá (On sale)</span>
@@ -469,7 +441,6 @@ export default function SearchPage() {
                   title="Chưa có thông tin giao hoả tốc cho các sản phẩm này"
                   onChange={(event) => {
                     setExpress(event.target.checked);
-                    setPage(1);
                   }}
                 />
                 <span>Giao hoả tốc 2H</span>
@@ -570,107 +541,7 @@ export default function SearchPage() {
                 className={`${styles.productGrid} ${view === "list" ? styles.productList : ""}`}
               >
                 {visible.map((product) => (
-                  <article key={product.id} className={styles.card}>
-                    <div className={styles.imageWrapper}>
-                      <button
-                        className={styles.imageButton}
-                        onClick={() => setSelectedProduct(product)}
-                        aria-label={`Xem ${product.title}`}
-                      >
-                        {product.image ? (
-                          <img
-                            src={product.image}
-                            alt={product.title}
-                            loading="lazy"
-                            width="192"
-                            height="192"
-                          />
-                        ) : (
-                          <span className={styles.missingImage}>
-                            Chưa có ảnh sản phẩm
-                          </span>
-                        )}
-                      </button>
-                      <div className={styles.badges}>
-                        {product.oldPrice > product.price && (
-                          <span>
-                            -
-                            {Math.round(
-                              (1 - product.price / product.oldPrice) * 100,
-                            )}
-                            %
-                          </span>
-                        )}
-                        {product.badge && (
-                          <b
-                            className={
-                              ["Top Trend", "Tiết kiệm"].includes(product.badge)
-                                ? styles.greenBadge
-                                : ""
-                            }
-                          >
-                            {product.badge}
-                          </b>
-                        )}
-                      </div>
-                      <button
-                        className={styles.favorite}
-                        aria-label={`${favorites.includes(product.id) ? "Bỏ" : "Thêm"} yêu thích ${product.title}`}
-                        aria-pressed={favorites.includes(product.id)}
-                        onClick={() =>
-                          setFavorites((current) =>
-                            current.includes(product.id)
-                              ? current.filter((id) => id !== product.id)
-                              : [...current, product.id],
-                          )
-                        }
-                      >
-                        <Heart
-                          size={18}
-                          fill={
-                            favorites.includes(product.id)
-                              ? "currentColor"
-                              : "none"
-                          }
-                        />
-                      </button>
-                    </div>
-                    <div className={styles.cardContent}>
-                      <p className={styles.vendor}>{product.brand}</p>
-                      <button
-                        className={styles.productTitle}
-                        onClick={() => setSelectedProduct(product)}
-                      >
-                        {product.title}
-                      </button>
-                      <p className={styles.productRating}>
-                        {product.reviewCount > 0 ? (
-                          <>
-                            <Star size={14} fill="currentColor" />
-                            <strong>{product.rating.toFixed(1)}</strong>
-                            <span>({product.reviewCount} đánh giá)</span>
-                          </>
-                        ) : (
-                          <span>Chưa có đánh giá</span>
-                        )}
-                      </p>
-                      <div className={styles.priceRow}>
-                        <div>
-                          <strong>{money(product.price)}</strong>
-                          {product.oldPrice > product.price && (
-                            <del>{money(product.oldPrice)}</del>
-                          )}
-                        </div>
-                        <button
-                          className={styles.cartButton}
-                          aria-label={`Xem lựa chọn mua ${product.title}`}
-                          onClick={() => setSelectedProduct(product)}
-                        >
-                          <ShoppingCart size={18} />
-                        </button>
-                      </div>
-                    </div>
-                  </article>
+                  <SearchProductCard key={product.id} product={product} />
                 ))}
               </div>
             ) : (
@@ -742,53 +613,6 @@ export default function SearchPage() {
           </div>
         </div>
       </div>
-      <p
-        role="status"
-        aria-live="polite"
-        className={notice ? styles.notice : styles.srOnly}
-      >
-        {notice}
-        {notice && (
-          <button aria-label="Đóng thông báo" onClick={() => setNotice("")}>
-            <X size={15} />
-          </button>
-        )}
-      </p>
-      {selectedProduct && (
-        <dialog
-          id="catalog-product-dialog"
-          className={styles.dialog}
-          onCancel={() => setSelectedProduct(null)}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setSelectedProduct(null);
-          }}
-          aria-labelledby="product-preview-title"
-        >
-          <button
-            className={styles.closeDialog}
-            aria-label="Đóng chi tiết sản phẩm"
-            onClick={() => setSelectedProduct(null)}
-            autoFocus
-          >
-            <X size={22} />
-          </button>
-          {selectedProduct.image && (
-            <img src={selectedProduct.image} alt={selectedProduct.title} />
-          )}
-          <p className={styles.vendor}>{selectedProduct.brand}</p>
-          <h2 id="product-preview-title">{selectedProduct.title}</h2>
-          <strong className={styles.previewPrice}>
-            {money(selectedProduct.price)}
-          </strong>
-          <p>
-            {selectedProduct.inStock ? "Còn hàng" : "Tạm hết hàng"} ·{" "}
-            {selectedProduct.reviewCount > 0
-              ? `Đánh giá ${selectedProduct.rating.toFixed(1)}/5`
-              : "Chưa có đánh giá"}
-          </p>
-          <a href={selectedProduct.detailHref}>Xem chi tiết sản phẩm</a>
-        </dialog>
-      )}
     </main>
   );
 }
