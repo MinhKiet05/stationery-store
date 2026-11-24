@@ -72,6 +72,11 @@ function mockApi() {
     }
     const range = { startDate: url.searchParams.get('startDate'), endDate: url.searchParams.get('endDate') };
     if (route === '/api/admin/statistics/overview') return Response.json({ ...range, totalOrders: window.__empty ? 0 : 12, successfulOrders: 4, totalRevenue: window.__empty ? 0 : 9876543, totalDiscount: 0, quantitySold: 5, totalCustomers: 34, newCustomers: 2 });
+    if (route === '/api/admin/orders') return Response.json({ content: [], totalElements: 0, totalPages: 0 });
+    if (route === '/api/admin/orders/statistics') return Response.json({ totalOrders: 0, pendingOrders: 0, shippedOrders: 0, deliveredOrders: 0 });
+    if (route === '/api/admin/products') return Response.json({ content: [], totalElements: 0, totalPages: 0 });
+    if (route === '/api/admin/products/statistics') return Response.json({ totalProducts: 0, sellingProducts: 0, hiddenProducts: 0, lowStockProducts: 0, lowStockThreshold: 10 });
+    if (route === '/api/admin/products/options') return Response.json({ categories: [], vendors: [], tags: [] });
     if (route === '/api/admin/returns') return Response.json({ content: [], totalElements: 0, totalPages: 0 });
     if (route === '/api/admin/returns/statistics') return Response.json({ totalRequests: 0, pendingRequests: 0, approvedRequests: 0, rejectedRequests: 0 });
     if (route === '/api/admin/promotions') return Response.json({ content: [], totalElements: 0, totalPages: 0 });
@@ -213,13 +218,13 @@ try {
     assert.equal(await evaluate("document.querySelector('.dashboard-shell').classList.contains('is-collapsed')"), true);
     for (const route of ['reviews', 'promotions', 'returns', 'orders', 'products', 'users']) {
       await click(`.dashboard-sidebar a[href="/dashboard/${route}"]`);
-      await until(() => evaluate(`location.pathname==='/dashboard/${route}'&&!!document.querySelector('${route === 'reviews' ? '.reviews-page' : route === 'promotions' ? '.promotions-page' : route === 'returns' ? '.returns-page' : '.dashboard-placeholder'}')`), route);
-      assert.match(await text(), route === 'returns' ? /RET|yêu cầu/ : route === 'promotions' ? /Voucher/ : route === 'reviews' ? /Quản lý đánh giá/ : /Chức năng đang được phát triển/);
+      await until(() => evaluate(`location.pathname==='/dashboard/${route}'&&!!document.querySelector('${route === 'reviews' ? '.reviews-page' : route === 'promotions' ? '.promotions-page' : route === 'returns' ? '.returns-page' : route === 'orders' ? '.orders-page' : route === 'products' ? '.products-page' : '.dashboard-placeholder'}')`), route);
+      assert.match(await text(), route === 'products' ? /Quản lý sản phẩm/ : route === 'orders' ? /Quản lý Đơn hàng/ : route === 'returns' ? /RET|yêu cầu/ : route === 'promotions' ? /Voucher/ : route === 'reviews' ? /Quản lý đánh giá/ : /Chức năng đang được phát triển/);
       assert.equal(await evaluate("document.querySelectorAll('header').length"), 1);
       assert.equal(await evaluate("document.querySelectorAll('.dashboard-nav-link.active').length"), 1);
     }
     await navigate('/dashboard/orders');
-    await until(() => evaluate("!!document.querySelector('.dashboard-placeholder')"), 'direct reload child route');
+    await until(() => evaluate("!!document.querySelector('.orders-page')"), 'direct reload child route');
   });
   await test('Mobile drawer, Escape, overlay and navigation work without horizontal page overflow', async () => {
     await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });

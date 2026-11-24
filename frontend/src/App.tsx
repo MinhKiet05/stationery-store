@@ -21,6 +21,8 @@ const DashboardLayout = lazy(() => import('./layouts/DashboardLayout.jsx'));
 const OverviewPage = lazy(() => import('./pages/dashboard/OverviewPage.jsx'));
 const ReviewsPage = lazy(() => import('./pages/dashboard/ReviewsPage.jsx'));
 const PromotionsPage = lazy(() => import('./pages/dashboard/PromotionsPage.jsx'));
+const ProductsPage = lazy(() => import('./pages/dashboard/ProductsPage.jsx'));
+const OrdersPage = lazy(() => import('./pages/dashboard/OrdersPage.jsx'));
 const ReturnsPage = lazy(() => import('./pages/dashboard/ReturnsPage.jsx'));
 const DashboardPlaceholder = lazy(() => import('./pages/dashboard/DashboardPlaceholder.jsx'));
 // Layout chung cho các trang có Header & Footer
@@ -65,8 +67,8 @@ function App() {
             <Route path="reviews" element={<ReviewsPage />} />
             <Route path="promotions" element={<PromotionsPage />} />
             <Route path="returns" element={<ReturnsPage />} />
-            <Route path="orders" element={<DashboardPlaceholder title="Đơn hàng & Vận chuyển" />} />
-            <Route path="products" element={<DashboardPlaceholder title="Sản phẩm & Tồn kho" />} />
+            <Route path="orders" element={<OrdersPage />} />
+            <Route path="products" element={<ProductsPage />} />
             <Route path="users" element={<DashboardPlaceholder title="Người dùng" />} />
             <Route path="*" element={<DashboardPlaceholder title="Trang quản trị" />} />
           </Route>

@@ -232,8 +232,11 @@ public class OrderServiceImpl implements OrderService {
         for (OrderDetail item : order.getOrderDetails())
             quantities.merge(item.getVariant().getVariantID(), item.getQuantity(), Integer::sum);
         for (var entry : quantities.entrySet()) {
-            ProductVariant variant = variants.findWithLockByVariantID(entry.getKey())
-                    .orElseThrow(() -> notFound("Bien the khong ton tai"));
+            ProductVariant variant = em.find(ProductVariant.class, entry.getKey());
+            if (variant == null) throw notFound("Bien the khong ton tai");
+            // Read the current version while acquiring the inventory lock, including when
+            // another cancellation changed a variant already loaded by this transaction.
+            em.refresh(variant, LockModeType.PESSIMISTIC_WRITE);
             variant.setStockQuantity(Math.addExact(variant.getStockQuantity(), entry.getValue()));
         }
         if (order.getCoupon() != null) {
