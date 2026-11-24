@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, useParams, useLocation, Navigate, Outlet } from "react-router-dom";
+import { lazy, Suspense } from 'react';
 import Header from "./components/header/Header";
 import Footer from "./components/footer/Footer";
 import HomePage from "./pages/homePage/HomePage";
@@ -15,6 +16,15 @@ import OrderHistoryTab from "./pages/myProfile/tabs/OrderHistoryTab";
 import SecurityTab from "./pages/myProfile/tabs/SecurityTab";
 import WishlistTab from "./pages/myProfile/tabs/WishlistTab";
 import AppNotifications from "./components/notifications/AppNotifications";
+const AdminRoute = lazy(() => import('./routes/AdminRoute.jsx'));
+const DashboardLayout = lazy(() => import('./layouts/DashboardLayout.jsx'));
+const OverviewPage = lazy(() => import('./pages/dashboard/OverviewPage.jsx'));
+const ReviewsPage = lazy(() => import('./pages/dashboard/ReviewsPage.jsx'));
+const PromotionsPage = lazy(() => import('./pages/dashboard/PromotionsPage.jsx'));
+const ProductsPage = lazy(() => import('./pages/dashboard/ProductsPage.jsx'));
+const OrdersPage = lazy(() => import('./pages/dashboard/OrdersPage.jsx'));
+const ReturnsPage = lazy(() => import('./pages/dashboard/ReturnsPage.jsx'));
+const DashboardPlaceholder = lazy(() => import('./pages/dashboard/DashboardPlaceholder.jsx'));
 // Layout chung cho các trang có Header & Footer
 function MainLayout() {
   return (
@@ -24,6 +34,11 @@ function MainLayout() {
       <Footer />
     </>
   );
+}
+
+function StoreChat() {
+  const { pathname } = useLocation();
+  return pathname === '/dashboard' || pathname.startsWith('/dashboard/') ? null : <AiChatWidget />;
 }
 
 // Wrapper lấy param :handle truyền vào ProductDetail
@@ -46,6 +61,18 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/dashboard" element={<Suspense fallback={<div role="status">Đang tải khu vực quản trị…</div>}><AdminRoute /></Suspense>}>
+          <Route element={<DashboardLayout />}>
+            <Route index element={<OverviewPage />} />
+            <Route path="reviews" element={<ReviewsPage />} />
+            <Route path="promotions" element={<PromotionsPage />} />
+            <Route path="returns" element={<ReturnsPage />} />
+            <Route path="orders" element={<OrdersPage />} />
+            <Route path="products" element={<ProductsPage />} />
+            <Route path="users" element={<DashboardPlaceholder title="Người dùng" />} />
+            <Route path="*" element={<DashboardPlaceholder title="Trang quản trị" />} />
+          </Route>
+        </Route>
         {/* Nhóm trang có Header & Footer */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
@@ -70,7 +97,7 @@ function App() {
         <Route path="/reset-password" element={<ResetPasswordRedirect />} />
       </Routes>
 
-      <AiChatWidget />
+      <StoreChat />
       <AppNotifications />
     </BrowserRouter>
   );

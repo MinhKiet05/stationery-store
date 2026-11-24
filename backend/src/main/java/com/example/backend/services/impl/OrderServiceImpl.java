@@ -8,6 +8,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -161,6 +162,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
     public List<OrderResponse> adminOrders() {
         return orders.findAll(org.springframework.data.domain.Sort.by(
                 org.springframework.data.domain.Sort.Direction.DESC, "orderDate"))
@@ -168,12 +170,37 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
+    public AdminOrderDetailResponse adminOrder(Long orderID) {
+        Order order = orders.findById(orderID).orElseThrow(() -> notFound("Khong tim thay don hang"));
+        Map<Long, String> skus = new LinkedHashMap<>();
+        order.getOrderDetails().forEach(item -> {
+            if (item.getVariant().getSku() != null) skus.put(item.getVariant().getVariantID(), item.getVariant().getSku());
+        });
+        User customer = order.getUser();
+        var returns = order.getReturnRequests().stream()
+                .sorted(Comparator.comparing(ReturnRequest::getCreatedAt).reversed())
+                .map(item -> new AdminOrderDetailResponse.ReturnSummary(item.getReturnID(), item.getReason(),
+                        item.getStatus(), item.getCreatedAt(), item.getProcessedAt(), item.getAdminNote())).toList();
+        return new AdminOrderDetailResponse(toResponse(order), customer.getFullName(), customer.getUsername(),
+                customer.getEmail(), skus, returns);
+    }
+
+    @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public OrderResponse adminChangeStatus(Long orderID, UpdateOrderStatusRequest request) {
         Order order = orderLocks.lockById(orderID)
                 .orElseThrow(() -> notFound("Khong tim thay don hang"));
+        // Reload after waiting for another writer; the persistence context may already contain this order.
+        em.refresh(order);
         OrderStatus target = request.status();
         OrderStatus current = order.getStatus();
+        if ((request.expectedStatus() != null && request.expectedStatus() != current)
+                || (request.expectedPaid() != null && !Objects.equals(request.expectedPaid(), order.getIsPaid()))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Don hang da thay doi. Vui long tai lai");
+        }
         if (target == null)
             throw bad("status khong duoc null");
         if (target == current)
@@ -205,8 +232,11 @@ public class OrderServiceImpl implements OrderService {
         for (OrderDetail item : order.getOrderDetails())
             quantities.merge(item.getVariant().getVariantID(), item.getQuantity(), Integer::sum);
         for (var entry : quantities.entrySet()) {
-            ProductVariant variant = variants.findWithLockByVariantID(entry.getKey())
-                    .orElseThrow(() -> notFound("Bien the khong ton tai"));
+            ProductVariant variant = em.find(ProductVariant.class, entry.getKey());
+            if (variant == null) throw notFound("Bien the khong ton tai");
+            // Read the current version while acquiring the inventory lock, including when
+            // another cancellation changed a variant already loaded by this transaction.
+            em.refresh(variant, LockModeType.PESSIMISTIC_WRITE);
             variant.setStockQuantity(Math.addExact(variant.getStockQuantity(), entry.getValue()));
         }
         if (order.getCoupon() != null) {

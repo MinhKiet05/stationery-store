@@ -34,4 +34,10 @@ public class AccountCouponExceptionHandler {
         // Never expose parser diagnostics, Java class names or request credentials.
         return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "JSON hoặc kiểu dữ liệu không hợp lệ");
     }
+
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ProblemDetail invalidId() { return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Mã dữ liệu không hợp lệ"); }
+
+    @ExceptionHandler(org.springframework.dao.DataAccessException.class)
+    public ProblemDetail unavailable() { return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, "Không thể xử lý yêu cầu lúc này"); }
 }

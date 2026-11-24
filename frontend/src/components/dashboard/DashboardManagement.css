@@ -1,0 +1,62 @@
+/* Scoped to the two management pages; overview and the common layout keep their styles. */
+.dashboard-management-page { min-width: 0; }
+.dashboard-management-heading { margin-bottom: 26px; }
+.dashboard-management-breadcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; color: #68758b; font-size: 12px; line-height: 1.6; margin-bottom: 14px; }
+.dashboard-management-breadcrumb a { display: inline-flex; align-items: center; gap: 6px; color: #68758b; }
+.dashboard-management-breadcrumb a:hover { color: #a3450b; }
+.dashboard-management-breadcrumb [aria-current] { color: #23334c; font-weight: 600; }
+.dashboard-management-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 26px; }
+.dashboard-management-title-row > div:first-child { max-width: 650px; min-width: 0; }
+.dashboard-management-title-row h1 { font-size: clamp(27px, 2.6vw, 36px); line-height: 1.22; letter-spacing: -1px; font-weight: 750; color: #12243b; margin-bottom: 10px; }
+.dashboard-management-title-row p { color: #657084; font-size: 14px; line-height: 1.75; max-width: 590px; }
+.dashboard-management-actions { display: flex; gap: 10px; flex-shrink: 0; flex-wrap: wrap; padding-top: 3px; }
+.dashboard-management-actions .dashboard-button { min-height: 42px; padding: 10px 15px; box-shadow: 0 2px 4px #0b1b3205; }
+.dashboard-management-actions .dashboard-button-accent { background: #d65a0b; color: white; border-color: #d65a0b; box-shadow: 0 3px 6px #ad480b1a; }
+.dashboard-management-actions .dashboard-button-accent:hover { background: #bb4904; border-color: #bb4904; }
+.dashboard-management-page .dashboard-stat { border-radius: 15px; border-color: #e9eef8; box-shadow: 0 2px 3px #0b1b3203; min-height: 184px; display: flex; flex-direction: column; }
+.dashboard-management-page .dashboard-stat-top { align-items: flex-start; }
+.dashboard-management-page .dashboard-stat-top h2 { letter-spacing: .45px; font-size: 11px; }
+.dashboard-management-page .dashboard-stat-value { font-size: clamp(29px, 2.8vw, 38px); margin-top: 18px; }
+.dashboard-management-page .dashboard-stat-description { line-height: 1.6; margin-top: auto; }
+.dashboard-management-page .dashboard-stat-orange { background: linear-gradient(140deg, white 55%, #fff8f1); }
+.dashboard-management-page .dashboard-stat-red { background: linear-gradient(140deg, white 55%, #fff5f3); }
+.dashboard-management-ratio { display: inline-block; border-radius: 5px; padding: 1px 6px; margin-right: 5px; background: #e5f6ed; color: #206545; font-weight: 700; }
+.dashboard-management-filters { margin-bottom: 22px; box-shadow: 0 2px 3px #0b1b3203; }
+.dashboard-management-filters input, .dashboard-management-filters select { color-scheme: light; }
+.dashboard-management-page .dashboard-management-filters .reviews-search,
+.dashboard-management-page .dashboard-management-filters .promotions-search { background: #f0f4ff; border-color: #f0f4ff; min-height: 44px; }
+.dashboard-management-page .dashboard-management-filters select { background-color: #f0f4ff; border-color: #f0f4ff; min-height: 44px; }
+.dashboard-management-list-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 22px 24px; border-bottom: 1px solid #edf1f9; }
+.dashboard-management-list-heading h2 { display: flex; align-items: center; gap: 9px; font-size: 16px; font-weight: 700; color: #26354c; }
+.dashboard-management-list-heading h2 svg { color: #ad4a0c; }
+.dashboard-management-list-heading p { font-size: 12px; color: #68758b; line-height: 1.6; }
+.dashboard-management-list-heading p strong { color: #33425a; font-weight: 650; }
+.dashboard-management-page .dashboard-table-scroll { margin-top: 0; }
+.dashboard-management-page .dashboard-table th { background: #f1f5ff; padding-top: 16px; padding-bottom: 16px; font-size: 11px; }
+.dashboard-management-page .dashboard-table td { vertical-align: top; padding-top: 22px; padding-bottom: 22px; }
+.dashboard-management-page .dashboard-table tbody tr:hover { background: #fafbff; }
+.dashboard-management-page .admin-detail-button { font-size: 12px !important; border-color: #dce4f3; color: #344767; }
+.dashboard-management-page .dashboard-pagination { min-height: 70px; border-top: 1px solid #edf1f9; background: #fff; }
+@media (max-width: 1200px) {
+  .dashboard-management-title-row { flex-direction: column; gap: 18px; }
+  .dashboard-management-actions { padding-top: 0; }
+}
+@media (max-width: 560px) {
+  .dashboard-management-heading { margin-bottom: 22px; }
+  .dashboard-management-breadcrumb { font-size: 11px; gap: 6px; }
+  .dashboard-management-title-row { align-items: stretch; gap: 16px; }
+  .dashboard-management-title-row h1 { font-size: 28px; letter-spacing: -.7px; }
+  .dashboard-management-title-row p { font-size: 13px; }
+  .dashboard-management-actions { width: 100%; }
+  .dashboard-management-actions > button { flex: 1; }
+  .dashboard-management-page .dashboard-stat { min-height: 185px; }
+  .dashboard-management-page .dashboard-stat-top h2 { font-size: 10px; }
+  .dashboard-management-page .dashboard-stat-description { font-size: 12px; }
+  .dashboard-management-list-heading { padding: 18px 16px; gap: 8px; }
+  .dashboard-management-list-heading h2 { font-size: 15px; }
+}
+@media (max-width: 359px) {
+  .dashboard-management-page .reviews-kpi-grid, .dashboard-management-page .promotions-kpi-grid { grid-template-columns: 1fr; }
+  .dashboard-management-page .dashboard-stat { min-height: 155px; }
+  .dashboard-management-page .dashboard-stat-top { flex-direction: row; }
+}

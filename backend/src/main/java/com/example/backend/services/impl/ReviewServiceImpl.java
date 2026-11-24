@@ -21,6 +21,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -148,6 +149,20 @@ public class ReviewServiceImpl implements ReviewService {
         product.setReviewCount(Math.toIntExact(count));
         product.setRatingAverage(count == 0 ? BigDecimal.ZERO.setScale(2) :
                 BigDecimal.valueOf(sum).divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP));
+    }
+
+    @Override
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public void adminDelete(Long reviewID) {
+        // Use the same product lock, aggregates and after-commit image cleanup as owner deletion.
+        Product product = lockProduct(productIDOfReview(reviewID));
+        Review review = review(reviewID);
+        em.refresh(review);
+        imageCleanup.afterCommit(review.getImages().stream().map(ReviewImage::getPublicId).toList());
+        reviews.delete(review);
+        reviews.flush();
+        refreshRating(product);
     }
 
     private Product lockProduct(Long productID) {

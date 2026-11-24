@@ -159,6 +159,27 @@ class ReviewImagesIntegrationTest {
         assertThat(service.getByProduct(productId)).isEmpty();
     }
 
+    @Test
+    @org.springframework.security.test.context.support.WithMockUser(roles = "ADMIN")
+    void adminDeletionUsesTheSameCommitAndRollbackImageCleanup() throws Exception {
+        var created = service.create(productId, username, request, List.of(image("png")));
+        String imageId = publicId(created.reviewID(), 0);
+        clearInvocations(storage);
+        tx.executeWithoutResult(status -> {
+            service.adminDelete(created.reviewID());
+            verifyNoInteractions(storage);
+            status.setRollbackOnly();
+        });
+        assertThat(service.getByProduct(productId)).hasSize(1);
+        verifyNoInteractions(storage);
+        tx.executeWithoutResult(status -> {
+            service.adminDelete(created.reviewID());
+            verifyNoInteractions(storage);
+        });
+        verify(storage).deleteSafely(imageId);
+        assertThat(service.getByProduct(productId)).isEmpty();
+    }
+
     @Test void preservesPurchaseDuplicateAndOwnershipChecks() throws Exception {
         assertStatus(() -> service.create(productId, outsider, request, List.of(image("png"))), 403);
         var created = service.create(productId, username, request, List.of(image("png")));

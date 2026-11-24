@@ -94,7 +94,9 @@ public class Product {
     // Biến thể sản phẩm
     @OneToMany(
             mappedBy = "product",
-            cascade = CascadeType.ALL,
+            // Inventory has its own locks/version. Refreshing product metadata must not
+            // recursively reload variant rows that another inventory operation owns.
+            cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REMOVE, CascadeType.DETACH},
             orphanRemoval = true
     )
     @Builder.Default

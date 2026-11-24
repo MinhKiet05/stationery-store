@@ -2,6 +2,9 @@ package com.example.backend.services.impl;
 
 import com.example.backend.dto.productvariant.ProductVariantRequest;
 import com.example.backend.dto.productvariant.ProductVariantResponse;
+import com.example.backend.dto.productvariant.UpdateStockRequest;
+import jakarta.persistence.EntityManager;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.example.backend.model.Product;
 import com.example.backend.model.ProductVariant;
 import com.example.backend.repositories.ProductRepository;
@@ -24,6 +27,27 @@ public class ProductVariantServiceImpl implements ProductVariantService {
 
     private final ProductVariantRepository variantRepository;
     private final ProductRepository productRepository;
+    private final EntityManager em;
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public ProductVariantResponse updateStock(Long id, UpdateStockRequest request) {
+        if (request == null || request.stockQuantity() == null || request.stockQuantity().signum() < 0 || request.version() == null || request.version() < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ton kho hoac phien ban khong hop le");
+        }
+        int quantity;
+        try { quantity = request.stockQuantity().intValueExact(); }
+        catch (ArithmeticException invalid) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ton kho phai la so nguyen hop le"); }
+        ProductVariant variant = variantRepository.findWithLockByVariantID(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay bien the"));
+        em.refresh(variant);
+        if (!Objects.equals(variant.getVersion(), request.version())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ton kho da thay doi. Vui long tai lai");
+        }
+        requireActiveProduct(variant.getProduct().getProductID());
+        variant.setStockQuantity(quantity);
+        return toResponse(variantRepository.saveAndFlush(variant));
+    }
 
     @Override
     @Transactional(readOnly = true)

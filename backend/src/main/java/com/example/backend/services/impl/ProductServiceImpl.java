@@ -25,6 +25,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class ProductServiceImpl implements ProductService {
 
+    private final jakarta.persistence.EntityManager em;
     private final ProductRepository productRepository;
     private final ProductTypeRepository productTypeRepository;
     private final VendorRepository vendorRepository;
@@ -181,7 +182,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponse updateProduct(Long id, ProductRequest request) {
         validateRequest(request);
 
-        Product product = findActiveProduct(id);
+        Product product = lockActiveProduct(id);
 
         if (productRepository.existsByTitleIgnoreCaseAndProductIDNot(
                 request.title().trim(), id
@@ -205,7 +206,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     @Transactional
     public void deleteProduct(Long id) {
-        Product product = findActiveProduct(id);
+        Product product = lockActiveProduct(id);
 
         product.setIsActive(false);
         product.setAvailable(false);
@@ -214,6 +215,12 @@ public class ProductServiceImpl implements ProductService {
     }
 
     // Tìm sản phẩm chưa bị xóa mềm
+    private Product lockActiveProduct(Long id) {
+        Product p = findActiveProduct(id);
+        em.refresh(p, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+        if (!Boolean.TRUE.equals(p.getIsActive())) throw new IllegalArgumentException("Sản phẩm đã ngừng hoạt động");
+        return p;
+    }
     private Product findActiveProduct(Long id) {
         return productRepository.findById(id)
                 .filter(p -> Boolean.TRUE.equals(p.getIsActive()))
