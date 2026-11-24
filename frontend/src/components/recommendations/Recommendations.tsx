@@ -1,14 +1,10 @@
-import { useQuery } from "@tanstack/react-query";
-import useSessionScope from "../../services/useSessionScope";
-import { queryKeys } from "../../services/queryCache";
+import { useRecommendations } from "../../services/storeQueries";
 import ProductCard from "../productCard/ProductCard";
-import { getRecommendations } from "../../services/aiService";
 import { userMessage } from "../../utils/notifications";
 import styles from "./Recommendations.module.css";
 
 export default function Recommendations() {
-  const scope = useSessionScope();
-  const query = useQuery({ queryKey: queryKeys.private('recommendations', {}, scope), queryFn: ({ signal }) => getRecommendations(signal), staleTime: 60000 });
+  const query = useRecommendations();
   const result = query.data ?? { products: [], source: 'FALLBACK' };
   const loading = query.isPending;
   const error = query.isError ? userMessage(query.error, 'Không tải được sản phẩm. Vui lòng thử lại.') : '';

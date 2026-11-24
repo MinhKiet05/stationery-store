@@ -1,7 +1,13 @@
 import { useState } from "react";
 import Recommendations from "../../components/recommendations/Recommendations";
-import { useQuery } from "@tanstack/react-query";
-import { homeOptions } from "../../services/storeQueries";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
+import { homeOptions, homePageOptions, useRecommendations } from "../../services/storeQueries";
+import { getProductTypes } from "../../services/productTypeService";
+import { catalogOptions } from "../../services/catalogService";
+import { queryKeys, cacheTimes, schedulePrefetch, cancelPrefetch } from "../../services/queryCache";
+import { normalize } from "../searchPage/catalogData";
+import { discoveryProducts, uniqueProducts } from "./homeProducts";
 import styles from "./HomePage.module.css";
 import { Clock, ShieldCheck, Truck, HeadphonesIcon, ShoppingCart, Circle, ArrowRight, ChevronLeft, ChevronRight, PenTool, ExternalLink } from "lucide-react";
 import ProductCard from "../../components/productCard/ProductCard";
@@ -19,17 +25,30 @@ import combo from "../../assets/combo.webp";
 import taphocsinh from "../../assets/taphocsinh.webp";
 
 const categories = [
-  { id: 1, name: "COMBO", count: "27+ sản phẩm", icon: combo },
-  { id: 2, name: "Tập học sinh", count: "20+ sản phẩm", icon: taphocsinh },
-  { id: 3, name: "Bút lông màu", count: "12+ sản phẩm", icon: butlongmau },
-  { id: 4, name: "Balo học sinh", count: "10+ sản phẩm", icon: balohocsinh },
-  { id: 5, name: "Bút gel", count: "8+ sản phẩm", icon: butgel },
-  { id: 6, name: "Bút cao cấp", count: "6+ sản phẩm", icon: butcaocap },
+  { name: "COMBO", icon: combo },
+  { name: "Tập học sinh", icon: taphocsinh },
+  { name: "Bút lông màu", icon: butlongmau },
+  { name: "Balo học sinh", icon: balohocsinh },
+  { name: "Bút gel", icon: butgel },
+  { name: "Bút cao cấp", icon: butcaocap },
 ];
 
+function ProductSkeletons({ count = 10 }: { count?: number }) {
+    return <div className={styles.productsGrid} role="status" aria-label="Đang tải sản phẩm">
+        {Array.from({ length: count }, (_, i) => <div key={i} className={styles.skeleton} aria-hidden="true" />)}
+    </div>;
+}
+
 export default function HomePage() {
-    const result = useQuery(homeOptions());
-    const products = result.data?.content ?? [], loading = result.isPending;
+    const result = useInfiniteQuery(homeOptions());
+    const products = uniqueProducts(result.data?.pages.flatMap(page => page.content) ?? []).slice(0, 30);
+    const types = useQuery({ queryKey: queryKeys.public('categories'), queryFn: ({ signal }) => getProductTypes(signal), staleTime: cacheTimes.categories });
+    const newest = useQuery(homePageOptions(0, 6, 'productID,desc'));
+    const discover = useQuery(homePageOptions(1, 24, 'productID,asc'));
+    const newProducts = newest.data?.content ?? [];
+    const recommendations = useRecommendations();
+    const discovery = discoveryProducts([...(discover.data?.content ?? []), ...products, ...newProducts],
+        [...products, ...newProducts, ...(recommendations.data?.products ?? [])]);
 
     // State cho Hero Section Carousel
     const [currentSlide, setCurrentSlide] = useState(0);
@@ -40,7 +59,6 @@ export default function HomePage() {
 
     return (
         <div className={styles.homePage}>
-            {result.isError && <p role="alert">Không tải được sản phẩm. <button onClick={() => result.refetch()}>Thử lại</button></p>}
             {/* Top Announcement Bar */}
             <div className={styles.announcement}>
                 <span>ƯU ĐÃI NĂM HỌC MỚI: Nhập mã <span className={styles.promoHighlight}>BACK2SCHOOL</span> giảm ngay 50.000đ cho đơn từ 299.000đ</span>
@@ -167,15 +185,12 @@ export default function HomePage() {
                             <span className={styles.sectionSubtitle}>Danh mục tuyển chọn</span>
                             <h2 className={styles.sectionTitle}>Danh Mục Nổi Bật</h2>
                         </div>
-                        <a href="/categories" className={styles.viewAll}>Xem tất cả danh mục →</a>
+                        <Link to="/search" className={styles.viewAll}>Xem tất cả danh mục →</Link>
                     </div>
                     <div className={styles.categoriesGrid}>
-                        {categories.map((cat) => (
-                            <a
-                                key={cat.id}
-                                href={`/category/${cat.id}`}
-                                className={styles.categoryCard}
-                            >
+                        {categories.map((cat) => {
+                            const type = types.data?.find(t => t.isActive && normalize(t.name).trim() === normalize(cat.name).trim());
+                            const content = <>
                                 <div className={styles.categoryIcon}>
                                     <img
                                         src={cat.icon}
@@ -189,19 +204,25 @@ export default function HomePage() {
                                 </div>
 
                                 <div className={styles.categoryCount}>
-                                    {cat.count}
+                                    {types.isPending ? 'Đang tải danh mục…' : !type ? 'Danh mục chưa có sẵn' : 'Khám phá sản phẩm'}
                                 </div>
-                            </a>
-                        ))}
+                            </>;
+                            return type ? <Link key={cat.name} to={`/search?category=${type.productTypeID}`} className={styles.categoryCard}
+                                onMouseEnter={() => schedulePrefetch(catalogOptions({ productTypeID: String(type.productTypeID) }))}
+                                onFocus={() => schedulePrefetch(catalogOptions({ productTypeID: String(type.productTypeID) }))}
+                                onMouseLeave={cancelPrefetch} onBlur={cancelPrefetch}>{content}</Link>
+                                : <div key={cat.name} className={styles.categoryCard} aria-disabled="true">{content}</div>;
+                        })}
                     </div>
+                    {types.isError && <p className={styles.status} role="alert">Không tải được danh mục. <button onClick={() => types.refetch()}>Thử lại</button></p>}
                 </section>
 
                 {/* Best Sellers Section */}
-                <section>
+                <section aria-label="Sản phẩm nổi bật">
                     <div className={styles.sectionHeader}>
                         <div>
                             <span className={styles.sectionSubtitle}>Xu hướng mua sắm</span>
-                            <h2 className={styles.sectionTitle}>Sản Phẩm Bán Chạy Nhất</h2>
+                            <h2 className={styles.sectionTitle}>Sản Phẩm Nổi Bật</h2>
                         </div>
                         <div className={styles.tabs}>
                             <button className={`${styles.tab} ${styles.active}`}>Tất cả sản phẩm</button>
@@ -211,14 +232,15 @@ export default function HomePage() {
                         </div>
                     </div>
 
-                    <div className={styles.productsGrid}>
-                        {loading ? (
-                            <div style={{ color: 'white' }}>Đang tải sản phẩm...</div>
-                        ) : (
-                            products.slice(0, 5).map((product) => (
-                                <ProductCard key={product.productID} product={product} />
-                            ))
-                        )}
+                    {result.isPending ? <ProductSkeletons /> : <div className={styles.productsGrid}>
+                        {products.map(product => <ProductCard key={product.productID} product={product} />)}
+                    </div>}
+                    {!result.isPending && !result.isError && !products.length && <p className={styles.status}>Chưa có sản phẩm để hiển thị.</p>}
+                    {result.isError && <p className={styles.status} role="alert">Không tải được sản phẩm. <button onClick={() => result.isFetchNextPageError ? result.fetchNextPage() : result.refetch()}>Thử lại</button></p>}
+                    <div className={styles.loadMoreRow}>
+                        {result.hasNextPage && products.length < 30 ? <button className={styles.loadMore} disabled={result.isFetching}
+                            onClick={() => result.fetchNextPage()}>{result.isFetchingNextPage ? 'Đang tải thêm…' : 'Xem thêm sản phẩm'}</button>
+                            : !result.isPending && <Link className={styles.loadMore} to="/search">Xem tất cả sản phẩm <ArrowRight size={16} /></Link>}
                     </div>
                 </section>
 
@@ -262,13 +284,16 @@ export default function HomePage() {
                     <div className={styles.listCard}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
                             <h3 style={{ fontSize: 18, fontWeight: 'bold' }}>Sản Phẩm Mới Lên Kệ</h3>
-                            <span style={{ fontSize: 13, color: '#94a3b8', cursor: 'pointer' }}>Xem tất cả →</span>
+                            <Link to="/search?sort=newest" className={styles.viewAll}>Xem tất cả →</Link>
                         </div>
 
-                        {products.slice(0, 3).map((product) => (
-                            <a
+                        {newest.isPending && <ProductSkeletons count={6} />}
+                        {newest.isError && <p role="alert">Không tải được sản phẩm mới. <button onClick={() => newest.refetch()}>Thử lại</button></p>}
+                        {!newest.isPending && !newest.isError && !newProducts.length && <p>Chưa có sản phẩm mới.</p>}
+                        {newProducts.map((product) => (
+                            <Link
                                 key={product.productID}
-                                href={`/products/${encodeURIComponent(product.handle || String(product.productID))}`}
+                                to={`/products/${encodeURIComponent(product.handle || String(product.productID))}`}
                                 className={styles.listItem}
                                 aria-label={`Xem chi tiết ${product.title}`}
                             >
@@ -290,13 +315,26 @@ export default function HomePage() {
                                     </div>
                                 </div>
                                 <span className={styles.cartBtnSmall} aria-hidden="true"><ShoppingCart size={16} /></span>
-                            </a>
+                            </Link>
                         ))}
                     </div>
 
                     <div className={styles.listCard}>
                         <Recommendations />
                     </div>
+                </section>
+
+                <section aria-label="Khám phá thêm sản phẩm">
+                    <div className={styles.sectionHeader}><div>
+                        <h2 className={styles.sectionTitle}>Khám Phá Thêm Sản Phẩm</h2>
+                        <p className={styles.discoverySubtitle}>Đa dạng lựa chọn cho học tập và làm việc</p>
+                    </div></div>
+                    {discover.isPending ? <ProductSkeletons /> : <div className={styles.productsGrid}>
+                        {discovery.map(product => <ProductCard key={product.productID} product={product} />)}
+                    </div>}
+                    {discover.isError && <p className={styles.status} role="alert">Chưa tải được gợi ý khám phá. <button onClick={() => discover.refetch()}>Thử lại</button></p>}
+                    {!discover.isPending && !discover.isError && !discovery.length && <p className={styles.status}>Chưa có sản phẩm để khám phá.</p>}
+                    <div className={styles.loadMoreRow}><Link className={styles.loadMore} to="/search">Xem thêm sản phẩm <ArrowRight size={16} /></Link></div>
                 </section>
 
                 {/* Features Bottom Bar */}

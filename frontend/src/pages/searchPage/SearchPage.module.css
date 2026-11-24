@@ -8,6 +8,10 @@
   font-size: 13px;
   line-height: 1.5;
 }
+.skeleton { height: 320px; border-radius: 12px; background: linear-gradient(100deg,#e2e8f0 30%,#f8fafc 50%,#e2e8f0 70%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
 .page *,
 .page *::before,
 .page *::after {

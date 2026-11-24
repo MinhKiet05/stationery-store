@@ -14,8 +14,8 @@ export type Variant = {
   option3: string | null;
 };
 
-export function getProducts(signal?: AbortSignal) {
-  return api<{ content: Product[] }>("/api/products", { signal });
+export function getProducts(signal?: AbortSignal, page = 0, size = 10, sort = 'productID,asc') {
+  return api<ProductPage>(`/api/products?page=${page}&size=${size}&sort=${sort}`, { signal });
 }
 
 export type ProductPage = {
