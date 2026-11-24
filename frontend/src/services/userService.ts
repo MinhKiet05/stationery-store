@@ -1,3 +1,4 @@
+import { queryClient } from './queryCache';
 import { api } from "./api";
 
 export type UserProfile = {
@@ -23,6 +24,7 @@ export async function updateMyProfile(body: UpdateProfileRequest) {
     method: "PUT",
     body: JSON.stringify(body),
   });
+  void queryClient.refetchQueries({ predicate: q => q.queryKey[0] === 'session' && q.queryKey[2] === 'currentUser', type: 'active' });
   window.dispatchEvent(new Event("auth-changed"));
   return profile;
 }

@@ -30,9 +30,9 @@ public class AdminProductRepository {
     }
     public long count(Filter f){return query("select count(p) from Product p"+where(f),Long.class,f).getSingleResult();}
     public AdminProductDetail.Statistics statistics(Filter f) {
-        long total=count(f);
-        long selling=query("select count(p) from Product p"+where(f)+" and p.isActive=true and p.available=true",Long.class,f).getSingleResult();
-        long low=query("select count(p) from Product p"+where(f)+" and ("+LOW+")",Long.class,f).getSingleResult();
+        Object[] result = query("select count(p), coalesce(sum(case when p.isActive=true and p.available=true then 1L else 0L end),0L), " +
+            "coalesce(sum(case when ("+LOW+") then 1L else 0L end),0L) from Product p"+where(f), Object[].class, f).getSingleResult();
+        long total=((Number)result[0]).longValue(), selling=((Number)result[1]).longValue(), low=((Number)result[2]).longValue();
         return new AdminProductDetail.Statistics(total,selling,total-selling,low,f.threshold());
     }
     public List<AdminProductRow> find(Filter f,int offset,int size) {

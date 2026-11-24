@@ -55,6 +55,7 @@ class ReadQueryPerformanceTest {
     @Autowired EntityManagerFactory emf;
     @Autowired ProductService products;
     @Autowired ProductRepository productRepository;
+    @Autowired com.example.backend.repositories.AdminProductRepository adminProducts;
     @Autowired ProductCatalog catalog;
     @Autowired ProductVariantService variants;
     @Autowired CartService carts;
@@ -115,10 +116,10 @@ class ReadQueryPerformanceTest {
         T result = operation.get();
         System.out.println("READ_SQL " + label + "=" + stats.getPrepareStatementCount());
         int budget = switch (label) {
-            case "products-size-1", "products-size-5", "products-size-20", "search-20" -> 3;
+            case "products-size-1", "products-size-5", "products-size-20", "search-20", "catalog-page" -> 3;
             case "products-size-40", "catalog-20", "cart-45" -> 4;
             case "products-last", "products-empty", "search-filtered", "reviews-45" -> 2;
-            case "variants-45", "users-46" -> 1;
+            case "variants-45", "users-46", "admin-product-kpis" -> 1;
             case "orders-45" -> 15;
             case "returns-45" -> 7;
             default -> throw new AssertionError("Missing SQL budget: " + label);
@@ -128,6 +129,45 @@ class ReadQueryPerformanceTest {
     }
 
     private PageRequest page(int number, int size) { return PageRequest.of(number, size, Sort.by("productID")); }
+
+    @Test
+    void productKpisUseOneAggregateWithIdenticalCounts() {
+        var f = new com.example.backend.repositories.AdminProductRepository.Filter(null,null,null,null,false,false,10);
+        em.clear(); emf.unwrap(SessionFactory.class).getStatistics().clear();
+        // The previous implementation scanned the same product population three times.
+        long baselineTotal=em.createQuery("select count(p) from Product p",Long.class).getSingleResult();
+        long baselineSelling=em.createQuery("select count(p) from Product p where p.isActive=true and p.available=true",Long.class).getSingleResult();
+        long baselineLow=em.createQuery("select count(p) from Product p where p.isActive=true and p.available=true and exists(select v.variantID from ProductVariant v where v.product=p and v.available=true and v.stockQuantity<10)",Long.class).getSingleResult();
+        assertThat(emf.unwrap(SessionFactory.class).getStatistics().getPrepareStatementCount()).isEqualTo(3);
+        System.out.println("READ_SQL admin-product-kpis-baseline=3");
+        var stats = measure("admin-product-kpis", () -> adminProducts.statistics(f));
+        assertThat(stats.totalProducts()).isEqualTo(baselineTotal);
+        assertThat(stats.sellingProducts()).isEqualTo(baselineSelling);
+        assertThat(stats.lowStockProducts()).isEqualTo(baselineLow);
+        assertThat(stats.totalProducts()).isEqualTo(46);
+        assertThat(stats.sellingProducts()).isEqualTo(45);
+        assertThat(stats.hiddenProducts()).isEqualTo(1);
+        assertThat(stats.lowStockProducts()).isZero();
+    }
+
+    @Test
+    void catalogFiltersAndPaginationStayInDatabase() throws Exception {
+        var fallback=em.find(Product.class,ids.get(10));fallback.setPrice(null);fallback.setPriceMin(BigDecimal.TEN);em.flush();em.clear();
+        var result = measure("catalog-page", () -> products.searchCatalog("Perf", null, List.of(),
+            BigDecimal.TEN, BigDecimal.valueOf(30), 0, true, false, page(1,5)));
+        assertThat(result.getTotalElements()).isEqualTo(21);
+        assertThat(result.getContent()).hasSize(5);
+        assertThat(result.getContent().get(0).title()).isEqualTo("Perf 15");
+        assertThat(SqlCapture.SQL.get().get(0).toLowerCase(Locale.ROOT)).contains("fetch first", "offset");
+        var sorted=products.searchCatalog(null,null,List.of(),BigDecimal.TEN,BigDecimal.valueOf(12),null,false,false,PageRequest.of(0,3,Sort.by("price")));
+        assertThat(sorted.getContent()).extracting(ProductResponse::title).containsExactly("Perf 10","Perf 11","Perf 12");
+        assertThat(products.searchCatalog("Vendor 10", null,List.of("Vendor 10"),null,null,null,false,false,page(0,12)).getTotalElements()).isEqualTo(1);
+        assertThat(products.searchCatalog("%",null,List.of(),null,null,null,false,false,page(0,12)).getTotalElements()).isZero();
+        assertThat(products.searchCatalog(null,null,List.of(),null,null,null,false,true,page(0,12)).getTotalElements()).isZero();
+        assertThatThrownBy(() -> products.searchCatalog(null,null,List.of(),null,null,6,false,false,page(0,12))).isInstanceOf(org.springframework.web.server.ResponseStatusException.class);
+        mvc.perform(get("/api/products/search").param("catalog","true").param("size","101")).andExpect(status().isBadRequest());
+        mvc.perform(get("/api/products/search").param("catalog","true").param("sort","passwordHash,asc")).andExpect(status().isBadRequest());
+    }
 
     @Test
     void productPagesKeepMetadataAndOrderedImages() {

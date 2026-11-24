@@ -109,6 +109,26 @@ class OrderHistoryIntegrationTest {
                 .isInstanceOfSatisfying(ResponseStatusException.class, error -> assertThat(error.getStatusCode().value()).isEqualTo(409));
     }
 
+    @Test
+    void pagedHistoryFiltersInDatabaseAndKeepsCountsScopedToCurrentCustomer() {
+        var alice=user("alice"); var bob=user("bob"); var variant=variant();
+        for(int i=0;i<9;i++) order(alice,variant,i<3?OrderStatus.PENDING:OrderStatus.DELIVERED,i);
+        order(bob,variant,OrderStatus.SHIPPED,0); em.flush(); em.clear();
+        var result=orders.myOrderHistory("alice",1,4,"but gel",null,false);
+        assertThat(result.content()).hasSize(4).allMatch(o -> o.userID().equals(alice.getUserID()));
+        assertThat(result.totalElements()).isEqualTo(9); assertThat(result.totalPages()).isEqualTo(3);
+        assertThat(result.statusCounts()).containsEntry(OrderStatus.PENDING,3L).containsEntry(OrderStatus.DELIVERED,6L).doesNotContainKey(OrderStatus.SHIPPED);
+        var pending=orders.myOrderHistory("alice",0,4,"Deli",OrderStatus.PENDING,false);
+        assertThat(pending.content()).hasSize(3).allMatch(o -> o.status()==OrderStatus.PENDING);
+        assertThat(orders.myOrderHistory("alice",0,4,"%",null,false).totalElements()).isZero();
+        var id=result.content().get(0).orderID();
+        assertThat(orders.myOrderHistory("alice",0,4,"#ST-"+id,null,false).content()).extracting(OrderResponse::orderID).containsExactly(id);
+        assertThat(orders.myOrderHistory("alice",0,4,"#"+id,null,false).content()).extracting(OrderResponse::orderID).containsExactly(id);
+        var summary=orders.myOrderHistory("alice",0,4,"",null,true);
+        assertThat(summary.content()).isEmpty(); assertThat(summary.totalElements()).isEqualTo(9);
+        assertThatThrownBy(() -> orders.myOrderHistory("alice",0,51,"",null,false)).isInstanceOf(ResponseStatusException.class);
+    }
+
     private User user(String username) {
         User user = User.builder().username(username).email(username + "@example.test").passwordHash("test-only").build();
         em.persist(user);

@@ -63,10 +63,17 @@ public class ProductController {
             @RequestParam(required = false) Long vendorID,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(defaultValue = "false") boolean catalog,
+            @RequestParam(required = false) java.util.List<String> brands,
+            @RequestParam(required = false) Integer rating,
+            @RequestParam(defaultValue = "false") boolean inStock,
+            @RequestParam(defaultValue = "false") boolean onSale,
 
             @PageableDefault(size = 10, sort = "productID")
             Pageable pageable
     ) {
+        if (catalog) return ResponseEntity.ok(productService.searchCatalog(keyword, productTypeID, brands,
+                minPrice, maxPrice, rating, inStock, onSale, pageable));
         return ResponseEntity.ok(
                 productService.searchProducts(
                         keyword,

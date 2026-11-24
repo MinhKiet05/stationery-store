@@ -199,11 +199,11 @@ try {
     await click('.dashboard-filter-buttons button[type=button]'); await loaded();
     assert.equal(await evaluate("document.querySelector('[aria-label=\"Từ ngày\"]').value"), '2026-10-01');
   });
-  await test('API errors replace metrics, support retry, and do not expose diagnostics or fake zero', async () => {
+  await test('Background API errors retain metrics, support retry, and do not expose diagnostics or fake zero', async () => {
     await evaluate("window.__failure={route:'/api/admin/statistics/overview',status:500}");
     await click('.dashboard-filter-buttons button[type=button]');
     await until(() => evaluate("!!document.querySelector('.dashboard-content [role=alert]')"), 'error state');
-    assert.equal(await evaluate("[...document.querySelectorAll('.dashboard-stat h2')].some(n=>n.textContent==='Doanh thu trong kỳ')"), false);
+    assert.equal(await evaluate("[...document.querySelectorAll('.dashboard-stat h2')].some(n=>n.textContent==='Doanh thu trong kỳ')"), true);
     assert.equal((await text()).includes('private-diagnostic'), false);
     await evaluate("window.__failure=null;document.querySelector('.dashboard-content [role=alert] button').click()"); await loaded();
   });

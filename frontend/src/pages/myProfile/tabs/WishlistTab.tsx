@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { Heart, ShoppingBag, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProductCard, { type Product } from "../../../components/productCard/ProductCard";
-import { getProduct } from "../../../services/productService";
+import { productOptions } from "../../../services/storeQueries";
+import { queryClient } from "../../../services/queryCache";
 import { getAllFavoriteProductIds } from "../../../utils/favoriteStorage";
 import { notify } from "../../../utils/notifications";
 import styles from "./WishlistTab.module.css";
@@ -24,9 +25,11 @@ export default function WishlistTab() {
 
       setLoading(true);
       try {
-        const results = await Promise.allSettled(
-          ids.map((id) => getProduct(String(id), controller.signal))
-        );
+        const results: PromiseSettledResult<Product>[] = [];
+        for (let offset = 0; offset < ids.length; offset += 4) {
+          controller.signal.throwIfAborted();
+          results.push(...await Promise.allSettled(ids.slice(offset, offset + 4).map(id => queryClient.fetchQuery(productOptions(String(id))))));
+        }
 
         if (controller.signal.aborted) return;
 

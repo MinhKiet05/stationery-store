@@ -150,6 +150,54 @@ public class ProductServiceImpl implements ProductService {
                 .map(this::toResponse);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductResponse> searchCatalog(String keyword, Long category, List<String> brands,
+            BigDecimal minPrice, BigDecimal maxPrice, Integer rating, boolean inStock, boolean onSale, Pageable pageable) {
+        if (pageable.getPageSize() > 100 || pageable.getOffset() > 100000 ||
+            keyword != null && keyword.length() > 200 || brands != null && (brands.size() > 30 || brands.stream().anyMatch(b -> b.length() > 200)) ||
+            rating != null && (rating < 0 || rating > 5) || minPrice != null && minPrice.signum() < 0 ||
+            maxPrice != null && maxPrice.signum() < 0 || minPrice != null && maxPrice != null && minPrice.compareTo(maxPrice) > 0)
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Bộ lọc sản phẩm không hợp lệ");
+        for (var order : pageable.getSort()) if (!Set.of("productID", "title", "price", "ratingAverage").contains(order.getProperty()))
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Sắp xếp không hợp lệ");
+        // Stable tie-breaker prevents duplicates between equally priced/rated pages.
+        var sort = pageable.getSort();
+        if (sort.getOrderFor("productID") == null) sort = sort.and(org.springframework.data.domain.Sort.by("productID"));
+        final var ordering = sort;
+        var page = org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        Specification<Product> spec = (root, query, cb) -> {
+            var predicates = new ArrayList<Predicate>();
+            var effectivePrice = cb.coalesce(cb.coalesce(root.<BigDecimal>get("price"), root.get("priceMin")), BigDecimal.ZERO);
+            if (query.getResultType() != Long.class) {
+                var orders = new ArrayList<jakarta.persistence.criteria.Order>();
+                for (var order : ordering) {
+                    jakarta.persistence.criteria.Expression<?> value = order.getProperty().equals("price") ? effectivePrice : root.get(order.getProperty());
+                    orders.add(order.isAscending() ? cb.asc(value) : cb.desc(value));
+                }
+                query.orderBy(orders);
+            }
+            var type = root.join("productType");
+            var vendor = root.join("vendor", jakarta.persistence.criteria.JoinType.LEFT);
+            predicates.add(cb.isTrue(root.get("isActive")));
+            predicates.add(cb.isTrue(type.get("isActive")));
+            if (category != null) predicates.add(cb.equal(type.get("productTypeID"), category));
+            if (brands != null && !brands.isEmpty()) predicates.add(vendor.get("name").in(brands));
+            if (keyword != null && !keyword.isBlank()) for (var word : keyword.trim().toLowerCase(java.util.Locale.ROOT).split("\\s+")) {
+                String pattern = com.example.backend.services.NormalizedSearch.pattern(word);
+                predicates.add(cb.or(cb.like(com.example.backend.services.NormalizedSearch.expression(cb, root.get("title")), pattern, '!'),
+                    cb.like(com.example.backend.services.NormalizedSearch.expression(cb, vendor.get("name")), pattern, '!'), cb.like(com.example.backend.services.NormalizedSearch.expression(cb, type.get("name")), pattern, '!')));
+            }
+            if (minPrice != null) predicates.add(cb.ge(effectivePrice, minPrice));
+            if (maxPrice != null) predicates.add(cb.le(effectivePrice, maxPrice));
+            if (rating != null) predicates.add(cb.ge(root.get("ratingAverage"), rating));
+            if (inStock) predicates.add(cb.isTrue(root.get("available")));
+            if (onSale) predicates.add(cb.greaterThan(root.get("compareAtPrice"), effectivePrice));
+            return cb.and(predicates.toArray(Predicate[]::new));
+        };
+        return productRepository.findAll(spec, page).map(this::toResponse);
+    }
+
     // 5. Thêm sản phẩm
     @Override
     @Transactional

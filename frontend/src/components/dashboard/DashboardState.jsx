@@ -5,5 +5,6 @@ export default function DashboardState({ resource, children, empty = false, empt
   if (resource.status === 'error') return <div className="dashboard-state" role="alert"><p>Không thể tải dữ liệu. Vui lòng thử lại.</p>
     <button className="dashboard-button" onClick={resource.retry}><RefreshCw size={16} />Thử lại</button></div>;
   if (empty) return <div className="dashboard-state"><Inbox size={30} aria-hidden="true" /><p>{emptyMessage}</p></div>;
-  return children;
+  return <>{resource.refreshing && <p role="status">Đang cập nhật…</p>}
+    {resource.refreshError && <p role="alert">Chưa cập nhật được dữ liệu. <button className="dashboard-button" onClick={resource.retry}>Thử lại</button></p>}{children}</>;
 }

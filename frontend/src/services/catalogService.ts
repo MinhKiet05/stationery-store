@@ -1,42 +1,23 @@
-import { getProductPage } from "./productService";
-import { getProductTypes } from "./productTypeService";
-import {
-  allCategory,
-  toCatalogProduct,
-} from "../pages/searchPage/catalogData";
-
-export async function getCatalog(signal?: AbortSignal) {
-  const [types, firstPage] = await Promise.all([
-    getProductTypes(signal),
-    getProductPage(0, signal),
-  ]);
-  const activeTypes = types.filter((type) => type.isActive);
-  const activeTypeIDs = new Set(activeTypes.map((type) => type.productTypeID));
-  const products = [...firstPage.content];
-
-  // The products endpoint is paginated. Load every page before filtering/counting
-  // so the category counts and local filters cover the complete catalog.
-  for (let page = 1; page < firstPage.totalPages; page++) {
-    signal?.throwIfAborted();
-    const response = await getProductPage(page, signal);
-    products.push(...response.content);
+import { api } from './api';
+import { getProductTypes } from './productTypeService';
+import { queryClient, queryKeys, cacheTimes } from './queryCache';
+import { allCategory, toCatalogProduct } from '../pages/searchPage/catalogData';
+import type { ProductPage } from './productService';
+export type CatalogFilters = { page?: number; size?: number; keyword?: string; productTypeID?: string;
+  brands?: string[]; minPrice?: string; maxPrice?: string; rating?: number; inStock?: boolean; onSale?: boolean; sort?: string };
+export async function getCatalog(signal?: AbortSignal, filters: CatalogFilters = {}) {
+  const params = new URLSearchParams({ catalog: 'true', page: String(filters.page ?? 0), size: String(filters.size ?? 12), sort: filters.sort ?? 'productID,asc' });
+  for (const [key, value] of Object.entries(filters)) {
+    if (Array.isArray(value)) { value.forEach(v => params.append(key, v)); continue; }
+    if (value !== '' && value != null) params.set(key, String(value));
   }
   signal?.throwIfAborted();
-
-  return {
-    categories: [
-      allCategory,
-      ...activeTypes.map((type) => ({
-        id: String(type.productTypeID),
-        label: type.name,
-      })),
-    ],
-    products: products
-      .filter(
-        (product) =>
-          product.isActive !== false &&
-          activeTypeIDs.has(product.productTypeID),
-      )
-      .map(toCatalogProduct),
-  };
+  const [types, page] = await Promise.all([
+    queryClient.fetchQuery({ queryKey: queryKeys.public('categories'), queryFn: ({ signal }) => getProductTypes(signal), staleTime: cacheTimes.categories }),
+    api<ProductPage>(`/api/products/search?${params}`, { signal }),
+  ]);
+  signal?.throwIfAborted();
+  return { categories: [allCategory, ...types.filter(t => t.isActive).map(t => ({ id: String(t.productTypeID), label: t.name }))],
+    products: page.content.map(toCatalogProduct), totalPages: page.totalPages, totalElements: page.totalElements };
 }
+export const getCatalogVendors = (signal?: AbortSignal) => api<{ vendorID: number; name: string }[]>('/api/vendors', { signal });

@@ -2,6 +2,9 @@ import { useEffect, useState, type MouseEvent } from "react";
 import { Heart, ShoppingCart, Star } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { isFavoriteProduct, toggleFavoriteProduct } from "../../utils/favoriteStorage";
+import { productOptions } from '../../services/storeQueries';
+import { schedulePrefetch, cancelPrefetch } from '../../services/queryCache';
+import { thumbnail } from '../../utils/thumbnail';
 import styles from "./ProductCard.module.css";
 
 export interface Product {
@@ -65,13 +68,15 @@ export default function ProductCard({ product }: ProductCardProps) {
     setSaved(next);
   }
 
+  const prefetch = () => schedulePrefetch(productOptions(product.handle || String(product.productID)));
   return (
-    <div className={styles.card}>
+    <div className={styles.card} onMouseEnter={prefetch} onFocus={prefetch} onMouseLeave={cancelPrefetch} onBlur={cancelPrefetch}>
       {/* Khối hình ảnh */}
       <div className={styles.imageContainer}>
         <Link to={productUrl} className={styles.imageLink}>
           <img
-            src={product.images?.[0] || "/placeholder.png"}
+            src={thumbnail(product.images?.[0], 384) || "/placeholder.png"}
+            loading="lazy" decoding="async" width={192} height={192}
             alt={product.title}
             className={styles.image}
           />

@@ -4,6 +4,7 @@ import { createServer } from "vite";
 
 let server;
 let getCatalog;
+let queryClient;
 const originalFetch = globalThis.fetch;
 const originalStorage = globalThis.localStorage;
 const types = [
@@ -29,13 +30,16 @@ const product = (id, productTypeID, overrides = {}) => ({
 });
 
 before(async () => {
+  process.env.VITE_API_BASE_URL = "";
   globalThis.localStorage = { getItem: () => null };
   server = await createServer({ server: { middlewareMode: true } });
+  ({ queryClient } = await server.ssrLoadModule('/src/services/queryCache.js'));
   ({ getCatalog } = await server.ssrLoadModule(
     "/src/services/catalogService.ts",
   ));
 });
 afterEach(() => {
+  queryClient?.clear();
   globalThis.fetch = originalFetch;
 });
 after(async () => {
@@ -43,15 +47,15 @@ after(async () => {
   await server?.close();
 });
 
-test("loads all product pages and uses active product-type IDs and image URLs from API", async () => {
+test("loads exactly the requested page and metadata without traversing the entire catalog", async () => {
   const calls = [];
   globalThis.fetch = async (path, options) => {
     options.signal.throwIfAborted();
     calls.push(path);
     const url = new URL(path, "http://localhost");
     if (url.pathname === "/api/product-types") return Response.json(types);
-    assert.equal(url.pathname, "/api/products");
-    assert.equal(url.searchParams.get("size"), "100");
+    assert.equal(url.pathname, "/api/products/search");
+    assert.equal(url.searchParams.get("size"), "12");
     return Response.json({
       content:
         url.searchParams.get("page") === "0"
@@ -83,19 +87,18 @@ test("loads all product pages and uses active product-type IDs and image URLs fr
   assert.equal(result.categories[1].label, types[0].name);
   assert.deepEqual(
     result.products.map((item) => item.id),
-    ["1", "3", "4"],
+    ["1", "2", "5"],
   );
-  assert.deepEqual(result.products.map((item) => item.category), ["77", "42", "77"]);
+  assert.deepEqual(result.products.map((item) => item.category), ["77", "88", "77"]);
   assert.equal(
     result.products[0].image,
     "https://images.example.test/product-1.jpg",
   );
   assert.equal(result.products[0].detailHref, "/products/product-1");
-  assert.equal(result.products[2].image, "");
-  assert.equal(result.products[2].price, 8000);
-  assert.equal(result.products[2].rating, 0);
-  assert.equal(result.products[2].reviewCount, 0);
-  assert.equal(calls.length, 3);
+  assert.equal(result.totalPages, 2);
+  assert.equal(result.totalElements, 5);
+  assert.equal(calls.length, 2);
+
 });
 
 test("empty API catalog remains empty without static product fallback", async () => {
@@ -118,7 +121,7 @@ test("product-type API failure is surfaced rather than using hardcoded types", a
   await assert.rejects(getCatalog(), /Không thể kết nối cửa hàng/);
 });
 
-test("a failed later page rejects the load instead of showing an incomplete catalog", async () => {
+test("a failed requested page rejects without presenting another page as its result", async () => {
   globalThis.fetch = async (path) => {
     if (path === "/api/product-types") return Response.json(types);
     if (new URL(path, "http://localhost").searchParams.get("page") === "1") {
@@ -130,7 +133,7 @@ test("a failed later page rejects the load instead of showing an incomplete cata
       totalElements: 2,
     });
   };
-  await assert.rejects(getCatalog());
+  await assert.rejects(getCatalog(undefined, { page: 1 }));
 });
 
 test("aborted loads cannot return stale catalog data", async () => {
@@ -141,4 +144,10 @@ test("aborted loads cannot return stale catalog data", async () => {
     options.signal.throwIfAborted();
   };
   await assert.rejects(getCatalog(controller.signal), { name: "AbortError" });
+});
+
+test('Cloudinary thumbnails resize only unsigned image uploads and preserve signed or transformed URLs', async () => {
+  const {thumbnail}=await server.ssrLoadModule('/src/utils/thumbnail.ts');
+  assert.equal(thumbnail('https://res.cloudinary.com/store/image/upload/v123/pen.jpg'), 'https://res.cloudinary.com/store/image/upload/f_auto,q_auto,c_limit,w_384/v123/pen.jpg');
+  for(const url of ['https://other.test/a.jpg','https://res.cloudinary.com/store/image/upload/s--signed--/pen.jpg','https://res.cloudinary.com/store/image/upload/w_200/pen.jpg','https://res.cloudinary.com/store/image/upload/v1/pen.jpg?signature=private']) assert.equal(thumbnail(url),url);
 });

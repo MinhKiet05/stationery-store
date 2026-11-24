@@ -1,25 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminErrorMessage } from '../../services/dashboardApi';
-
+import useSessionScope from '../../services/useSessionScope';
+const loaders = new WeakMap();
+let loaderID = 0;
 export default function useAdminDetail(id, load, onAccessDenied) {
-  const [state, setState] = useState({ status: 'loading', data: null, error: '' });
-  const [attempt, setAttempt] = useState(0);
-  const alive = useRef(false);
-  const mutation = useRef(false);
+  const scope = useSessionScope(), client = useQueryClient();
+  if (!loaders.has(load)) loaders.set(load, ++loaderID);
+  const queryKey = ['session', scope, 'admin', 'detail', loaders.get(load), id];
+  // Business decisions always load a fresh snapshot on open, never a cached stock/version.
+  const query = useQuery({ queryKey, queryFn: ({ signal }) => load(id, signal), staleTime: 0, gcTime: 0, refetchOnWindowFocus: false, refetchOnReconnect: false });
+  const alive = useRef(false), mutation = useRef(false);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
-  useEffect(() => {
-    const controller = new AbortController();
-    load(id, controller.signal).then(data => {
-      if (!controller.signal.aborted) setState({ status: 'ready', data, error: '' });
-    }).catch(error => {
-      if (controller.signal.aborted) return;
-      if (error.status === 401 || error.status === 403) onAccessDenied();
-      setState({ status: 'error', data: null, error: adminErrorMessage(error) });
-    });
-    return () => controller.abort();
-  }, [id, load, attempt, onAccessDenied]);
-  return { ...state, alive, mutation,
-    reload: () => { setState({ status: 'loading', data: null, error: '' }); setAttempt(value => value + 1); },
-    replace: data => setState({ status: 'ready', data, error: '' }),
-  };
+  useEffect(() => { if ([401, 403].includes(query.error?.status)) onAccessDenied(); }, [query.error, onAccessDenied]);
+  return { status: query.isFetching ? 'loading' : query.isError ? 'error' : query.data ? 'ready' : 'loading', data: query.isError || query.isFetching ? null : query.data,
+    error: query.error ? adminErrorMessage(query.error) : '', alive, mutation,
+    reload: () => query.refetch(), replace: data => client.setQueryData(queryKey, data) };
 }

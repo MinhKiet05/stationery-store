@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Recommendations from "../../components/recommendations/Recommendations";
-import { getProducts } from "../../services/productService";
+import { useQuery } from "@tanstack/react-query";
+import { homeOptions } from "../../services/storeQueries";
 import styles from "./HomePage.module.css";
 import { Clock, ShieldCheck, Truck, HeadphonesIcon, ShoppingCart, Circle, ArrowRight, ChevronLeft, ChevronRight, PenTool, ExternalLink } from "lucide-react";
-import ProductCard, { type Product } from "../../components/productCard/ProductCard";
+import ProductCard from "../../components/productCard/ProductCard";
 
 // Import ảnh cho Hero Section
 import backdrop1 from "../../assets/backdrop1.webp";
@@ -27,8 +28,8 @@ const categories = [
 ];
 
 export default function HomePage() {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
+    const result = useQuery(homeOptions());
+    const products = result.data?.content ?? [], loading = result.isPending;
 
     // State cho Hero Section Carousel
     const [currentSlide, setCurrentSlide] = useState(0);
@@ -37,25 +38,9 @@ export default function HomePage() {
     const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % slides.length);
     const prevSlide = () => setCurrentSlide((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
 
-    useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                const data = await getProducts();
-                if (data && data.content) {
-                    setProducts(data.content);
-                }
-            } catch (error) {
-                console.error("Lỗi khi tải sản phẩm:", error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchProducts();
-    }, []);
-
     return (
         <div className={styles.homePage}>
+            {result.isError && <p role="alert">Không tải được sản phẩm. <button onClick={() => result.refetch()}>Thử lại</button></p>}
             {/* Top Announcement Bar */}
             <div className={styles.announcement}>
                 <span>ƯU ĐÃI NĂM HỌC MỚI: Nhập mã <span className={styles.promoHighlight}>BACK2SCHOOL</span> giảm ngay 50.000đ cho đơn từ 299.000đ</span>

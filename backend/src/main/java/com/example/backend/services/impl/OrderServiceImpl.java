@@ -142,6 +142,37 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
+    public MyOrderHistoryResponse myOrderHistory(String username, int page, int size, String search, OrderStatus status, boolean summary) {
+        if (page < 0 || page > 10000 || size < 1 || size > 50 || search.length() > 150) throw bad("Bộ lọc không hợp lệ");
+        var user = currentUser(username);
+        String where = " where o.user.userID=:user";
+        var params = new LinkedHashMap<String,Object>(); params.put("user", user.getUserID());
+        if (!search.isBlank()) {
+            int index=0;
+            for (String word : search.trim().split("\\s+")) {
+                String name="word"+index++;
+                String text = "concat(coalesce(p.title,''),' ',coalesce(v.title,''),' ',coalesce(b.name,''))";
+                where += " and (concat('#st-',cast(o.orderID as string)) like :"+name+" escape '!' or concat('#',cast(o.orderID as string)) like :"+name+" escape '!' or " +
+                    "exists(select d.orderDetailID from OrderDetail d join d.variant v join v.product p left join p.vendor b where d.order=o and " +
+                    com.example.backend.services.NormalizedSearch.hql(text)+" like :"+name+" escape '!'))";
+                params.put(name,com.example.backend.services.NormalizedSearch.pattern(word));
+            }
+        }
+        var countQuery=em.createQuery("select o.status,count(o) from Order o"+where+" group by o.status",Object[].class);
+        params.forEach(countQuery::setParameter);
+        var counts=new EnumMap<OrderStatus,Long>(OrderStatus.class);
+        for (Object[] row:countQuery.getResultList()) counts.put((OrderStatus)row[0],((Number)row[1]).longValue());
+        long total=status==null ? counts.values().stream().mapToLong(Long::longValue).sum() : counts.getOrDefault(status,0L);
+        if (summary) return new MyOrderHistoryResponse(List.of(),total,0,counts);
+        if (status!=null) { where+=" and o.status=:status";params.put("status",status); }
+        var query=em.createQuery("select o from Order o"+where+" order by o.orderDate desc,o.orderID desc",Order.class);
+        params.forEach(query::setParameter);
+        var content=query.setFirstResult(page*size).setMaxResults(size).getResultList().stream().map(this::toResponse).toList();
+        return new MyOrderHistoryResponse(content,total,(int)((total+size-1)/size),counts);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public OrderResponse getOrder(String username, Long orderID) {
         User user = currentUser(username);
         return toResponse(orders.findByOrderIDAndUser_UserID(orderID, user.getUserID())

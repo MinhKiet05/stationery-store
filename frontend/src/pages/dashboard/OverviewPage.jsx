@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { queryClient, sessionScope } from '../../services/queryCache';
 import { useOutletContext } from 'react-router-dom';
 import { RefreshCw, Wallet, ShoppingBag, Users, Clock3, RotateCcw, PackageSearch, CalendarDays } from 'lucide-react';
 import StatCard from '../../components/dashboard/StatCard';
@@ -16,14 +17,16 @@ export default function OverviewPage() {
   const { admin } = useOutletContext();
   const [range, setRange] = useState(initialRange);
   const [draft, setDraft] = useState(range);
-  const [refresh, setRefresh] = useState(0);
+  const refreshData = () => { void queryClient.invalidateQueries({ predicate: q => q.queryKey[0] === 'session' && q.queryKey[1] === sessionScope() && q.queryKey[2] === 'admin' && /^\/api\/admin\/(statistics|dashboard)\//.test(q.queryKey[3]) }); };
   const [filterError, setFilterError] = useState('');
   function applyRange(event) {
     event.preventDefault();
     if (!draft.startDate || !draft.endDate || draft.startDate > draft.endDate || draft.endDate > '9998-12-31' || draft.startDate < '0001-01-01') {
       setFilterError('Vui lòng chọn khoảng thời gian hợp lệ.'); return;
     }
-    setFilterError(''); setRange({ ...draft }); setRefresh(value => value + 1);
+    setFilterError('');
+    if (draft.startDate === range.startDate && draft.endDate === range.endDate) refreshData();
+    else setRange({ ...draft });
   }
   const today = new Intl.DateTimeFormat('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', dateStyle: 'full' }).format(new Date());
   return <>
@@ -35,10 +38,10 @@ export default function OverviewPage() {
         <label>Từ ngày<input aria-label="Từ ngày" type="date" min="0001-01-01" max="9998-12-31" value={draft.startDate} onChange={event => setDraft({ ...draft, startDate: event.target.value })} required /></label>
         <label>Đến ngày<input aria-label="Đến ngày" type="date" min="0001-01-01" max="9998-12-31" value={draft.endDate} onChange={event => setDraft({ ...draft, endDate: event.target.value })} required /></label></div>
         <div className="dashboard-filter-buttons"><button className="dashboard-button" type="submit">Áp dụng bộ lọc</button>
-          <button className="dashboard-button dashboard-button-primary" type="button" onClick={() => setRefresh(value => value + 1)}><RefreshCw size={16} />Làm mới dữ liệu</button></div>
+          <button className="dashboard-button dashboard-button-primary" type="button" onClick={() => refreshData()}><RefreshCw size={16} />Làm mới dữ liệu</button></div>
         {filterError && <p role="alert" className="dashboard-filter-error">{filterError}</p>}
       </form></div>
-    <OverviewContent key={`${range.startDate}:${range.endDate}:${refresh}`} range={range} />
+    <OverviewContent key={`${range.startDate}:${range.endDate}`} range={range} />
   </>;
 }
 

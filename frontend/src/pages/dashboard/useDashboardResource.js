@@ -1,22 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { dashboardRequest } from '../../services/dashboardApi';
-
-export default function useDashboardResource(path, onAccessDenied, keepPreviousData = false) {
-  const [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState({ path: '', attempt: -1, status: 'loading', data: null });
-  useEffect(() => {
-    const controller = new AbortController();
-    dashboardRequest(path, controller.signal).then(data => {
-      if (!controller.signal.aborted) setState({ path, attempt, owner: onAccessDenied, status: 'ready', data });
-    }).catch(error => {
-      if (controller.signal.aborted) return;
-      if (error.status === 401 || error.status === 403) onAccessDenied();
-      setState(previous => ({ path, attempt, owner: onAccessDenied, status: 'error', data: keepPreviousData && previous.path === path && previous.owner === onAccessDenied ? previous.data : null }));
-    });
-    return () => controller.abort();
-  }, [path, attempt, onAccessDenied, keepPreviousData]);
-  if (keepPreviousData && state.path === path && state.owner === onAccessDenied && state.data) {
-    return { ...state, status: 'ready', refreshing: state.attempt !== attempt, refreshError: state.status === 'error', retry: () => setAttempt(value => value + 1) };
-  }
-  return { ...(state.path === path && state.attempt === attempt && state.owner === onAccessDenied ? state : { status: 'loading', data: null }), retry: () => setAttempt(value => value + 1) };
+import { queryKeys, resourceTime } from '../../services/queryCache';
+import useSessionScope from '../../services/useSessionScope';
+export const dashboardQueryOptions = (path, scope) => ({
+  queryKey: queryKeys.admin(path, scope), queryFn: ({ signal }) => dashboardRequest(path, signal), staleTime: resourceTime(path),
+});
+export default function useDashboardResource(path, onAccessDenied) {
+  const scope = useSessionScope();
+  const query = useQuery(dashboardQueryOptions(path, scope));
+  const denied = query.error?.status === 401 || query.error?.status === 403;
+  useEffect(() => { if (denied) onAccessDenied(); }, [denied, onAccessDenied]);
+  return { status: denied ? 'error' : query.data !== undefined ? 'ready' : query.isError ? 'error' : 'loading',
+    data: denied ? null : query.data ?? null, refreshing: query.isFetching && query.data !== undefined,
+    refreshError: query.isError && query.data !== undefined, retry: () => query.refetch() };
 }

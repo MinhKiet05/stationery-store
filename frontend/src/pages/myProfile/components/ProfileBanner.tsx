@@ -1,13 +1,13 @@
 import { UserRound, Mail, Phone, ShoppingBag, Truck } from 'lucide-react';
 import type { UserProfile } from '../../../services/userService';
-import type { Order } from '../../../services/orderService';
+import type { OrderHistoryPage } from '../../../services/orderService';
 import styles from '../MyProfile.module.css';
 
-type Props = { profile: UserProfile; orders: Order[]; ordersLoading: boolean; ordersError: string };
+type Props = { profile: UserProfile; summary?: OrderHistoryPage; ordersLoading: boolean; ordersError: string };
 
-export default function ProfileBanner({ profile, orders, ordersLoading, ordersError }: Props) {
-  const count = ordersLoading ? '…' : ordersError ? '—' : orders.length;
-  const shipping = ordersLoading ? '…' : ordersError ? '—' : orders.filter((order) => order.status === 'SHIPPED').length;
+export default function ProfileBanner({ profile, summary, ordersLoading, ordersError }: Props) {
+  const count = ordersLoading ? '…' : ordersError ? '—' : summary?.totalElements ?? 0;
+  const shipping = ordersLoading ? '…' : ordersError ? '—' : summary?.statusCounts.SHIPPED ?? 0;
   return (
     <header className={styles.bannerContainer}>
       <div className={styles.identity}>
