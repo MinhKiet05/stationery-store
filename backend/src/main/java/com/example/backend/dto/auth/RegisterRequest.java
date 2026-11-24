@@ -6,4 +6,6 @@ public record RegisterRequest(
   @NotBlank @Size(min=8,max=72) String password,
   @Size(max=120) String fullName,
   @Size(max=30) String phoneNumber
-) {}
+) {
+    @Override public String toString() { return "RegisterRequest[credentials=<redacted>]"; }
+}

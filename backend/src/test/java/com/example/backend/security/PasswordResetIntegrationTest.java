@@ -49,7 +49,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.mail.username=test@example.test", "spring.mail.password=", "app.mail.from=test@example.test",
         "app.frontend.url=https://stationery-store-nu.vercel.app",
         "app.frontend.reset-password-url=https://stationery-store-nu.vercel.app/reset-password",
-        "app.ai.enabled=false", "app.ai.vector-url=", "logging.level.root=WARN"
+        "app.ai.enabled=false", "app.ai.vector-url=", "logging.level.root=WARN", "app.redis.enabled=false"
 })
 @AutoConfigureMockMvc
 class PasswordResetIntegrationTest {
@@ -60,6 +60,8 @@ class PasswordResetIntegrationTest {
     @Autowired JwtEncoder jwtEncoder;
     @Autowired JwtTokenService jwtTokens;
     @MockitoBean JavaMailSender mail;
+    // These tests isolate reset-token business rules; HTTP counter behavior has dedicated tests.
+    @MockitoBean RequestRateLimiter requestLimits;
     User user;
 
     @BeforeEach

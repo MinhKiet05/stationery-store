@@ -53,6 +53,17 @@ test('canonical admin paths share cache independent of parameter order, with ran
   assert.notDeepEqual(keys.admin('/api/admin/orders?page=0'),keys.admin('/api/admin/orders?page=1'));
 });
 
+test('taxonomy writes invalidate catalog labels and related products without clearing unrelated data', () => {
+  const categories = keys.public('categories'), vendors = keys.public('vendors');
+  const products = keys.public('products'), detail = keys.public('productDetail', { id: 1 });
+  for (const key of [categories, vendors, products, detail]) client.setQueryData(key, ['old']);
+  invalidateBusiness('/api/product-types/1');
+  for (const key of [categories, products, detail]) assert.equal(client.getQueryState(key).isInvalidated, true);
+  assert.equal(client.getQueryState(vendors).isInvalidated, false);
+  invalidateBusiness('/api/vendors/2');
+  assert.equal(client.getQueryState(vendors).isInvalidated, true);
+});
+
 test('hover prefetch coalesces rapid intents, reuses fresh data and checks access before fetching', async () => {
   let reads=0; const options={queryKey:keys.public('products',{prefetch:true}), queryFn:async()=>{reads++;return ['server'];}};
   for(let i=0;i<30;i++) schedulePrefetch(options);
