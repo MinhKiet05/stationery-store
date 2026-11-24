@@ -1,6 +1,7 @@
 import { api } from './api';
 import { getProductTypes } from './productTypeService';
 import { queryClient, queryKeys, cacheTimes } from './queryCache';
+import { queryOptions } from '@tanstack/react-query';
 import { allCategory, toCatalogProduct } from '../pages/searchPage/catalogData';
 import type { ProductPage } from './productService';
 export type CatalogFilters = { page?: number; size?: number; keyword?: string; productTypeID?: string;
@@ -21,3 +22,12 @@ export async function getCatalog(signal?: AbortSignal, filters: CatalogFilters =
     products: page.content.map(toCatalogProduct), totalPages: page.totalPages, totalElements: page.totalElements };
 }
 export const getCatalogVendors = (signal?: AbortSignal) => api<{ vendorID: number; name: string }[]>('/api/vendors', { signal });
+
+// Shared by SearchPage and category-card prefetch; defaults must produce the same key.
+export function catalogOptions(filters: CatalogFilters = {}) {
+  const normalized = { page: 0, size: 24, keyword: '', productTypeID: '',
+    minPrice: '', maxPrice: '', rating: 0, inStock: false, onSale: false, sort: 'productID,asc',
+    ...filters, brands: [...(filters.brands ?? [])].sort() };
+  return queryOptions({ queryKey: queryKeys.public('products', normalized),
+    queryFn: ({ signal }) => getCatalog(signal, normalized), staleTime: cacheTimes.products });
+}

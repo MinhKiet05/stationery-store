@@ -122,7 +122,7 @@ try {
   await test('Catalog requests a single server page with complete filter keys',async()=>{
     await go('/search');await until(()=>evaluate("!!document.querySelector('#catalog-sort')"),'search'); await delay(200);
     const requests=await evaluate("window.__requests.filter(r=>r.route==='/api/products/search'&&r.query.catalog==='true')");
-    assert.ok(requests.length>=1);assert.deepEqual([...new Set(requests.map(r=>r.query.page))],['0']);assert.ok(requests.every(r=>r.query.size==='12'));
+    assert.ok(requests.length>=1);assert.deepEqual([...new Set(requests.map(r=>r.query.page))],['0']);assert.ok(requests.every(r=>r.query.size==='24'));
     await select('#catalog-sort','price-desc');await until(()=>evaluate("window.__requests.some(r=>r.query.sort==='price,desc')"),'SQL sort');
   });
   await test('Unknown checkout result blocks another submit until order history is reviewed',async()=>{
