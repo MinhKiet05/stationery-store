@@ -1,6 +1,7 @@
+import ImportExcelModal from '../../components/dashboard/ImportExcelModal';
 import { useEffect, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Download, Search, RotateCcw, ShoppingBag, CheckCircle2, EyeOff, TriangleAlert, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Upload, Download, Search, RotateCcw, ShoppingBag, CheckCircle2, EyeOff, TriangleAlert, ChevronLeft, ChevronRight } from 'lucide-react';
 import DashboardPageIntro from '../../components/dashboard/DashboardPageIntro';
 import DashboardListHeading from '../../components/dashboard/DashboardListHeading';
 import StatCard from '../../components/dashboard/StatCard';
@@ -19,6 +20,7 @@ export default function ProductsPage() {
   const { onAccessDenied } = useOutletContext();
   const [filters, setFilters] = useState(defaults), [search, setSearch] = useState(''), [creating, setCreating] = useState(false);
   const [page, setPage] = useState(0), [selected, setSelected] = useState(null), [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const exportRef = useRef(null);
   const list = useDashboardResource(productsPath(filters, page), onAccessDenied), stats = useDashboardResource(productStatisticsPath(filters), onAccessDenied);
   useEffect(() => {
@@ -50,6 +52,7 @@ export default function ProductsPage() {
   return <div className="products-page dashboard-management-page">
     <DashboardPageIntro title="Quản lý sản phẩm & Tồn kho" breadcrumb="Sản phẩm & Tồn kho" description="Quản lý danh mục sản phẩm, giá bán và số lượng tồn kho">
       <button className="dashboard-button dashboard-button-accent" onClick={() => setCreating(true)}>+ Thêm sản phẩm</button>
+      <button className="dashboard-button" onClick={() => setImporting(true)}><Upload size={17} />Import Excel</button>
       <button className="dashboard-button" disabled={exporting} onClick={download}><Download size={17} />{exporting ? 'Đang xuất Excel…' : 'Xuất Excel'}</button>
     </DashboardPageIntro>
     <DashboardState resource={stats}><div className="products-kpi-grid">
@@ -89,6 +92,7 @@ export default function ProductsPage() {
         <button className="dashboard-icon-button" aria-label="Trang sản phẩm tiếp theo" disabled={page + 1 >= list.data.totalPages} onClick={() => setPage(page + 1)}><ChevronRight size={18} /></button>
       </div></div>}
     </section>
+    {importing && <ImportExcelModal kind="products" onClose={() => setImporting(false)} onChanged={() => { list.retry(); stats.retry(); }} onAccessDenied={onAccessDenied} />}
     {selected != null && <ProductDetailModal key={selected} productID={selected} onClose={() => setSelected(null)} onChanged={() => { list.retry(); stats.retry(); }} onAccessDenied={onAccessDenied} options={options} />}
     {creating && <ProductFormModal options={options} onClose={() => setCreating(false)} onAccessDenied={onAccessDenied} onSaved={data => { setCreating(false); setSelected(data.product.productID); list.retry(); stats.retry(); }} />}
   </div>;

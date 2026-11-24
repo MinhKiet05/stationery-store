@@ -11,6 +11,7 @@ export const updateVariantStock = (id, stockQuantity, version) => api(`/api/admi
   method: 'PATCH', body: JSON.stringify({ stockQuantity, version }),
 });
 export const adminErrorMessage = (error) => {
+  if (error.status === 403) return 'Bạn không có quyền thực hiện thao tác này.';
   if (error.status === 404) return 'Dữ liệu không còn tồn tại hoặc đã bị xóa.';
   if (error.status === 409) return 'Dữ liệu đã thay đổi hoặc thao tác không còn hợp lệ. Hãy tải lại chi tiết trước khi tiếp tục.';
   if (error.status === 400) return 'Dữ liệu gửi lên không hợp lệ. Vui lòng kiểm tra lại.';

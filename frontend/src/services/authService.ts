@@ -71,8 +71,11 @@ export async function getCurrentUser(
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
       const currentSession = localStorage.getItem("accessToken") === token;
-      localStorage.removeItem("accessToken");
-      if (currentSession) notify.sessionExpired();
+      if (currentSession) {
+        localStorage.removeItem("accessToken");
+        window.dispatchEvent(new Event("auth-changed"));
+        notify.sessionExpired();
+      }
     }
     return null;
   }

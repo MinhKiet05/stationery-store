@@ -176,6 +176,31 @@ public class ProductServiceImpl implements ProductService {
         return toResponse(productRepository.save(product));
     }
 
+    /** Same definition/application rules, with bounded bulk lookups instead of per-row probes. */
+    @Override @Transactional @org.springframework.security.access.prepost.PreAuthorize("hasRole('ADMIN')")
+    public List<ProductResponse> createBatch(List<ProductRequest> requests) {
+        var names=new HashSet<String>();var handles=new HashSet<String>();
+        var vendors=new HashSet<Long>();var types=new HashSet<Long>();var tags=new HashSet<Long>();
+        for(var r:requests){
+            validateRequest(r);
+            if(!names.add(r.title().trim().toLowerCase(java.util.Locale.ROOT)) || r.handle()==null || r.handle().isBlank() || !handles.add(r.handle().trim()))throw new IllegalArgumentException("Ten hoac handle trung lap");
+            if(r.vendorID()!=null)vendors.add(r.vendorID());if(r.productTypeID()!=null)types.add(r.productTypeID());if(r.tagIDs()!=null)tags.addAll(r.tagIDs());
+        }
+        if(!names.isEmpty() && !em.createQuery("select p.productID from Product p where lower(p.title) in :names or p.handle in :handles",Long.class).setParameter("names",names).setParameter("handles",handles).getResultList().isEmpty())throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,"San pham da ton tai");
+        var vendorMap=vendorRepository.findAllById(vendors).stream().collect(java.util.stream.Collectors.toMap(Vendor::getVendorID,java.util.function.Function.identity()));
+        var typeMap=productTypeRepository.findAllById(types).stream().collect(java.util.stream.Collectors.toMap(ProductType::getProductTypeID,java.util.function.Function.identity()));
+        var tagMap=tagRepository.findAllById(tags).stream().collect(java.util.stream.Collectors.toMap(Tag::getTagID,java.util.function.Function.identity()));
+        if(vendorMap.size()!=vendors.size() || typeMap.size()!=types.size() || tagMap.size()!=tags.size())throw new IllegalArgumentException("Du lieu tham chieu khong ton tai");
+        var result=new ArrayList<ProductResponse>();
+        for(var r:requests){
+            var p=new Product();applyFields(p,r);p.setVendor(vendorMap.get(r.vendorID()));p.setProductType(typeMap.get(r.productTypeID()));
+            if(r.tagIDs()!=null)for(Long id:r.tagIDs())p.getTags().add(tagMap.get(id));
+            p.setIsActive(true);p.setRatingAverage(BigDecimal.ZERO);p.setReviewCount(0);
+            result.add(toResponse(productRepository.save(p)));
+        }
+        em.flush();return result;
+    }
+
     // 6. Cập nhật sản phẩm
     @Override
     @Transactional
@@ -270,7 +295,10 @@ public class ProductServiceImpl implements ProductService {
 
     // Gán dữ liệu Request vào Entity
     private void applyRequest(Product product, ProductRequest request) {
-
+        applyFields(product, request);
+        applyReferences(product, request);
+    }
+    private void applyFields(Product product, ProductRequest request) {
         product.setTitle(request.title().trim());
 
         product.setHandle(
@@ -289,6 +317,12 @@ public class ProductServiceImpl implements ProductService {
             product.setAvailable(request.available());
         }
 
+        if (request.images() != null) {
+            product.getImages().clear();
+            product.getImages().addAll(request.images());
+        }
+    }
+    private void applyReferences(Product product, ProductRequest request) {
         // Gán thương hiệu
         if (request.vendorID() != null) {
             Vendor vendor = vendorRepository.findById(request.vendorID())
@@ -312,12 +346,6 @@ public class ProductServiceImpl implements ProductService {
             product.setProductType(productType);
         } else {
             product.setProductType(null);
-        }
-
-        // Cập nhật hình ảnh
-        if (request.images() != null) {
-            product.getImages().clear();
-            product.getImages().addAll(request.images());
         }
 
         // Cập nhật tags

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useOutletContext } from 'react-router-dom';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import DashboardSidebar from '../components/dashboard/DashboardSidebar';
@@ -46,7 +46,9 @@ export default function DashboardLayout() {
       <DashboardSidebar sidebarRef={sidebarRef} collapsed={collapsed} mobileOpen={mobileOpen} hidden={isMobile && !mobileOpen} close={() => { setMobileOpen(false); toggleRef.current?.focus(); }} />
       <div className="dashboard-workspace" inert={mobileOpen}>
         <DashboardHeader admin={context.admin} toggle={toggle} toggleRef={toggleRef} expanded={isMobile ? mobileOpen : !collapsed} />
-        <main id="dashboard-content" className="dashboard-content" tabIndex={-1}><Outlet context={context} /></main>
+        <main id="dashboard-content" className="dashboard-content" tabIndex={-1}>
+          <Suspense fallback={<div className="dashboard-loading" role="status">Đang tải trang quản trị…</div>}><Outlet context={context} /></Suspense>
+        </main>
         <footer className="dashboard-footer"><span>© {new Date().getFullYear()} StationeryStore</span><span>Không gian quản trị</span></footer>
       </div>
     </div>

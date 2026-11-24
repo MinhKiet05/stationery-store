@@ -13,7 +13,7 @@ export default function useAdminDetail(id, load, onAccessDenied) {
       if (!controller.signal.aborted) setState({ status: 'ready', data, error: '' });
     }).catch(error => {
       if (controller.signal.aborted) return;
-      if (error.status === 401 || error.status === 403) { onAccessDenied(); return; }
+      if (error.status === 401 || error.status === 403) onAccessDenied();
       setState({ status: 'error', data: null, error: adminErrorMessage(error) });
     });
     return () => controller.abort();

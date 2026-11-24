@@ -25,6 +25,7 @@ public interface ProductService {
     );
 
     ProductResponse createProduct(ProductRequest request);
+    java.util.List<ProductResponse> createBatch(java.util.List<ProductRequest> requests);
 
     ProductResponse updateProduct(Long id, ProductRequest request);
 

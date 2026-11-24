@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
-@RestControllerAdvice(assignableTypes = {AdminProductController.class, AdminOrderController.class, AdminProductVariantController.class, AdminReviewController.class, AdminPromotionController.class, AdminReturnRequestController.class})
+@RestControllerAdvice(assignableTypes = {ExcelImportController.class, AdminUserController.class, AdminProductController.class, AdminOrderController.class, AdminProductVariantController.class, AdminReviewController.class, AdminPromotionController.class, AdminReturnRequestController.class})
 public class AdminOperationExceptionHandler {
     @ExceptionHandler(ResponseStatusException.class)
     public ProblemDetail business(ResponseStatusException error) {

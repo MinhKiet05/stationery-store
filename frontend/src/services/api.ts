@@ -10,7 +10,7 @@ export async function apiResponse(
   options: RequestInit = {},
 ): Promise<Response> {
   const headers = new Headers(options.headers);
-  if (options.body) headers.set("Content-Type", "application/json");
+  if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
   const token = localStorage.getItem("accessToken");
   const isPublicAuth =
     path === "/api/auth/login" || path === "/api/auth/register";

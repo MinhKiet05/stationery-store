@@ -33,7 +33,15 @@ export default function AdminModal({ title, children, footer, onClose, busy = fa
       }
     };
     dialog.addEventListener('keydown', keydown);
-    return () => dialog.removeEventListener('keydown', keydown);
+    // Disabling/removing the focused control (busy request or last gallery image)
+    // can move browser focus to <body>. Keep it in the topmost dialog so Escape
+    // and the tab trap continue to work, without stealing focus from nested dialogs.
+    const observer = new MutationObserver(() => {
+      const top = [...document.querySelectorAll('dialog[open]')].at(-1);
+      if (dialog === top && (!dialog.contains(document.activeElement) || document.activeElement?.matches(':disabled'))) dialog.focus();
+    });
+    observer.observe(dialog, { childList: true, subtree: true, attributes: true, attributeFilter: ['disabled', 'hidden', 'inert'] });
+    return () => { dialog.removeEventListener('keydown', keydown); observer.disconnect(); };
   }, []);
   return <dialog ref={ref} tabIndex={-1} className={`admin-modal ${compact ? 'admin-modal-compact' : ''}`} aria-labelledby={titleId}
     closedby={busy ? 'none' : 'closerequest'} aria-busy={busy}
