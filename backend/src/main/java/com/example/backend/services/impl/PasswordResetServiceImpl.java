@@ -6,6 +6,7 @@ import com.example.backend.repositories.PasswordResetTokenRepository;
 import com.example.backend.repositories.UserRepository;
 import com.example.backend.services.PasswordResetEmailSender;
 import com.example.backend.services.PasswordResetService;
+import com.example.backend.security.RedisPasswordResetStore;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
@@ -34,7 +36,8 @@ import java.util.Locale;
 @RequiredArgsConstructor
 public class PasswordResetServiceImpl implements PasswordResetService {
     private static final int TOKEN_TTL_MINUTES = 15;
-    private static final int MIN_REQUEST_INTERVAL_SECONDS = 60;
+    @Value("${app.password-reset.resend-seconds:60}")
+    private int minRequestIntervalSeconds = 60;
     private static final SecureRandom RNG = new SecureRandom();
 
     private final UserRepository users;
@@ -43,12 +46,25 @@ public class PasswordResetServiceImpl implements PasswordResetService {
     private final PasswordResetEmailSender emailSender;
     private final EntityManager em;
 
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private RedisPasswordResetStore redisTokens;
+
+    @Value("${app.redis.enabled:false}")
+    private boolean redisEnabled;
+
+    @jakarta.annotation.PostConstruct
+    void verifyStoreSelection() {
+        if (redisEnabled && redisTokens == null) throw new IllegalStateException("Redis password reset store is required when Redis is enabled");
+    }
+
     @Value("${app.frontend.reset-password-url}")
     private String resetPasswordUrl;
 
     @Override
     @Transactional
     public void requestReset(String email) {
+        // Check before account lookup so an outage does not distinguish existing emails.
+        if (redisTokens != null) redisTokens.checkAvailable();
         // Return the same generic result for unknown / disabled accounts.
         if (email == null) return;
         users.findByEmail(email.strip().toLowerCase(Locale.ROOT)).ifPresent(user -> {
@@ -60,19 +76,26 @@ public class PasswordResetServiceImpl implements PasswordResetService {
             List<PasswordResetToken> existing = tokens.findByUser_UserID(locked.getUserID());
             LocalDateTime now = LocalDateTime.now();
             boolean tooSoon = existing.stream().anyMatch(t ->
-                    now.isBefore(t.getCreatedAt().plusSeconds(MIN_REQUEST_INTERVAL_SECONDS)));
+                    now.isBefore(t.getCreatedAt().plusSeconds(minRequestIntervalSeconds)));
             if (tooSoon) return;
+            if (redisTokens != null && !redisTokens.canIssue(locked.getUserID())) return;
 
             // Keep previous valid tokens usable until SMTP succeeds; rollback if email fails.
             byte[] bytes = new byte[32];
             RNG.nextBytes(bytes);
             String raw = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-            PasswordResetToken token = new PasswordResetToken();
-            token.setUser(locked);
-            token.setTokenHash(sha256(raw));
-            token.setExpiresAt(now.plusMinutes(TOKEN_TTL_MINUTES));
-            token.setUsed(false);
-            tokens.saveAndFlush(token);
+            if (redisTokens != null) {
+                byte[] challenge = new byte[16]; RNG.nextBytes(challenge);
+                raw = Base64.getUrlEncoder().withoutPadding().encodeToString(challenge) + "." + raw;
+            }
+            if (redisTokens == null) {
+                PasswordResetToken token = new PasswordResetToken();
+                token.setUser(locked);
+                token.setTokenHash(sha256(raw));
+                token.setExpiresAt(now.plusMinutes(TOKEN_TTL_MINUTES));
+                token.setUsed(false);
+                tokens.saveAndFlush(token);
+            }
 
             String link = resetPasswordUrl + (resetPasswordUrl.contains("?") ? "&" : "?")
                     + "token=" + URLEncoder.encode(raw, StandardCharsets.UTF_8);
@@ -84,6 +107,15 @@ public class PasswordResetServiceImpl implements PasswordResetService {
                 TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
                 log.warn("Password reset email delivery failed; token issuance rolled back ({})",
                         exception.getClass().getSimpleName());
+                return;
+            }
+            // Do not replace an active link or consume cooldown until delivery succeeds.
+            if (redisTokens != null) {
+                existing.forEach(item -> item.setUsed(true));
+                tokens.flush(); // Retire legacy SQL links without deleting production rows.
+                redisTokens.activate(locked.getUserID(), raw, Duration.ofMinutes(TOKEN_TTL_MINUTES));
+            } else {
+                existing.forEach(item -> item.setUsed(true));
             }
         });
     }
@@ -97,6 +129,10 @@ public class PasswordResetServiceImpl implements PasswordResetService {
         if (newPassword == null || newPassword.length() < 8 || newPassword.length() > 72) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Mat khau phai co tu 8 den 72 ky tu");
+        }
+        if (redisTokens != null) {
+            resetUsingRedis(rawToken.strip(), newPassword);
+            return;
         }
         PasswordResetToken token = tokens.findByTokenHash(sha256(rawToken.strip()))
                 .orElseThrow(this::invalidToken);
@@ -119,6 +155,19 @@ public class PasswordResetServiceImpl implements PasswordResetService {
         tokens.flush();
         // Existing stateless JWTs stay valid until expiration unless a token-revocation
         // mechanism is added separately to SecurityConfig / JWT validation.
+    }
+
+    private void resetUsingRedis(String rawToken, String newPassword) {
+        Long userID = redisTokens.findUser(rawToken);
+        if (userID == null) throw invalidToken();
+        User user = users.findForUpdateById(userID).orElseThrow(this::invalidToken);
+        if (!Boolean.TRUE.equals(user.getIsActive())) throw invalidToken();
+        if (!redisTokens.consume(userID, rawToken)) throw invalidToken();
+        // A consumed Redis token is never restored if SQL fails: request a new link instead.
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        tokens.findByUser_UserID(userID).forEach(item -> item.setUsed(true));
+        users.save(user);
+        tokens.flush();
     }
 
     private String sha256(String value) {

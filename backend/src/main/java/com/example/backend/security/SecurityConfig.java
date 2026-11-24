@@ -119,7 +119,7 @@ public class SecurityConfig {
         cors.setAllowCredentials(false); // Authentication uses the Authorization header, not cookies.
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
-        cors.setExposedHeaders(List.of("Content-Disposition"));
+        cors.setExposedHeaders(List.of("Content-Disposition", "Retry-After"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cors);
         return source;

@@ -51,10 +51,12 @@ export function resourceTime(path) {
 // Inactive pages are marked stale, active widgets refresh through their existing callbacks.
 export function invalidateBusiness(path, scope = sessionScope()) {
   if (scope !== sessionScope()) return;
-  const product = /products|product-variants/.test(path);
+  const category = /\/product-types(?:\/|$)/.test(path), vendor = /\/vendors(?:\/|$)/.test(path);
+  const product = /products|product-variants/.test(path) || category || vendor;
   const order = /orders/.test(path), returns = /returns/.test(path);
   const stock = product || /restock/.test(path) || order;
   const resources = new Set([
+    ...(category ? ['categories'] : []), ...(vendor ? ['vendors'] : []),
     ...(product || stock ? ['products', 'productDetail', 'inventory'] : []),
     ...(order || returns ? ['orders', 'returns'] : []),
     ...(order || /cart/.test(path) ? ['cart', 'recommendations'] : []),
