@@ -1,5 +1,7 @@
 import { notify, userMessage } from "../utils/notifications";
 
+import { invalidateBusiness, sessionScope } from './queryCache';
+
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(
   /\/+$/,
   "",
@@ -9,6 +11,7 @@ export async function apiResponse(
   path: string,
   options: RequestInit = {},
 ): Promise<Response> {
+  const scope = sessionScope();
   const headers = new Headers(options.headers);
   if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
   const token = localStorage.getItem("accessToken");
@@ -28,6 +31,7 @@ export async function apiResponse(
       response.status === 401 &&
       !isPublicAuth &&
       token &&
+      scope === sessionScope() &&
       localStorage.getItem("accessToken") === token
     ) {
       localStorage.removeItem("accessToken");
@@ -58,11 +62,16 @@ export async function apiResponse(
       notificationHandled: response.status === 401 && !isPublicAuth && Boolean(token),
     });
   }
+  if (scope !== sessionScope() || localStorage.getItem('accessToken') !== token) throw new DOMException('Session changed', 'AbortError');
+  if (options.method && options.method !== 'GET' && options.method !== 'HEAD' && !path.startsWith('/api/auth/') && !path.endsWith('/preview')) invalidateBusiness(path, scope);
   return response;
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const scope = sessionScope();
   const response = await apiResponse(path, options);
   if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
+  const data = await response.json() as T;
+  if (scope !== sessionScope()) throw new DOMException('Session changed', 'AbortError');
+  return data;
 }

@@ -1,44 +1,17 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import useSessionScope from "../../services/useSessionScope";
+import { queryKeys } from "../../services/queryCache";
 import ProductCard from "../productCard/ProductCard";
-import { getRecommendations, type RecommendationResponse } from "../../services/aiService";
+import { getRecommendations } from "../../services/aiService";
 import { userMessage } from "../../utils/notifications";
 import styles from "./Recommendations.module.css";
 
 export default function Recommendations() {
-  const [result, setResult] = useState<RecommendationResponse>({ products: [], source: "FALLBACK" });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [retry, setRetry] = useState(0);
-
-  useEffect(() => {
-    let controller: AbortController | undefined;
-    const load = async () => {
-      controller?.abort();
-      const request = new AbortController();
-      controller = request;
-      setLoading(true);
-      setError("");
-      setResult({ products: [], source: "FALLBACK" });
-      try {
-        const data = await getRecommendations(request.signal);
-        if (!request.signal.aborted) setResult(data);
-      } catch (err) {
-        if (!request.signal.aborted)
-          setError(userMessage(err, "Không tải được sản phẩm. Vui lòng thử lại."));
-      } finally {
-        if (!request.signal.aborted) setLoading(false);
-      }
-    };
-    void load();
-    window.addEventListener("auth-changed", load);
-    window.addEventListener("pageshow", load);
-    return () => {
-      controller?.abort();
-      window.removeEventListener("auth-changed", load);
-      window.removeEventListener("pageshow", load);
-    };
-  }, [retry]);
-
+  const scope = useSessionScope();
+  const query = useQuery({ queryKey: queryKeys.private('recommendations', {}, scope), queryFn: ({ signal }) => getRecommendations(signal), staleTime: 60000 });
+  const result = query.data ?? { products: [], source: 'FALLBACK' };
+  const loading = query.isPending;
+  const error = query.isError ? userMessage(query.error, 'Không tải được sản phẩm. Vui lòng thử lại.') : '';
   const recent = result.source === "RECENT_ACTIVITY";
   const personalized = result.source === "PERSONALIZED";
 
@@ -53,7 +26,7 @@ export default function Recommendations() {
       </p>
       <div aria-live="polite" aria-busy={loading}>
         {loading ? <p className={styles.status}>Đang tải sản phẩm...</p>
-          : error ? <p role="alert" className={styles.status}>{error} <button onClick={() => setRetry(n => n + 1)}>Thử lại</button></p>
+          : error ? <p role="alert" className={styles.status}>{error} <button onClick={() => query.refetch()}>Thử lại</button></p>
           : result.products.length === 0 ? <p className={styles.status}>Chưa có sản phẩm còn hàng để hiển thị.</p>
           : <div className={styles.grid}>{result.products.map(p => <ProductCard key={p.productID} product={p} />)}</div>}
       </div>

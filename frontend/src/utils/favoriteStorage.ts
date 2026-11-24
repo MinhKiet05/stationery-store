@@ -23,6 +23,7 @@ export function toggleFavoriteProduct(productID: number): boolean {
     notify.success(next ? "Đã thêm sản phẩm vào danh sách yêu thích." : "Đã bỏ sản phẩm khỏi danh sách yêu thích.");
   } catch {
     notify.error(null, "Không thể lưu danh sách yêu thích. Vui lòng kiểm tra quyền lưu trữ của trình duyệt.");
+    return isFavoriteProduct(productID);
   }
   return next;
 }

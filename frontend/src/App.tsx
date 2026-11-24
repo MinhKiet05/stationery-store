@@ -3,18 +3,18 @@ import { lazy, Suspense } from 'react';
 import Header from "./components/header/Header";
 import Footer from "./components/footer/Footer";
 import HomePage from "./pages/homePage/HomePage";
-import ProductDetail from "./pages/productDetail/ProductDetail";
-import Login from "./pages/login/Login";
-import ForgotPassword from "./pages/forgotPassword/ForgotPassword";
-import AboutUs from "./pages/aboutUs/AboutUs";
-import Policy from "./pages/policy/Policy";
-import SearchPage from "./pages/searchPage/SearchPage";
+const ProductDetail = lazy(() => import('./pages/productDetail/ProductDetail'));
+const Login = lazy(() => import('./pages/login/Login'));
+const ForgotPassword = lazy(() => import('./pages/forgotPassword/ForgotPassword'));
+const AboutUs = lazy(() => import('./pages/aboutUs/AboutUs'));
+const Policy = lazy(() => import('./pages/policy/Policy'));
+const SearchPage = lazy(() => import('./pages/searchPage/SearchPage'));
 import AiChatWidget from "./components/aiChat/AiChatWidget";
-import MyProfile from "./pages/myProfile/MyProfile";
-import AccountInfoTab from "./pages/myProfile/tabs/AccountInfoTab";
-import OrderHistoryTab from "./pages/myProfile/tabs/OrderHistoryTab";
-import SecurityTab from "./pages/myProfile/tabs/SecurityTab";
-import WishlistTab from "./pages/myProfile/tabs/WishlistTab";
+const MyProfile = lazy(() => import('./pages/myProfile/MyProfile'));
+const AccountInfoTab = lazy(() => import('./pages/myProfile/tabs/AccountInfoTab'));
+const OrderHistoryTab = lazy(() => import('./pages/myProfile/tabs/OrderHistoryTab'));
+const SecurityTab = lazy(() => import('./pages/myProfile/tabs/SecurityTab'));
+const WishlistTab = lazy(() => import('./pages/myProfile/tabs/WishlistTab'));
 import AppNotifications from "./components/notifications/AppNotifications";
 import { useAdminSessionEvents } from './services/adminSession';
 const AdminRoute = lazy(() => import('./routes/AdminRoute.jsx'));
@@ -31,8 +31,8 @@ const DashboardPlaceholder = lazy(() => import('./pages/dashboard/DashboardPlace
 function MainLayout() {
   return (
     <>
-      <Header cartCount={3} />
-      <Outlet />
+      <Header />
+      <Suspense fallback={<p role="status">Đang tải trang…</p>}><Outlet /></Suspense>
       <Footer />
     </>
   );
@@ -63,7 +63,7 @@ function App() {
   useAdminSessionEvents();
   return (
     <BrowserRouter>
-      <Routes>
+      <Suspense fallback={<p role="status">Đang tải trang…</p>}><Routes>
         <Route path="/dashboard" element={<Suspense fallback={<div role="status">Đang tải khu vực quản trị…</div>}><AdminRoute /></Suspense>}>
           <Route element={<DashboardLayout />}>
             <Route index element={<OverviewPage />} />
@@ -79,7 +79,7 @@ function App() {
         {/* Nhóm trang có Header & Footer */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/about-us" element={<AboutUs />} />
+          {['/about-us', '/about', '/gioi-thieu', '/contact', '/lien-he'].map(path => <Route key={path} path={path} element={<AboutUs />} />)}
           <Route path="/policy" element={<Policy />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/products" element={<ProductSearchRedirect />} />
@@ -98,7 +98,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPasswordRedirect />} />
-      </Routes>
+      </Routes></Suspense>
 
       <StoreChat />
       <AppNotifications />

@@ -1,10 +1,13 @@
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys, cacheTimes } from '../../../services/queryCache';
+import useSessionScope from '../../../services/useSessionScope';
 import { useState, type FormEvent, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Package, Truck, CheckCircle, XCircle, CreditCard, ChevronLeft, ChevronRight, X, CalendarDays } from 'lucide-react';
-import { cancelOrder, type OrderStatus, type Order } from '../../../services/orderService';
+import { getMyOrderHistory, cancelOrder, type OrderStatus, type Order } from '../../../services/orderService';
 import { useProfile } from '../profileContext';
-import { notify } from '../../../utils/notifications';
-import { filterOrders, orderStatuses, orderStatusLabel } from '../orderHistory';
+import { notify, userMessage } from '../../../utils/notifications';
+import { orderStatuses, orderStatusLabel } from '../orderHistory';
 import styles from './OrderHistoryTab.module.css';
 
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
@@ -19,7 +22,8 @@ const statusStyle: Record<OrderStatus, string> = {
 const pageSize = 4;
 
 export default function OrderHistoryTab() {
-  const { orders, ordersLoading, ordersError, retryOrders, replaceOrder } = useProfile();
+  const { refreshOrders } = useProfile();
+  const scope = useSessionScope();
   const [status, setStatus] = useState<OrderStatus | 'ALL'>('ALL');
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
@@ -30,12 +34,14 @@ export default function OrderHistoryTab() {
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const matchingOrders = filterOrders(orders, query);
-  const filtered = matchingOrders.filter((order) => status === 'ALL' || order.status === status);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
+  const params = { page: page - 1, size: pageSize, search: query, status: status === 'ALL' ? '' : status };
+  const history = useQuery({ queryKey: queryKeys.private('orders', params, scope), queryFn: ({ signal }) => getMyOrderHistory(params, signal), staleTime: cacheTimes.orders });
+  const orders = history.data?.content ?? [], visible = orders;
+  const ordersLoading = history.isPending, ordersError = history.isError && !history.data ? userMessage(history.error, 'Không tải được đơn hàng. Vui lòng thử lại.') : '';
+  const total = history.data?.totalElements ?? 0, counts = history.data?.statusCounts ?? {};
+  const retryOrders = () => { void history.refetch(); };
+  const totalPages = Math.max(1, history.data?.totalPages ?? 1), currentPage = page;
   const start = (currentPage - 1) * pageSize;
-  const visible = filtered.slice(start, start + pageSize);
 
   useEffect(() => {
     if (viewingOrder) {
@@ -56,7 +62,7 @@ export default function OrderHistoryTab() {
     setCancelling(orderID);
     try {
       const updated = await cancelOrder(orderID);
-      replaceOrder(updated);
+      refreshOrders();
       notify.success('Đã hủy đơn hàng #ST-' + updated.orderID + '.');
       // Nếu đang xem chi tiết đơn vừa hủy thì cập nhật lại modal
       if (viewingOrder?.orderID === orderID) setViewingOrder(updated);
@@ -88,22 +94,23 @@ export default function OrderHistoryTab() {
         {(['ALL', ...orderStatuses] as const).map((value) => (
           <button key={value} aria-pressed={status === value} className={[styles.filterTab, status === value ? styles.active : ''].join(' ')} onClick={() => { setStatus(value); setPage(1); }}>
             {value === 'ALL' ? 'Tất cả' : orderStatusLabel[value]}
-            {!ordersLoading && !ordersError && <span className={styles.count}>{value === 'ALL' ? matchingOrders.length : matchingOrders.filter((order) => order.status === value).length}</span>}
+            {!ordersLoading && !ordersError && <span className={styles.count}>{value === 'ALL' ? Object.values(counts).reduce((sum, n) => sum + n, 0) : counts[value] ?? 0}</span>}
           </button>
         ))}
       </div>
 
 
+      {history.isError && history.data && <p role="alert">Chưa cập nhật được đơn hàng. <button onClick={retryOrders}>Thử lại</button></p>}
       {ordersLoading ? <p role="status" className={styles.loadingText}>Đang tải đơn hàng…</p> : ordersError ? (
         <div role="alert" className={styles.errorAlert}>
           <p>{ordersError}</p>
           <button className={styles.btnPrimary} onClick={retryOrders}>Thử lại</button>
         </div>
-      ) : !filtered.length ? (
+      ) : !orders.length ? (
         <div className={styles.empty} role="status">
           <div className={styles.emptyIcon}><Package size={36} /></div>
-          <h3>{orders.length ? 'Không tìm thấy đơn hàng phù hợp' : 'Bạn chưa có đơn hàng nào'}</h3>
-          {orders.length ? <button className={styles.btnOutline} onClick={() => { setSearch(''); setQuery(''); setStatus('ALL'); setPage(1); }}>Xóa bộ lọc</button> : <Link className={styles.btnPrimary} to="/search">Khám phá sản phẩm</Link>}
+          <h3>{query || status !== 'ALL' ? 'Không tìm thấy đơn hàng phù hợp' : 'Bạn chưa có đơn hàng nào'}</h3>
+          {query || status !== 'ALL' ? <button className={styles.btnOutline} onClick={() => { setSearch(''); setQuery(''); setStatus('ALL'); setPage(1); }}>Xóa bộ lọc</button> : <Link className={styles.btnPrimary} to="/search">Khám phá sản phẩm</Link>}
         </div>
       ) : (
         <>
@@ -171,7 +178,7 @@ export default function OrderHistoryTab() {
           </div>
 
           <div className={styles.pagination}>
-            <span className={styles.pageInfo}>Hiển thị {start + 1}–{Math.min(start + pageSize, filtered.length)} / <strong>{filtered.length}</strong> đơn</span>
+            <span className={styles.pageInfo}>Hiển thị {start + 1}–{Math.min(start + pageSize, total)} / <strong>{total}</strong> đơn</span>
             <nav className={styles.pageNumbers} aria-label="Phân trang đơn hàng">
               <button className={styles.pageBtn} aria-label="Trang trước" disabled={currentPage === 1} onClick={() => setPage(currentPage - 1)}><ChevronLeft size={16} /></button>
               <button className={styles.pageBtn} aria-label="Trang sau" disabled={currentPage === totalPages} onClick={() => setPage(currentPage + 1)}><ChevronRight size={16} /></button>

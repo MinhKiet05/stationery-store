@@ -34,7 +34,7 @@ function installApi() {
       if(route.endsWith('/statistics'))return Response.json({totalUsers:0,customers:0,admins:0,lockedUsers:0,totalOrders:0,pendingOrders:0,shippedOrders:0,deliveredOrders:0,totalProducts:0,sellingProducts:0,hiddenProducts:0,lowStockProducts:0,lowStockThreshold:10,totalReviews:0,averageRating:null,fiveStarReviews:0,lowStarReviews:0,totalCoupons:0,activeCoupons:0,expiredCoupons:0,totalUses:0,totalRequests:0,pendingRequests:0,approvedRequests:0,rejectedRequests:0});
       return Response.json({content:[],totalElements:0,totalPages:0});
     }
-    if(route==='/api/cart/items')return Response.json({items:[],subtotal:0});if(route==='/api/product-types')return Response.json([]);
+    if(route==='/api/cart'||route==='/api/cart/items')return Response.json({items:[],subtotal:0});if(route==='/api/product-types')return Response.json([]);
     if(route.startsWith('/api/recommendations/'))return Response.json({products:[],source:'POPULAR'});
     if(route.startsWith('/api/products'))return Response.json({content:[],totalElements:0,totalPages:0});
     window.__unexpected.push(route);return Response.json({},{status:500});

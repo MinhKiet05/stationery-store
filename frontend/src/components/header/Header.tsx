@@ -1,7 +1,8 @@
-import { getCurrentUser, type UserInfoResponse } from "../../services/authService";
+import { useCurrentUser, useCart } from "../../services/storeQueries";
+import { getGuestCart } from "../../utils/guestCart";
 import { API_BASE } from "../../services/api";
 import { notify } from "../../utils/notifications";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styles from "./Header.module.css";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";
 import {
@@ -65,12 +66,21 @@ export default function Header({
   profileHref = "/my-profile",
   ordersHref = "/my-profile/orders",
   notificationsHref = "/notifications",
-  cartCount = 3, // Set mặc định 3 theo ảnh thiết kế
+  cartCount: suppliedCartCount,
   onSearch,
   onLogout,
 }: HeaderProps) {
-  const [user, setUser] = useState<UserInfoResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const identity = useCurrentUser(apiBaseUrl);
+  const cartQuery = useCart();
+  const [guestCount, setGuestCount] = useState(() => getGuestCart().reduce((sum, item) => sum + item.quantity, 0));
+  useEffect(() => {
+    const sync = () => setGuestCount(getGuestCart().reduce((sum, item) => sum + item.quantity, 0));
+    window.addEventListener('cart-changed', sync); window.addEventListener('storage', sync);
+    return () => { window.removeEventListener('cart-changed', sync); window.removeEventListener('storage', sync); };
+  }, []);
+  const cartCount = suppliedCartCount ?? (localStorage.getItem(TOKEN_KEY) ? cartQuery.data?.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0 : guestCount);
+  const user = localStorage.getItem(TOKEN_KEY) ? identity.data : null;
+  const loading = !!localStorage.getItem(TOKEN_KEY) && identity.isPending;
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") ?? "");
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -95,42 +105,6 @@ export default function Header({
     };
   }, [accountMenuOpen]);
 
-  const fetchCurrentUser = useCallback(async (signal?: AbortSignal) => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const data = await getCurrentUser(apiBaseUrl, signal);
-      if (!signal?.aborted) setUser(data);
-    } catch (error) {
-      if (!signal?.aborted) {
-        console.error("Không lấy được thông tin tài khoản:", error);
-        setUser(null);
-      }
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }, [apiBaseUrl]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const initialFetch = window.setTimeout(() => void fetchCurrentUser(controller.signal), 0);
-    const reload = () => void fetchCurrentUser();
-    window.addEventListener("storage", reload);
-    window.addEventListener("auth-changed", reload);
-    return () => {
-      window.clearTimeout(initialFetch);
-      controller.abort();
-      window.removeEventListener("storage", reload);
-      window.removeEventListener("auth-changed", reload);
-    };
-  }, [fetchCurrentUser]);
-
   function submitSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const query = search.trim();
@@ -141,7 +115,6 @@ export default function Header({
 
   function logout() {
     localStorage.removeItem(TOKEN_KEY);
-    setUser(null);
     setAccountMenuOpen(false);
     onLogout?.();
     window.dispatchEvent(new Event("auth-changed"));

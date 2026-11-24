@@ -2,6 +2,7 @@ import { api } from "./api";
 import { mergeGuestCart } from "./cartService";
 import { clearGuestCart } from "../utils/guestCart";
 import { notify } from "../utils/notifications";
+import { sessionScope } from './queryCache';
 
 export type LoginRequest = {
   username: string;
@@ -60,6 +61,7 @@ export async function getCurrentUser(
   apiBaseUrl: string,
   signal?: AbortSignal,
 ): Promise<UserInfoResponse | null> {
+  const scope = sessionScope();
   const token = localStorage.getItem("accessToken");
   if (!token) return null;
 
@@ -70,7 +72,7 @@ export async function getCurrentUser(
   });
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
-      const currentSession = localStorage.getItem("accessToken") === token;
+      const currentSession = scope === sessionScope() && localStorage.getItem("accessToken") === token;
       if (currentSession) {
         localStorage.removeItem("accessToken");
         window.dispatchEvent(new Event("auth-changed"));
@@ -79,5 +81,7 @@ export async function getCurrentUser(
     }
     return null;
   }
-  return response.json() as Promise<UserInfoResponse>;
+  const data = await response.json() as UserInfoResponse;
+  if (scope !== sessionScope()) throw new DOMException('Session changed', 'AbortError');
+  return data;
 }

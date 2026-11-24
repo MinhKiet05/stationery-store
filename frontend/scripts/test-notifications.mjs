@@ -47,10 +47,15 @@ function installMockApi() {
     if (route === "/api/auth/reset-password") return Response.json({ message: "Đặt lại mật khẩu thành công. Vui lòng đăng nhập lại." });
     if (route === "/api/users/me/password") return new Response(null, { status: 204 });
     if (route === "/api/users/me") return Response.json(method === "PUT" ? { ...user, ...JSON.parse(options.body) } : user);
-    if (route === "/api/orders/my-orders") return Response.json([order(1), order(2)]);
+    if (route === "/api/orders/my-orders") {
+      const all=[order(1),order(2)];
+      if(!url.search) return Response.json(all);
+      const state=url.searchParams.get('status'), content=state?all.filter(o=>o.status===state):all;
+      return Response.json({content:url.searchParams.has('summary')?[]:content,totalElements:content.length,totalPages:1,statusCounts:{PENDING:1,DELIVERED:1}});
+    }
     if (route.endsWith("/cancel")) return Response.json({ ...order(1), status: "CANCELLED" });
     if (route === "/api/orders") return Response.json({ orderID: 3 });
-    if (route === "/api/cart/items" || route === "/api/cart/merge") return Response.json(cart);
+    if (route === "/api/cart" || route === "/api/cart/items" || route === "/api/cart/merge") return Response.json(cart);
     if (route === "/api/products" || route === "/api/products/search") return Response.json({ content: [product], totalPages: 1, totalElements: 1 });
     if (/^\/api\/products\/\d+\/reviews$/.test(route)) return Response.json([]);
     if (route.startsWith("/api/products/")) return Response.json(product);
@@ -193,7 +198,7 @@ try {
     await evaluate("localStorage.removeItem('stationery_guest_cart'); window.__originalSetItem=Storage.prototype.setItem; Storage.prototype.setItem=function(){throw new Error('storage blocked')}");
     await clickText("Thêm vào giỏ hàng"); await notice("Không thêm được sản phẩm", "error"); await clear();
     await evaluate("Storage.prototype.setItem=window.__originalSetItem");
-    await evaluate("localStorage.setItem('accessToken','local-browser-test'); window.__failure={route:'/api/cart/items',status:409,body:{detail:'Khong du ton kho cho bien the 1'}}");
+    await evaluate("localStorage.setItem('accessToken','local-browser-test'); window.dispatchEvent(new Event('auth-changed')); window.__failure={route:'/api/cart/items',status:409,body:{detail:'Khong du ton kho cho bien the 1'}}");
     await clickText("Thêm vào giỏ hàng"); await notice("vượt quá tồn kho", "warning"); await clear();
     await evaluate("localStorage.removeItem('accessToken'); window.__failure=null");
   });
@@ -209,13 +214,13 @@ try {
     await clickText("Chia sẻ"); assert.equal(await count(), 0);
   });
   await test("Checkout notices remain visible inside a native dialog and after closing it", async () => {
-    await evaluate("localStorage.setItem('accessToken','local-browser-test')");
+    await evaluate("localStorage.setItem('accessToken','local-browser-test');window.dispatchEvent(new Event('auth-changed'))"); await delay(50);
     await clickText("Mua ngay"); await until(() => evaluate("!!document.querySelector('dialog[open] form')"), "checkout");
     await notice("Đã thêm 1 sản phẩm", "success");
     assert.equal(await evaluate("!!document.querySelector('dialog[open] .Toastify__toast-container')"), true);
     await screenshot("toast-checkout-desktop.png"); await clear();
     await type("dialog textarea[name=address]", "Địa chỉ kiểm thử"); await type("dialog input[name=phone]", "0900000000");
-    await evaluate("window.__failure={route:'/api/orders',status:500}; document.querySelector('dialog form').requestSubmit()");
+    await evaluate("window.__failure={route:'/api/orders',status:400}; document.querySelector('dialog form').requestSubmit()");
     await notice("Không thể kết nối cửa hàng", "error"); assert.equal(await evaluate("!!document.querySelector('dialog [role=alert]')"), true); await clear();
     await evaluate("window.__failure=null; document.querySelector('dialog form').requestSubmit()");
     await notice("Đặt hàng thành công", "success");

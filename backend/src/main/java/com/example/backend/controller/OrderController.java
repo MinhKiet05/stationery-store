@@ -7,7 +7,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -19,7 +18,13 @@ public class OrderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.placeOrder(auth.getName(), request));
     }
     @GetMapping("/my-orders")
-    public List<OrderResponse> mine(Authentication auth) { return service.myOrders(auth.getName()); }
+    public Object mine(Authentication auth, @RequestParam(required=false) Integer page,
+            @RequestParam(defaultValue="12") int size, @RequestParam(defaultValue="") String search,
+            @RequestParam(required=false) com.example.backend.model.OrderStatus status,
+            @RequestParam(defaultValue="false") boolean summary) {
+        if (page == null && !summary) return service.myOrders(auth.getName()); // Existing API contract.
+        return service.myOrderHistory(auth.getName(), page == null ? 0 : page, size, search, status, summary);
+    }
     @GetMapping("/{id}")
     public OrderResponse get(@PathVariable Long id, Authentication auth) {
         return service.getOrder(auth.getName(), id);

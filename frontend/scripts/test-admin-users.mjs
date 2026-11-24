@@ -38,7 +38,7 @@ function installApi() {
       if(route.endsWith('/export'))return rows.length?new Response(new Uint8Array([80,75,3,4]),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':'attachment; filename="stationery-users-2026-11-24.xlsx"'}}):Response.json({},{status:404});
       const page=Number(q.get('page')||0),size=Number(q.get('size')||10);return Response.json({content:rows.slice(page*size,(page+1)*size),totalElements:rows.length,totalPages:Math.ceil(rows.length/size)});
     }
-    if(route==='/api/cart/items')return Response.json({items:[],subtotal:0});if(route==='/api/product-types')return Response.json([]);
+    if(route==='/api/cart'||route==='/api/cart/items')return Response.json({items:[],subtotal:0});if(route==='/api/product-types')return Response.json([]);
     window.__unexpected.push(route);return Response.json({},{status:500});
   };
 }

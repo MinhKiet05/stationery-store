@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public interface ProductService {
 
@@ -23,6 +24,9 @@ public interface ProductService {
             BigDecimal maxPrice,
             Pageable pageable
     );
+
+    Page<ProductResponse> searchCatalog(String keyword, Long category, List<String> brands,
+        BigDecimal minPrice, BigDecimal maxPrice, Integer rating, boolean inStock, boolean onSale, Pageable pageable);
 
     ProductResponse createProduct(ProductRequest request);
     java.util.List<ProductResponse> createBatch(java.util.List<ProductRequest> requests);

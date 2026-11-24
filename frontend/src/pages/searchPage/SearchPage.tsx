@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys, cacheTimes } from '../../services/queryCache';
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   BadgeCheck,
@@ -19,13 +21,11 @@ import {
   Zap,
 } from "lucide-react";
 import {
-  allCategory,
   money,
   normalize,
   type CatalogProduct,
-  type CatalogCategory,
 } from "./catalogData";
-import { getCatalog } from "../../services/catalogService";
+import { getCatalog, getCatalogVendors } from "../../services/catalogService";
 import { userMessage } from "../../utils/notifications";
 import styles from "./SearchPage.module.css";
 
@@ -60,39 +60,15 @@ export default function SearchPage() {
     null,
   );
   const [notice, setNotice] = useState("");
-  const [catalogProducts, setCatalogProducts] = useState<CatalogProduct[]>([]);
-  const [categories, setCategories] = useState<CatalogCategory[]>([
-    allCategory,
-  ]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [loadAttempt, setLoadAttempt] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    async function load() {
-      setLoading(true);
-      setLoadError("");
-      try {
-        const data = await getCatalog(controller.signal);
-        if (controller.signal.aborted) return;
-        setCatalogProducts(data.products);
-        setCategories(data.categories);
-        setCategory((current) =>
-          data.categories.some((item) => item.id === current) ? current : "all",
-        );
-      } catch (error) {
-        if (controller.signal.aborted) return;
-        setLoadError(
-          userMessage(error, "Không tải được sản phẩm. Vui lòng thử lại."),
-        );
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    }
-    void load();
-    return () => controller.abort();
-  }, [loadAttempt]);
+  const catalogFilters = { page: page - 1, size: pageSize, keyword: query, productTypeID: category === 'all' ? '' : category,
+    brands: [...brands].sort(), minPrice: price.min, maxPrice: price.max, rating, inStock, onSale,
+    sort: ({ 'price-asc': 'price,asc', 'price-desc': 'price,desc', rating: 'ratingAverage,desc', name: 'title,asc' } as Record<string, string>)[sort] ?? 'productID,asc' };
+  const catalog = useQuery({ queryKey: queryKeys.public('products', catalogFilters),
+    queryFn: ({ signal }) => getCatalog(signal, catalogFilters), staleTime: cacheTimes.products });
+  const vendors = useQuery({ queryKey: queryKeys.public('vendors'), queryFn: ({ signal }) => getCatalogVendors(signal), staleTime: cacheTimes.vendors });
+  const catalogProducts = catalog.data?.products ?? [], categories = catalog.data?.categories ?? [];
+  const loading = catalog.isPending;
+  const loadError = catalog.isError && !catalog.data ? userMessage(catalog.error, 'Không tải được sản phẩm. Vui lòng thử lại.') : '';
 
   useEffect(() => {
     document.title = query
@@ -113,60 +89,13 @@ export default function SearchPage() {
     };
   }, [selectedProduct]);
 
-  const brandOptions = [
-    ...new Set(catalogProducts.map((product) => product.brand)),
-  ];
-  const filtered = useMemo(() => {
-    const products = catalogProducts.filter(
-      (product) =>
-        (!query ||
-          normalize(query)
-            .split(/\s+/)
-            .every((word) =>
-              normalize(
-                `${product.title} ${product.brand} ${categories.find((item) => item.id === product.category)?.label ?? ""}`,
-              ).includes(word),
-            )) &&
-        (category === "all" || product.category === category) &&
-        (!brands.length || brands.includes(product.brand)) &&
-        (!price.min || product.price >= Number(price.min)) &&
-        (!price.max || product.price <= Number(price.max)) &&
-        product.rating >= rating &&
-        (!inStock || product.inStock) &&
-        (!onSale || product.oldPrice > product.price) &&
-        (!express || product.express),
-    );
-    return products.sort((a, b) =>
-      sort === "price-asc"
-        ? a.price - b.price
-        : sort === "price-desc"
-          ? b.price - a.price
-          : sort === "rating"
-            ? b.rating - a.rating
-            : sort === "name"
-              ? a.title.localeCompare(b.title, "vi")
-              : 0,
-    );
-  }, [
-    catalogProducts,
-    categories,
-    query,
-    category,
-    brands,
-    price,
-    rating,
-    inStock,
-    onSale,
-    express,
-    sort,
-  ]);
+  const brandOptions = (vendors.data ?? []).map(v => v.name);
+  const totalElements = catalog.data?.totalElements ?? 0;
+  const totalPages = Math.max(1, catalog.data?.totalPages ?? 1);
+  const currentPage = page;
+  const visible = catalogProducts;
+  useEffect(() => { setPage(1); }, [query]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const currentPage = Math.min(page, totalPages);
-  const visible = filtered.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize,
-  );
   const activeCount =
     brands.length +
     Number(category !== "all") +
@@ -230,6 +159,9 @@ export default function SearchPage() {
   return (
     <main className={styles.page} aria-busy={loading}>
       <div className={styles.container}>
+        {catalog.isFetching && catalog.data && <p role="status">Đang cập nhật sản phẩm…</p>}
+        {catalog.isError && catalog.data && <p role="alert">Chưa cập nhật được sản phẩm. <button onClick={() => catalog.refetch()}>Thử lại</button></p>}
+        {vendors.isError && <p role="alert">Chưa tải được thương hiệu. <button onClick={() => vendors.refetch()}>Thử lại</button></p>}
         <h1 className={styles.srOnly}>
           {query ? `Kết quả tìm kiếm cho “${query}”` : "Tìm kiếm sản phẩm"}
         </h1>
@@ -241,7 +173,7 @@ export default function SearchPage() {
               "Chưa tải được sản phẩm"
             ) : (
               <>
-                Tìm thấy <strong>{filtered.length}</strong> sản phẩm phù hợp
+                Tìm thấy <strong>{totalElements}</strong> sản phẩm phù hợp
               </>
             )}{" "}
             {query && <>cho “{query}”</>}{" "}
@@ -329,13 +261,7 @@ export default function SearchPage() {
                       {category === item.id && <i />}
                       {item.label}
                     </span>
-                    <small>
-                      {item.id === "all"
-                        ? catalogProducts.length
-                        : catalogProducts.filter(
-                            (product) => product.category === item.id,
-                          ).length}
-                    </small>
+
                   </button>
                 ))}
               </div>
@@ -449,13 +375,7 @@ export default function SearchPage() {
                         onChange={() => toggleBrand(brand)}
                       />
                       <span>{brand}</span>
-                      <small>
-                        {
-                          catalogProducts.filter(
-                            (product) => product.brand === brand,
-                          ).length
-                        }
-                      </small>
+
                     </label>
                   ))}
                 {!brandOptions.some((brand) =>
@@ -550,7 +470,7 @@ export default function SearchPage() {
                 <span>Bộ lọc:</span>
                 {category !== "all" &&
                   chip(
-                    categories.find((item) => item.id === category)!.label,
+                    categories.find((item) => item.id === category)?.label ?? category,
                     () => setCategory("all"),
                   )}
                 {brands.map((brand) => chip(brand, () => toggleBrand(brand)))}
@@ -613,7 +533,7 @@ export default function SearchPage() {
 
             {!loading && !loadError && (
               <div className={styles.srOnly} role="status" aria-live="polite">
-                Tìm thấy {filtered.length} sản phẩm. Trang {currentPage} trên{" "}
+                Tìm thấy {totalElements} sản phẩm. Trang {currentPage} trên{" "}
                 {totalPages}.
               </div>
             )}
@@ -626,7 +546,7 @@ export default function SearchPage() {
                 <h2>Không tải được danh mục sản phẩm</h2>
                 <p>{loadError}</p>
                 <button
-                  onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+                  onClick={() => catalog.refetch()}
                 >
                   Thử lại
                 </button>
@@ -757,7 +677,7 @@ export default function SearchPage() {
               <div className={styles.pagination}>
                 <p>
                   Hiển thị <strong>{visible.length}</strong> trên{" "}
-                  <strong>{filtered.length}</strong> sản phẩm
+                  <strong>{totalElements}</strong> sản phẩm
                 </p>
                 <div>
                   <label className={styles.pageSize}>
@@ -783,7 +703,7 @@ export default function SearchPage() {
                     >
                       <ChevronLeft size={17} />
                     </button>
-                    {Array.from({ length: totalPages }, (_, index) => (
+                    {Array.from({ length: totalPages }, (_, index) => index).filter(index => index === 0 || index === totalPages - 1 || Math.abs(index + 1 - currentPage) <= 2).map(index => (
                       <button
                         key={index}
                         aria-label={`Trang ${index + 1}`}

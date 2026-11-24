@@ -46,7 +46,7 @@ function installProductApi() {
       if(route.endsWith('/export'))return rows.length?new Response(new Uint8Array([80,75,3,4]),{headers:{'Content-Type':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','Content-Disposition':'attachment; filename="stationery-products-2026-11-24.xlsx"'}}):Response.json({},{status:404});
       if(route==='/api/admin/products'){const page=Number(q.get('page')||0);return Response.json({content:rows.slice(page*10,(page+1)*10).map(p=>({...p,imageUrl:p.images[0],priceMin:p.variants.length?Math.min(...p.variants.map(v=>v.price)):p.price,priceMax:p.variants.length?Math.max(...p.variants.map(v=>v.price)):p.price,totalStock:p.variants.reduce((s,v)=>s+v.stockQuantity,0),variantCount:p.variants.length,lowStockVariants:low(p)?p.variants.filter(v=>v.available&&v.stockQuantity<10).length:0})),totalElements:rows.length,totalPages:Math.ceil(rows.length/10)});}
     }
-    if(route==='/api/cart/items')return Response.json({items:[],subtotal:0});if(route==='/api/product-types')return Response.json([]);
+    if(route==='/api/cart'||route==='/api/cart/items')return Response.json({items:[],subtotal:0});if(route==='/api/product-types')return Response.json([]);
     window.__unexpected.push(route);return Response.json({},{status:500});
   };
 }

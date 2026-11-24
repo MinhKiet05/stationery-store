@@ -53,3 +53,9 @@ export function createOrder(order: CreateOrderRequest) {
     body: JSON.stringify(order),
   });
 }
+
+export type OrderHistoryPage = { content: Order[]; totalElements: number; totalPages: number; statusCounts: Partial<Record<OrderStatus, number>> };
+export function getMyOrderHistory(params: { page?: number; size?: number; search?: string; status?: string; summary?: boolean }, signal?: AbortSignal) {
+  const query = new URLSearchParams(Object.entries(params).filter(([,v]) => v !== '').map(([k,v]) => [k,String(v)]));
+  return api<OrderHistoryPage>(`/api/orders/my-orders?${query}`, { signal });
+}

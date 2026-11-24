@@ -1,6 +1,15 @@
 import { Link, NavLink } from 'react-router-dom';
+import { adminSession } from '../../services/adminSession';
+import { schedulePrefetch, cancelPrefetch, sessionScope } from '../../services/queryCache';
+import { dashboardQueryOptions } from '../../pages/dashboard/useDashboardResource';
 import { LayoutDashboard, MessageSquare, TicketPercent, RotateCcw, Truck, Package, Users, Store, PenTool, X } from 'lucide-react';
 
+function prefetch(path) {
+  if (!['/orders', '/returns', '/reviews', '/products', '/promotions'].includes(path)) return;
+  const scope = sessionScope();
+  schedulePrefetch(dashboardQueryOptions(`/api/admin${path}?${new URLSearchParams({ sort: ['/products', '/promotions'].includes(path) ? 'ID_DESC' : 'NEWEST', page: '0', size: '10' })}`, scope),
+    () => adminSession.getSnapshot().status === 'ready' && adminSession.getSnapshot().token === localStorage.getItem('accessToken') && scope === sessionScope());
+}
 const links = [
   ['', 'Tổng quan', LayoutDashboard],
   ['/reviews', 'Đánh giá', MessageSquare],
@@ -20,6 +29,7 @@ export default function DashboardSidebar({ sidebarRef, collapsed, mobileOpen, hi
       <button className="dashboard-mobile-close dashboard-icon-button" onClick={close} aria-label="Đóng menu"><X size={22} /></button>
       <p className="dashboard-nav-label dashboard-sidebar-label">KHÔNG GIAN QUẢN TRỊ</p>
       <nav>{links.map(([path, label, Icon]) => <NavLink key={path} to={`/dashboard${path}`} end={!path}
+        onMouseEnter={() => prefetch(path)} onFocus={() => prefetch(path)} onMouseLeave={cancelPrefetch} onBlur={cancelPrefetch}
         title={collapsed ? label : undefined} onClick={close} className={({ isActive }) => `dashboard-nav-link ${isActive ? 'active' : ''}`}>
         <Icon size={20} aria-hidden="true" /><span className="dashboard-sidebar-label">{label}</span>
       </NavLink>)}</nav>

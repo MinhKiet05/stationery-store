@@ -2,6 +2,7 @@ import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { createAdminVerification, DEFAULT_ADMIN_VERIFICATION_TTL_MS } from './adminVerification';
 import { dashboardIdentity } from './dashboardApi';
 import { notify } from '../utils/notifications';
+import { sessionScope, clearAdminQueries } from './queryCache';
 
 const configuredTtl = Number(import.meta.env.VITE_ADMIN_VERIFICATION_TTL_MS ?? DEFAULT_ADMIN_VERIFICATION_TTL_MS);
 export const ADMIN_VERIFICATION_TTL_MS = Number.isFinite(configuredTtl) && configuredTtl >= 1000 && configuredTtl <= 2147483647 ? configuredTtl : DEFAULT_ADMIN_VERIFICATION_TTL_MS;
@@ -15,9 +16,9 @@ export const adminSession = createAdminVerification({
 // App lifetime listeners also clear the cache on logout outside Dashboard.
 export function useAdminSessionEvents() {
   useEffect(() => {
-    const sync = () => adminSession.syncSession();
+    const sync = () => { sessionScope(); adminSession.syncSession(); };
     const storage = event => { if (event.key === 'accessToken' || event.key === null) sync(); };
-    const activity = () => adminSession.onActivity();
+    const activity = () => { sessionScope(); adminSession.onActivity(); };
     window.addEventListener('auth-changed', sync);
     window.addEventListener('storage', storage);
     window.addEventListener('focus', activity);
@@ -35,6 +36,7 @@ export function useAdminSessionEvents() {
 export function useAdminVerification() {
   const state = useSyncExternalStore(adminSession.subscribe, adminSession.getSnapshot);
   const token = state.token;
+  useEffect(() => { if (['forbidden', 'unauthorized', 'anonymous'].includes(state.status)) clearAdminQueries(); }, [state.status]);
   const onAccessDenied = useCallback(() => {
     // A business endpoint's 403 is not proof that the ADMIN role was revoked.
     adminSession.checkAccess(token).then(stillAdmin => {

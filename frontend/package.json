@@ -21,9 +21,13 @@
     "test:admin-orders": "node scripts/test-admin-orders.mjs",
     "test:admin-returns": "node scripts/test-admin-returns.mjs",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:query": "node --test tests/queryCache.test.mjs",
+    "test:query-navigation": "node scripts/test-query-navigation.mjs",
+    "test:query-storefront": "node scripts/test-query-storefront.mjs"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.108.4",
     "lucide-react": "^1.66.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
