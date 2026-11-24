@@ -5,12 +5,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.mail.MailSendException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -28,9 +31,9 @@ public class ResendPasswordResetEmailSender implements PasswordResetEmailSender 
     private final String from;
 
     @org.springframework.beans.factory.annotation.Autowired
-    public ResendPasswordResetEmailSender(PasswordResetMailClient clients, @Value("${app.mail.resend-api-key:}") String apiKey,
+    public ResendPasswordResetEmailSender(@Value("${app.mail.resend-api-key:}") String apiKey,
                                          @Value("${app.mail.from:}") String from) {
-        this(clients.create("https://api.resend.com", "Authorization", "Bearer " + requireKey(apiKey)), from);
+        this(createClient(apiKey), from);
     }
 
     // Allows loopback/mocked transport tests without contacting an email provider.
@@ -40,9 +43,14 @@ public class ResendPasswordResetEmailSender implements PasswordResetEmailSender 
         this.from = from;
     }
 
-    private static String requireKey(String key) {
+    private static RestClient createClient(String key) {
         if (key.isBlank()) throw new IllegalArgumentException("RESEND_API_KEY is required for Resend");
-        return key;
+        var http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2))
+                .followRedirects(HttpClient.Redirect.NEVER).build();
+        var factory = new JdkClientHttpRequestFactory(http);
+        factory.setReadTimeout(Duration.ofSeconds(4));
+        return RestClient.builder().baseUrl("https://api.resend.com").requestFactory(factory)
+                .defaultHeader("Authorization", "Bearer " + key).build();
     }
 
     @Override
