@@ -25,7 +25,7 @@ import {
   normalize,
   type CatalogProduct,
 } from "./catalogData";
-import { getCatalog, getCatalogVendors } from "../../services/catalogService";
+import { catalogOptions, getCatalogVendors } from "../../services/catalogService";
 import { userMessage } from "../../utils/notifications";
 import styles from "./SearchPage.module.css";
 
@@ -35,11 +35,31 @@ const priceRanges = [
   { label: "150k - 300k", min: "150000", max: "300000" },
   { label: "> 300.000đ", min: "300000", max: "" },
 ];
+const catalogSorts: Record<string, string> = { popular: 'productID,asc', newest: 'productID,desc',
+  'price-asc': 'price,asc', 'price-desc': 'price,desc', rating: 'ratingAverage,desc', name: 'title,asc' };
 
 export default function SearchPage() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("search")?.trim() ?? "";
-  const [category, setCategory] = useState("all");
+  const rawCategory = searchParams.get('category');
+  const validCategory = rawCategory != null && /^[1-9]\d*$/.test(rawCategory) && Number.isSafeInteger(Number(rawCategory));
+  const category = validCategory ? rawCategory : 'all';
+  const sort = Object.hasOwn(catalogSorts, searchParams.get('sort') ?? '') ? searchParams.get('sort')! : 'popular';
+  const rawPage = searchParams.get('page') ?? '1';
+  const page = /^[1-9]\d*$/.test(rawPage) && Number.isSafeInteger(Number(rawPage)) ? Number(rawPage) : 1;
+  const pageSize = [12, 24, 48].includes(Number(searchParams.get('size'))) ? Number(searchParams.get('size')) : 24;
+  function updateParameter(name: string, value: string | null, resetPage = true) {
+    setSearchParams(current => {
+      const next = new URLSearchParams(current);
+      if (value == null) next.delete(name); else next.set(name, value);
+      if (resetPage) next.delete('page');
+      return next;
+    });
+  }
+  const setCategory = (value: string) => updateParameter('category', value === 'all' ? null : value);
+  const setSort = (value: string) => updateParameter('sort', value === 'popular' ? null : value);
+  const setPage = (value: number) => updateParameter('page', value === 1 ? null : String(value), false);
+  const setPageSize = (value: number) => updateParameter('size', String(value));
   const [brands, setBrands] = useState<string[]>([]);
   const [brandSearch, setBrandSearch] = useState("");
   const [minPrice, setMinPrice] = useState("");
@@ -50,10 +70,7 @@ export default function SearchPage() {
   const [inStock, setInStock] = useState(false);
   const [onSale, setOnSale] = useState(false);
   const [express, setExpress] = useState(false);
-  const [sort, setSort] = useState("popular");
   const [view, setView] = useState("grid");
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(12);
   const [mobileFilters, setMobileFilters] = useState(false);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<CatalogProduct | null>(
@@ -62,9 +79,8 @@ export default function SearchPage() {
   const [notice, setNotice] = useState("");
   const catalogFilters = { page: page - 1, size: pageSize, keyword: query, productTypeID: category === 'all' ? '' : category,
     brands: [...brands].sort(), minPrice: price.min, maxPrice: price.max, rating, inStock, onSale,
-    sort: ({ 'price-asc': 'price,asc', 'price-desc': 'price,desc', rating: 'ratingAverage,desc', name: 'title,asc' } as Record<string, string>)[sort] ?? 'productID,asc' };
-  const catalog = useQuery({ queryKey: queryKeys.public('products', catalogFilters),
-    queryFn: ({ signal }) => getCatalog(signal, catalogFilters), staleTime: cacheTimes.products });
+    sort: catalogSorts[sort] };
+  const catalog = useQuery(catalogOptions(catalogFilters));
   const vendors = useQuery({ queryKey: queryKeys.public('vendors'), queryFn: ({ signal }) => getCatalogVendors(signal), staleTime: cacheTimes.vendors });
   const catalogProducts = catalog.data?.products ?? [], categories = catalog.data?.categories ?? [];
   const loading = catalog.isPending;
@@ -94,7 +110,6 @@ export default function SearchPage() {
   const totalPages = Math.max(1, catalog.data?.totalPages ?? 1);
   const currentPage = page;
   const visible = catalogProducts;
-  useEffect(() => { setPage(1); }, [query]);
 
   const activeCount =
     brands.length +
@@ -115,7 +130,6 @@ export default function SearchPage() {
     setInStock(false);
     setOnSale(false);
     setExpress(false);
-    setPage(1);
     setPriceError("");
   }
 
@@ -159,6 +173,7 @@ export default function SearchPage() {
   return (
     <main className={styles.page} aria-busy={loading}>
       <div className={styles.container}>
+        {rawCategory != null && !validCategory && <p role="alert">Danh mục không hợp lệ. Đang hiển thị tất cả danh mục.</p>}
         {catalog.isFetching && catalog.data && <p role="status">Đang cập nhật sản phẩm…</p>}
         {catalog.isError && catalog.data && <p role="alert">Chưa cập nhật được sản phẩm. <button onClick={() => catalog.refetch()}>Thử lại</button></p>}
         {vendors.isError && <p role="alert">Chưa tải được thương hiệu. <button onClick={() => vendors.refetch()}>Thử lại</button></p>}
@@ -253,7 +268,6 @@ export default function SearchPage() {
                     }
                     onClick={() => {
                       setCategory(item.id);
-                      setPage(1);
                     }}
                     aria-pressed={category === item.id}
                   >
@@ -503,10 +517,10 @@ export default function SearchPage() {
                   value={sort}
                   onChange={(event) => {
                     setSort(event.target.value);
-                    setPage(1);
                   }}
                 >
                   <option value="popular">Mặc định</option>
+                  <option value="newest">Mới lên kệ</option>
                   <option value="name">Tên sản phẩm A–Z</option>
                   <option value="price-asc">Giá tăng dần</option>
                   <option value="price-desc">Giá giảm dần</option>
@@ -538,8 +552,8 @@ export default function SearchPage() {
               </div>
             )}
             {loading ? (
-              <div className={styles.empty} role="status">
-                Đang tải danh mục và sản phẩm…
+              <div className={styles.productGrid} role="status" aria-label="Đang tải danh mục và sản phẩm">
+                {Array.from({ length: pageSize }, (_, i) => <div key={i} className={styles.skeleton} aria-hidden="true" />)}
               </div>
             ) : loadError ? (
               <div className={styles.empty} role="alert">
@@ -687,12 +701,11 @@ export default function SearchPage() {
                       value={pageSize}
                       onChange={(event) => {
                         setPageSize(Number(event.target.value));
-                        setPage(1);
                       }}
                     >
                       <option value={12}>12</option>
-                      <option value={8}>8</option>
-                      <option value={4}>4</option>
+                      <option value={24}>24</option>
+                      <option value={48}>48</option>
                     </select>
                   </label>
                   <nav aria-label="Phân trang sản phẩm">

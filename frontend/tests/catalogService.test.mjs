@@ -5,6 +5,7 @@ import { createServer } from "vite";
 let server;
 let getCatalog;
 let queryClient;
+let catalogOptions, homeOptions, discoveryProducts;
 const originalFetch = globalThis.fetch;
 const originalStorage = globalThis.localStorage;
 const types = [
@@ -37,6 +38,9 @@ before(async () => {
   ({ getCatalog } = await server.ssrLoadModule(
     "/src/services/catalogService.ts",
   ));
+  ({ catalogOptions } = await server.ssrLoadModule('/src/services/catalogService.ts'));
+  ({ homeOptions } = await server.ssrLoadModule('/src/services/storeQueries.ts'));
+  ({ discoveryProducts } = await server.ssrLoadModule('/src/pages/homePage/homeProducts.ts'));
 });
 afterEach(() => {
   queryClient?.clear();
@@ -150,4 +154,45 @@ test('Cloudinary thumbnails resize only unsigned image uploads and preserve sign
   const {thumbnail}=await server.ssrLoadModule('/src/utils/thumbnail.ts');
   assert.equal(thumbnail('https://res.cloudinary.com/store/image/upload/v123/pen.jpg'), 'https://res.cloudinary.com/store/image/upload/f_auto,q_auto,c_limit,w_384/v123/pen.jpg');
   for(const url of ['https://other.test/a.jpg','https://res.cloudinary.com/store/image/upload/s--signed--/pen.jpg','https://res.cloudinary.com/store/image/upload/w_200/pen.jpg','https://res.cloudinary.com/store/image/upload/v1/pen.jpg?signature=private']) assert.equal(thumbnail(url),url);
+});
+
+test('home infinite query fetches ten per page and stops after three pages despite a larger catalog', async () => {
+  const pages = [];
+  globalThis.fetch = async path => {
+    const url = new URL(path, 'http://localhost');
+    assert.equal(url.pathname, '/api/products');
+    assert.equal(url.searchParams.get('size'), '10');
+    assert.equal(url.searchParams.get('sort'), 'productID,asc');
+    const page = Number(url.searchParams.get('page')); pages.push(page);
+    return Response.json({ content: Array.from({ length: 10 }, (_, i) => product(page * 10 + i + 1, 77)), totalPages: 100, totalElements: 1000 });
+  };
+  const options = homeOptions();
+  const result = await queryClient.fetchInfiniteQuery({ ...options, pages: 5 });
+  assert.deepEqual(pages, [0, 1, 2]);
+  assert.equal(new Set(result.pages.flatMap(p => p.content).map(p => p.productID)).size, 30);
+  await queryClient.fetchInfiniteQuery(options); assert.equal(pages.length, 3, 'fresh home pages are reused');
+});
+
+test('category prefetch and SearchPage defaults share the complete canonical query key', async () => {
+  let reads = 0;
+  globalThis.fetch = async path => {
+    if (path === '/api/product-types') return Response.json(types);
+    const url = new URL(path, 'http://localhost'); reads++;
+    assert.equal(url.searchParams.get('productTypeID'), '77');
+    assert.equal(url.searchParams.get('size'), '24');
+    return Response.json({ content: [product(1, 77)], totalPages: 1, totalElements: 1 });
+  };
+  await queryClient.prefetchQuery(catalogOptions({ productTypeID: '77' }));
+  const result = await queryClient.fetchQuery(catalogOptions({ productTypeID: '77', page: 0, size: 24,
+    keyword: '', brands: [], minPrice: '', maxPrice: '', rating: 0, inStock: false, onSale: false, sort: 'productID,asc' }));
+  assert.equal(reads, 1); assert.equal(result.products[0].category, '77');
+  assert.notDeepEqual(catalogOptions({ productTypeID: '77' }).queryKey, catalogOptions({ productTypeID: '42' }).queryKey);
+});
+
+test('discovery chooses unseen categories and brands, deduplicates and safely reuses small catalogs', () => {
+  const source = [product(1, 77, { vendorID: 1 }), product(2, 77, { vendorID: 1 }), product(3, 42, { vendorID: 2 })];
+  const result = discoveryProducts([...source, source[1]], [source[0]], 3);
+  assert.equal(result[0].productID, 2); assert.equal(result[1].productID, 3);
+  assert.deepEqual(result.map(p => p.productID), [2, 3, 1]);
+  assert.deepEqual(discoveryProducts([], []), []);
 });
