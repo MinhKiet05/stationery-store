@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
-  ArrowLeft, CalendarDays, Check, CheckCheck, ChevronDown, ChevronRight,
-  CircleAlert, CircleCheck, Headphones, Home, Info, Link2, LoaderCircle,
+  ArrowLeft, CalendarDays, Check, CheckCheck, ChevronDown,
+  CircleAlert, CircleCheck, Headphones, Info, Link2, LoaderCircle,
   Mail, MapPin, Minus, Package, PackageCheck, Plus, RotateCcw, Send,
   ShieldCheck, Truck, Wallet, X,
 } from "lucide-react";

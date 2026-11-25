@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ArrowRight, BookOpen, CheckCircle2, ChevronRight, Clock3, FileText, Headphones, Mail, Phone, RotateCcw, Search, ShieldCheck, Truck } from "lucide-react";
+import { ArrowRight, BookOpen, CheckCircle2, Clock3, FileText, Headphones, Mail, Phone, RotateCcw, Search, ShieldCheck, Truck } from "lucide-react";
 import styles from "./Policy.module.css";
 
 type Section = { title: string; intro?: string; layout?: "cards" | "steps"; items: { title: string; text: string; note?: string }[] };
