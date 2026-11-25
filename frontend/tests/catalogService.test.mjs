@@ -34,7 +34,7 @@ before(async () => {
   process.env.VITE_API_BASE_URL = "";
   globalThis.localStorage = { getItem: () => null };
   server = await createServer({ server: { middlewareMode: true } });
-  ({ queryClient } = await server.ssrLoadModule('/src/services/queryCache.js'));
+  ({ queryClient } = await server.ssrLoadModule('/src/services/queryCache.ts'));
   ({ getCatalog } = await server.ssrLoadModule(
     "/src/services/catalogService.ts",
   ));

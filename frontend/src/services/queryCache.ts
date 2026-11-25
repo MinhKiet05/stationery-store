@@ -1,17 +1,24 @@
-import { QueryClient } from '@tanstack/react-query';
+import { QueryClient, type FetchQueryOptions, type QueryKey } from '@tanstack/react-query';
+import { errorName, errorStatus } from './apiError';
+
+export type SessionScope = `session-${number}`;
+export type CacheParameters = Readonly<Record<string, unknown>>;
 export const cacheTimes = { categories: 900000, vendors: 900000, products: 180000, productDetail: 120000,
   reviews: 120000, vouchers: 60000, cart: 30000, orders: 30000, returns: 30000, inventory: 15000,
   currentUser: 300000, dashboardStatistics: 60000, users: 30000 };
-export const retryRead = (count, error) => count < 1 && error?.name !== 'AbortError' &&
-  (!error?.status || [408, 429, 502, 503, 504].includes(error.status));
+export const retryRead = (count: number, error: unknown): boolean => {
+  const status = errorStatus(error);
+  return count < 1 && errorName(error) !== 'AbortError' && (!status || [408, 429, 502, 503, 504].includes(status));
+};
 export const queryClient = new QueryClient({ defaultOptions: {
   queries: { staleTime: 60000, gcTime: 900000, refetchOnWindowFocus: true, refetchOnReconnect: true, retry: retryRead },
   mutations: { retry: false },
 } });
-let token, generation = 0;
-const listeners = new Set();
+let token: string | null | undefined;
+let generation = 0;
+const listeners = new Set<() => void>();
 const readToken = () => globalThis.localStorage?.getItem('accessToken') ?? null;
-export function sessionScope() {
+export function sessionScope(): SessionScope {
   const next = readToken();
   if (next !== token) {
     token = next; generation++;
@@ -23,22 +30,22 @@ export function sessionScope() {
   }
   return `session-${generation}`;
 }
-export const subscribeSession = listener => { listeners.add(listener); return () => listeners.delete(listener); };
-export function clearAdminQueries() {
-  const predicate = q => q.queryKey[0] === 'session' && q.queryKey[2] === 'admin';
+export const subscribeSession = (listener: () => void): (() => void) => { listeners.add(listener); return () => { listeners.delete(listener); }; };
+export function clearAdminQueries(): void {
+  const predicate = (q: { queryKey: QueryKey }) => q.queryKey[0] === 'session' && q.queryKey[2] === 'admin';
   void queryClient.cancelQueries({ predicate }); queryClient.removeQueries({ predicate });
 }
 export const queryKeys = {
-  public: (resource, params = {}) => ['public', resource, params],
-  private: (resource, params = {}, scope = sessionScope()) => ['session', scope, resource, params],
-  admin: (path, scope = sessionScope()) => ['session', scope, 'admin', canonicalPath(path)],
+  public: (resource: string, params: CacheParameters = {}) => ['public', resource, params] as const,
+  private: (resource: string, params: CacheParameters = {}, scope: SessionScope = sessionScope()) => ['session', scope, resource, params] as const,
+  admin: (path: string, scope: SessionScope = sessionScope()) => ['session', scope, 'admin', canonicalPath(path)] as const,
 };
-export function canonicalPath(path) {
+export function canonicalPath(path: string): string {
   const [pathname, search = ''] = path.split('?');
   const params = new URLSearchParams(search); params.sort();
   return `${pathname}${params.size ? `?${params}` : ''}`;
 }
-export function resourceTime(path) {
+export function resourceTime(path: string): number {
   if (/statistics/.test(path)) return cacheTimes.dashboardStatistics;
   if (/low-stock|product-variants/.test(path)) return cacheTimes.inventory;
   if (/orders/.test(path)) return cacheTimes.orders;
@@ -49,7 +56,7 @@ export function resourceTime(path) {
   return 60000;
 }
 // Inactive pages are marked stale, active widgets refresh through their existing callbacks.
-export function invalidateBusiness(path, scope = sessionScope()) {
+export function invalidateBusiness(path: string, scope: SessionScope = sessionScope()): void {
   if (scope !== sessionScope()) return;
   const category = /\/product-types(?:\/|$)/.test(path), vendor = /\/vendors(?:\/|$)/.test(path);
   const product = /products|product-variants/.test(path) || category || vendor;
@@ -66,16 +73,18 @@ export function invalidateBusiness(path, scope = sessionScope()) {
   ]);
   void queryClient.invalidateQueries({ predicate: q => {
     const key = q.queryKey;
-    if (key[0] === 'public') return resources.has(key[1]);
+    if (key[0] === 'public') return typeof key[1] === 'string' && resources.has(key[1]);
     if (key[0] !== 'session' || key[1] !== scope) return false;
-    if (key[2] !== 'admin') return resources.has(key[2]);
+    if (key[2] !== 'admin') return typeof key[2] === 'string' && resources.has(key[2]);
     const endpoint = key[3];
+    if (typeof endpoint !== 'string') return false;
     const overview = /^\/api\/admin\/statistics\//.test(endpoint) && (product || order || returns || /users/.test(path));
     return overview || [...resources].some(r => endpoint.includes(r === 'vouchers' ? 'promotions' : r)) || stock && /low-stock/.test(endpoint);
   }, refetchType: 'none' });
 }
-let timer, prefetchBusy = false;
-export function schedulePrefetch(options, allowed = () => true) {
+let timer: ReturnType<typeof setTimeout> | undefined;
+let prefetchBusy = false;
+export function schedulePrefetch<TData, TError = Error, TKey extends QueryKey = QueryKey>(options: FetchQueryOptions<TData, TError, TData, TKey>, allowed: () => boolean = () => true): void {
   clearTimeout(timer);
   timer = setTimeout(async () => {
     if (prefetchBusy || !allowed()) return;

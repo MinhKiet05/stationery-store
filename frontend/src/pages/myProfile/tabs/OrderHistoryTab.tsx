@@ -2,7 +2,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { queryKeys, cacheTimes } from '../../../services/queryCache';
 import useSessionScope from '../../../services/useSessionScope';
 import { useState, type FormEvent, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Search, Package, Truck, CheckCircle, XCircle, CreditCard, ChevronLeft, ChevronRight, X, CalendarDays } from 'lucide-react';
 import { getMyOrderHistory, cancelOrder, type OrderStatus, type Order } from '../../../services/orderService';
 import { purchasedReviewsOptions } from '../../../services/reviewService';
@@ -25,6 +25,7 @@ const statusStyle: Record<OrderStatus, string> = {
 const pageSize = 4;
 
 export default function OrderHistoryTab() {
+  const navigate = useNavigate();
   const { refreshOrders } = useProfile();
   const scope = useSessionScope();
   const [status, setStatus] = useState<OrderStatus | 'ALL'>('ALL');
@@ -84,7 +85,7 @@ export default function OrderHistoryTab() {
   }
 
   function handleReturnRequest(orderID: number) {
-    notify.info(`Chức năng yêu cầu trả hàng cho đơn #ST-${orderID} sẽ được hỗ trợ trong thời gian tới.`);
+    navigate(`/returns/new?orderId=${orderID}`);
   }
 
   return (

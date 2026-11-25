@@ -1,6 +1,12 @@
-import { test, afterEach } from 'node:test';
+import { test, before, after, afterEach } from 'node:test';
+import { createServer } from 'vite';
 import assert from 'node:assert/strict';
-import { queryClient as client, queryKeys as keys, sessionScope, clearAdminQueries, retryRead, invalidateBusiness, schedulePrefetch, cancelPrefetch } from '../src/services/queryCache.js';
+let server, client, keys, sessionScope, clearAdminQueries, retryRead, invalidateBusiness, schedulePrefetch, cancelPrefetch;
+before(async () => {
+  server = await createServer({ server: { middlewareMode: true, hmr: false } });
+  ({ queryClient: client, queryKeys: keys, sessionScope, clearAdminQueries, retryRead, invalidateBusiness, schedulePrefetch, cancelPrefetch } = await server.ssrLoadModule('/src/services/queryCache.ts'));
+});
+after(async () => { await server?.close(); });
 let token = 'A'; globalThis.localStorage = { getItem: () => token };
 afterEach(() => client.clear());
 test('fresh identical keys deduplicate concurrent reads and reuse cache; parameters stay isolated', async () => {

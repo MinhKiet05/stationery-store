@@ -18,11 +18,15 @@ export default function UserAccountDropdown({ user, profileHref = '/my-profile',
   const id = useId(), location = useLocation(), scope = useSessionScope();
   // Observe the existing profile cache for cosmetic updates only. Never fetch or derive permissions here.
   const profile = useQuery<UserProfile>({ queryKey: queryKeys.private('profile', {}, scope), queryFn: skipToken }).data;
-  const display = profile?.userID === user.userID ? profile : user;
+  const display = profile && profile.userID === user.userID ? profile : user;
   const name = display.fullName?.trim() || display.username?.trim() || 'Tài khoản';
   const isAdmin = user.role === 'ADMIN';
 
-  useEffect(() => { setOpen(false); }, [location.key]);
+  const [locationKey, setLocationKey] = useState(location.key);
+  if (locationKey !== location.key) {
+    setLocationKey(location.key);
+    setOpen(false);
+  }
   useEffect(() => {
     if (!open) return;
     const outside = (event: PointerEvent) => {

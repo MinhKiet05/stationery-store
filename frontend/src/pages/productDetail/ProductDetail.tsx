@@ -84,7 +84,8 @@ function ProductDetailContent({ handle }: { handle: string }) {
   const variants = variantsQuery.data ?? [];
   const relatedQuery = useQuery(relatedOptions(product?.productTypeID ?? 0));
   const related = (relatedQuery.data?.content ?? []).filter(p => p.productID !== product?.productID && p.isActive && p.available).slice(0, 5);
-  const [selected, setSelected] = useState(0);
+  const [selectedID, setSelected] = useState(0);
+  const selected = (variants.find(v => v.variantID === selectedID) ?? variants.find(inStock) ?? variants[0])?.variantID ?? 0;
   const [imageIndex, setImageIndex] = useState(0);
   const [imageFailed, setImageFailed] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -106,10 +107,13 @@ function ProductDetailContent({ handle }: { handle: string }) {
   const details = useRef<HTMLElement>(null);
   const busy = useRef(false);
 
-  useEffect(() => {
-    if (variants.length) setSelected((current) => variants.some(v => v.variantID === current) ? current : (variants.find(inStock) ?? variants[0]).variantID);
-  }, [variants]);
-  useEffect(() => { if (product) { setSaved(isFavoriteProduct(product.productID)); void trackProductView(product.productID).catch(() => {}); } }, [product?.productID]);
+  const productID = product?.productID;
+  const [favoriteProductID, setFavoriteProductID] = useState(productID);
+  if (favoriteProductID !== productID) {
+    setFavoriteProductID(productID);
+    setSaved(productID ? isFavoriteProduct(productID) : false);
+  }
+  useEffect(() => { if (productID) void trackProductView(productID).catch(() => {}); }, [productID]);
 
   // Đồng bộ trạng thái yêu thích nếu người dùng bấm tim ở ProductCard hoặc tab khác
   useEffect(() => {

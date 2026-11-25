@@ -144,7 +144,7 @@ try {
     await until(()=>evaluate(`!document.querySelector('${cart}').disabled`),'rollback settled');
   });
   await test('Multiple variants require an explicit choice; guest add uses existing cart without navigation',async()=>{
-    const clearVariants=()=>evaluate("import('/src/services/queryCache.js').then(m=>m.queryClient.removeQueries({queryKey:m.queryKeys.public('inventory',{id:1})}))");
+    const clearVariants=()=>evaluate("import('/src/services/queryCache.ts').then(m=>m.queryClient.removeQueries({queryKey:m.queryKeys.public('inventory',{id:1})}))");
     await clearVariants(); await evaluate('window.__failCart=false;window.__multipleVariants=true');
     const writes=await evaluate("window.__requests.filter(r=>r.route==='/api/cart/items').length");
     await click(cart); await until(()=>evaluate('!!document.querySelector("#catalog-results fieldset")'),'variant selection');
