@@ -91,7 +91,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
   const error = productQuery.isError && !product || variantsQuery.isError && !variantsQuery.data ? userMessage(productQuery.error || variantsQuery.error, 'Không tải được sản phẩm. Vui lòng thử lại.') : '';
   const [adding, setAdding] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [tab, setTab] = useState<Tab>("specs");
+  const [tab, setTab] = useState<Tab>(() => window.location.hash === "#reviews" ? "reviews" : "specs");
   const reviewsQuery = useQuery(reviewsOptions(product?.productID ?? 0));
   const reviews = reviewsQuery.data ?? [];
   const reviewState = reviewsQuery.isPending ? 'loading' : reviewsQuery.isError ? 'error' : 'ready';
@@ -536,7 +536,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
                   </div>
                 </div>
               </section>
-              <section ref={details} className={styles.detailsPanel}>
+              <section id="reviews" ref={details} className={styles.detailsPanel}>
                 <div
                   className={styles.tabs}
                   role="tablist"
@@ -642,6 +642,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
                   {tab === "reviews" && (
                     <>
                       <h2>Đánh giá từ khách hàng</h2>
+                      <a className={styles.reviewAction} href={`/review?productId=${product.productID}`}>Đánh giá sản phẩm đã mua</a>
                       <div className={styles.reviewSummary}>
                         <strong>
                           {(product.ratingAverage ?? 0).toFixed(1)}
@@ -678,6 +679,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
                             </div>
                             <Stars rating={review.rating} />
                             <p>{review.comment}</p>
+                            {!!review.images?.length && <div className={styles.reviewImages}>{review.images.map(image => <a key={image.imagePosition} href={image.imageUrl} target="_blank" rel="noreferrer"><img src={image.imageUrl} alt={`Ảnh đánh giá của ${review.username}`} loading="lazy" /></a>)}</div>}
                           </article>
                         ))
                       )}
