@@ -10,6 +10,7 @@ const ForgotPassword = lazy(() => import('./pages/forgotPassword/ForgotPassword'
 const ResetPassword = lazy(() => import('./pages/forgotPassword/ResetPassword'));
 const AboutUs = lazy(() => import('./pages/aboutUs/AboutUs'));
 const Policy = lazy(() => import('./pages/policy/Policy'));
+const ReviewPage = lazy(() => import('./pages/review/ReviewPage'));
 const SearchPage = lazy(() => import('./pages/searchPage/SearchPage'));
 import AiChatWidget from "./components/aiChat/AiChatWidget";
 const MyProfile = lazy(() => import('./pages/myProfile/MyProfile'));
@@ -42,7 +43,7 @@ function MainLayout() {
 
 function StoreChat() {
   const { pathname } = useLocation();
-  return pathname === '/dashboard' || pathname.startsWith('/dashboard/') ? null : <AiChatWidget />;
+  return pathname === '/review' || pathname === '/dashboard' || pathname.startsWith('/dashboard/') ? null : <AiChatWidget />;
 }
 
 // Wrapper lấy param :handle truyền vào ProductDetail
@@ -79,6 +80,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           {['/about-us', '/about', '/gioi-thieu', '/contact', '/lien-he'].map(path => <Route key={path} path={path} element={<AboutUs />} />)}
           <Route path="/policy" element={<Policy />} />
+          <Route path="/review" element={<ReviewPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/products" element={<ProductSearchRedirect />} />
           <Route path="/products/:handle" element={<ProductDetailWrapper />} />
