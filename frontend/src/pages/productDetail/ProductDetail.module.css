@@ -92,7 +92,7 @@
 .reviewSummary small { font-size: 15px; color: #969ca6; }
 .reviewSummary p { color: #70798a; margin-top: 5px; }
 .review { border-bottom: 1px solid #eceff5; padding: 20px 0; }
-.review > div { display: flex; justify-content: space-between; margin-bottom: 7px; gap: 10px; }
+.reviewHeader { display: flex; justify-content: space-between; margin-bottom: 7px; gap: 10px; }
 .review time { color: #8b93a1; font-size: 11px; }
 .review p { margin-top: 8px; line-height: 1.7; color: #566175; white-space: pre-line; }
 .related { margin-top: 40px; }
@@ -149,5 +149,3 @@
 
 .reviewAction { display: inline-flex; align-items: center; padding: 9px 16px; margin: 14px 0 20px; background: #fff7ed; color: #c6530c; border: 1px solid #fed7aa; border-radius: 6px; font-weight: 600; text-decoration: none; }
 .reviewAction:hover { background: #ffedd5; }
-.reviewImages { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
-.reviewImages img { width: 88px; height: 88px; object-fit: cover; border: 1px solid #e2e8f0; border-radius: 6px; }
