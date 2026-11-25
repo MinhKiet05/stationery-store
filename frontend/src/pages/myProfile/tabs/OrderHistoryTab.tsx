@@ -1,10 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQueries, useQuery } from '@tanstack/react-query';
 import { queryKeys, cacheTimes } from '../../../services/queryCache';
 import useSessionScope from '../../../services/useSessionScope';
 import { useState, type FormEvent, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Package, Truck, CheckCircle, XCircle, CreditCard, ChevronLeft, ChevronRight, X, CalendarDays } from 'lucide-react';
-import { getMyOrderHistory, cancelOrder, type OrderStatus, type Order, type OrderItem } from '../../../services/orderService';
+import { getMyOrderHistory, cancelOrder, type OrderStatus, type Order } from '../../../services/orderService';
+import { purchasedReviewsOptions } from '../../../services/reviewService';
+import { useCurrentUser } from '../../../services/storeQueries';
+import ReviewModal from '../../../components/review/ReviewModal';
 import { useProfile } from '../profileContext';
 import { notify, userMessage } from '../../../utils/notifications';
 import { orderStatuses, orderStatusLabel } from '../orderHistory';
@@ -20,16 +23,6 @@ const statusStyle: Record<OrderStatus, string> = {
   DELIVERED: 'success', CANCELLED: 'cancelled', RETURN_PENDING: 'pending',
 };
 const pageSize = 4;
-const reviewHref = (orderID: number, productID: number, orderDetailID: number) => `/review?orderId=${orderID}&productId=${productID}&orderDetailId=${orderDetailID}`;
-
-function OrderProductImage({ order, item }: { order: Order; item: OrderItem }) {
-  const image = item.productImage
-    ? <img src={item.productImage} alt={item.productTitle || item.variantTitle} className={styles.productImg} loading="lazy" />
-    : <div className={styles.imagePlaceholder} aria-label="Chưa có ảnh"><Package size={24} /></div>;
-  return order.status === 'DELIVERED'
-    ? <Link to={reviewHref(order.orderID, item.productID, item.orderDetailID)} aria-label={`Đánh giá ${item.productTitle || item.variantTitle}`} style={{ flexShrink: 0 }}>{image}</Link>
-    : image;
-}
 
 export default function OrderHistoryTab() {
   const { refreshOrders } = useProfile();
@@ -42,11 +35,18 @@ export default function OrderHistoryTab() {
 
   // State cho Modal
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
+  const [reviewingOrderID, setReviewingOrderID] = useState<number | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   const params = { page: page - 1, size: pageSize, search: query, status: status === 'ALL' ? '' : status };
   const history = useQuery({ queryKey: queryKeys.private('orders', params, scope), queryFn: ({ signal }) => getMyOrderHistory(params, signal), staleTime: cacheTimes.orders });
   const orders = history.data?.content ?? [], visible = orders;
+  const identity = useCurrentUser();
+  const productIDs = [...new Set(orders.filter(order => order.status === 'DELIVERED').flatMap(order => order.items.map(item => item.productID)))];
+  // Observe cached review state without downloading reviews for every order on page load.
+  const reviewStates = useQueries({ queries: productIDs.map(id => ({ ...purchasedReviewsOptions(id, scope), enabled: false })) });
+  const reviewedIDs = new Set(reviewStates.flatMap(query => query.data ?? [])
+    .filter(review => review.userID === identity.data?.userID).map(review => review.productID));
   const ordersLoading = history.isPending, ordersError = history.isError && !history.data ? userMessage(history.error, 'Không tải được đơn hàng. Vui lòng thử lại.') : '';
   const total = history.data?.totalElements ?? 0, counts = history.data?.statusCounts ?? {};
   const retryOrders = () => { void history.refetch(); };
@@ -142,12 +142,12 @@ export default function OrderHistoryTab() {
                 <div className={styles.productList}>
                   {order.items.slice(0, 2).map((item) => (
                     <div key={item.orderDetailID} className={styles.productItem}>
-                      <OrderProductImage order={order} item={item} />
+                      {item.productImage ? <img src={item.productImage} alt={item.productTitle || item.variantTitle} className={styles.productImg} loading="lazy" /> : <div className={styles.imagePlaceholder} aria-label="Chưa có ảnh"><Package size={24} /></div>}
                       <div className={styles.productInfo}>
-                        {order.status === 'DELIVERED' ? <Link className={styles.productName} to={reviewHref(order.orderID, item.productID, item.orderDetailID)}>{item.productTitle || item.variantTitle}</Link> : item.productHandle ? <Link className={styles.productName} to={'/products/' + encodeURIComponent(item.productHandle)}>{item.productTitle || item.variantTitle}</Link> : <h3 className={styles.productName}>{item.productTitle || item.variantTitle}</h3>}
+                        {item.productHandle ? <Link className={styles.productName} to={'/products/' + encodeURIComponent(item.productHandle)}>{item.productTitle || item.variantTitle}</Link> : <h3 className={styles.productName}>{item.productTitle || item.variantTitle}</h3>}
                         <div className={styles.productVariant}>Phân loại: {item.variantTitle}</div>
                         <div className={styles.productQty}>Số lượng: x{item.quantity}</div>
-                        {order.status === 'DELIVERED' && <Link className={styles.reviewLink} to={reviewHref(order.orderID, item.productID, item.orderDetailID)}>Đánh giá sản phẩm</Link>}
+                        {reviewedIDs.has(item.productID) && <span className={styles.reviewStatus}>Đã đánh giá</span>}
                       </div>
                       <div className={styles.productPriceWrap}><div className={styles.currentPrice}>{money(item.unitPrice)}</div></div>
                     </div>
@@ -176,6 +176,13 @@ export default function OrderHistoryTab() {
                       {order.status === 'DELIVERED' && (
                         <button className={[styles.btn, styles.btnOutline].join(' ')} onClick={() => handleReturnRequest(order.orderID)}>
                           Yêu cầu trả hàng
+                        </button>
+                      )}
+                      {order.status === 'DELIVERED' && order.items.length > 0 && (
+                        <button className={[styles.btn, styles.btnReview].join(' ')}
+                          disabled={order.items.every(item => reviewedIDs.has(item.productID))}
+                          onClick={() => setReviewingOrderID(order.orderID)}>
+                          {order.items.every(item => reviewedIDs.has(item.productID)) ? 'Đã đánh giá' : 'Đánh giá'}
                         </button>
                       )}
                       <button className={[styles.btn, styles.btnPrimary].join(' ')} onClick={() => setViewingOrder(order)}>
@@ -251,12 +258,12 @@ export default function OrderHistoryTab() {
                 <div className={styles.modalProductList}>
                   {viewingOrder.items.map((item) => (
                     <div key={item.orderDetailID} className={styles.productItem}>
-                      <OrderProductImage order={viewingOrder} item={item} />
+                      {item.productImage ? <img src={item.productImage} alt={item.productTitle || item.variantTitle} className={styles.productImg} loading="lazy" /> : <div className={styles.imagePlaceholder}><Package size={24} /></div>}
                       <div className={styles.productInfo}>
-                        {viewingOrder.status === 'DELIVERED' ? <Link className={styles.productName} to={reviewHref(viewingOrder.orderID, item.productID, item.orderDetailID)}>{item.productTitle || item.variantTitle}</Link> : <div className={styles.productName}>{item.productTitle || item.variantTitle}</div>}
+                        <div className={styles.productName}>{item.productTitle || item.variantTitle}</div>
                         <div className={styles.productVariant}>Phân loại: {item.variantTitle}</div>
                         <div className={styles.productQty}>x{item.quantity}</div>
-                        {viewingOrder.status === 'DELIVERED' && <Link className={styles.reviewLink} to={reviewHref(viewingOrder.orderID, item.productID, item.orderDetailID)}>Đánh giá sản phẩm</Link>}
+                        {reviewedIDs.has(item.productID) && <span className={styles.reviewStatus}>Đã đánh giá</span>}
                       </div>
                       <div className={styles.currentPrice}>{money(item.unitPrice)}</div>
                     </div>
@@ -303,6 +310,7 @@ export default function OrderHistoryTab() {
           </div>
         )}
       </dialog>
+      {reviewingOrderID !== null && <ReviewModal key={`${scope}:${reviewingOrderID}`} orderID={reviewingOrderID} onClose={() => setReviewingOrderID(null)} />}
     </section>
   );
 }
