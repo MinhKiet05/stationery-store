@@ -7,7 +7,6 @@ import UserAccountDropdown from "../userAccountDropdown/UserAccountDropdown";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";
 import {
   Bell,
-  Flame,
   Headphones,
   LogIn,
   PackageSearch,
@@ -28,13 +27,12 @@ type HeaderProps = {
   onLogout?: () => void;
 };
 
-const navigation = [
+const navigation: { label: string; href: string; promotion?: boolean }[] = [
   { label: "Trang chủ", href: "/" },
   { label: "Bút & Mực", href: "/products?category=but-muc" },
   { label: "Sổ & Giấy", href: "/products?category=so-giay" },
   { label: "Dụng cụ văn phòng", href: "/products?category=dung-cu-van-phong" },
   { label: "Quà tặng & Phụ kiện", href: "/products?category=qua-tang-phu-kien" },
-  { label: "Khuyến mãi", href: "/promotions", promotion: true },
   { label: "Về chúng tôi", href: "/about-us" },
 ];
 
@@ -157,9 +155,9 @@ export default function Header({
                 aria-current={item.href === window.location.pathname + window.location.search || (item.href === "/" && window.location.pathname === "/") ? "page" : undefined}
                 className={`${styles.navLink} ${item.href === window.location.pathname + window.location.search || (item.href === "/" && window.location.pathname === "/") ? styles.navLinkActive : ""} ${item.promotion ? styles.navLinkHot : ""}`}
               >
-                {item.promotion && <Flame size={16} style={{ marginRight: '4px' }} />}
+
                 {item.label}
-                {item.promotion && <span className={styles.hotBadge}>HOT</span>}
+
               </a>
             ))}
           </div>

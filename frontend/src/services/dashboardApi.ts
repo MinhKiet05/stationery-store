@@ -14,6 +14,9 @@ export function dashboardRequest(path: string, signal?: AbortSignal): Promise<un
   return api(path, { signal });
 }
 export const getAdminOrder = (id: number, signal?: AbortSignal) => api<AdminOrderDetail>(`/api/admin/orders/${id}`, { signal });
+export const confirmCodPayment = (id: number) => api<Order>(`/api/admin/orders/${id}/confirm-payment`, {
+  method: 'POST', body: JSON.stringify({ reference: `RECEIPT-${id}` }),
+});
 export const changeAdminOrderStatus = (id: number, status: OrderStatus, order: Pick<Order, 'status' | 'isPaid'>) => api<Order>(`/api/admin/orders/${id}/status`, {
   method: 'PATCH', body: JSON.stringify({ status, expectedStatus: order.status, expectedPaid: order.isPaid } satisfies UpdateOrderStatusRequest),
 });

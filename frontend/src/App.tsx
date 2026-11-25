@@ -16,6 +16,8 @@ const ResetPassword = lazy(() => import('./pages/forgotPassword/ResetPassword'))
 const AboutUs = lazy(() => import('./pages/aboutUs/AboutUs'));
 const Policy = lazy(() => import('./pages/policy/Policy'));
 const SearchPage = lazy(() => import('./pages/searchPage/SearchPage'));
+const CartPage = lazy(() => import('./pages/carts/CartPage'));
+const CheckoutPage = lazy(() => import('./pages/carts/CheckoutPage'));
 
 const MyProfile = lazy(() => import('./pages/myProfile/MyProfile'));
 const AccountInfoTab = lazy(() => import('./pages/myProfile/tabs/AccountInfoTab'));
@@ -110,6 +112,8 @@ function App() {
 
           {/* Nhóm trang có Header & Footer */}
           <Route element={<MainLayout />}>
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/" element={<HomePage />} />
 
             {['/about-us', '/about', '/gioi-thieu', '/contact', '/lien-he'].map(path => (

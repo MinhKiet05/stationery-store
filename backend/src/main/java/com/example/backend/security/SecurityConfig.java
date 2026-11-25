@@ -33,14 +33,20 @@ import java.util.List;
 @EnableMethodSecurity
 public class SecurityConfig {
     @Bean
-    PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
+    PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
     @Bean
     SecretKey jwtSecret(@Value("${app.jwt.secret-base64}") String encoded) {
         byte[] key;
-        try { key = Base64.getDecoder().decode(encoded); }
-        catch (IllegalArgumentException e) { throw new IllegalStateException("JWT secret must be Base64", e); }
-        if (key.length < 32) throw new IllegalStateException("JWT secret must decode to at least 32 bytes");
+        try {
+            key = Base64.getDecoder().decode(encoded);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("JWT secret must be Base64", e);
+        }
+        if (key.length < 32)
+            throw new IllegalStateException("JWT secret must decode to at least 32 bytes");
         return new SecretKeySpec(key, "HmacSHA256");
     }
 
@@ -52,7 +58,7 @@ public class SecurityConfig {
     @Bean
     JwtDecoder jwtDecoder(SecretKey key, @Value("${app.jwt.issuer:stationery-store}") String issuer) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(key)
-            .macAlgorithm(MacAlgorithm.HS256).build();
+                .macAlgorithm(MacAlgorithm.HS256).build();
         decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(issuer));
         return decoder;
     }
@@ -63,7 +69,7 @@ public class SecurityConfig {
         // Derive role from DB, not from a stale token claim; reject disabled accounts.
         converter.setJwtGrantedAuthoritiesConverter(jwt -> {
             User user = userRepository.findByUsername(jwt.getSubject())
-                .orElseThrow(() -> new BadCredentialsException("Account not found"));
+                    .orElseThrow(() -> new BadCredentialsException("Account not found"));
             if (!Boolean.TRUE.equals(user.getIsActive()))
                 throw new BadCredentialsException("Account inactive");
             return List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()));
@@ -73,7 +79,7 @@ public class SecurityConfig {
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                           JwtAuthenticationConverter converter) throws Exception {
+            JwtAuthenticationConverter converter) throws Exception {
         var paths = PathPatternRequestMatcher.withDefaults();
         var publicAuth = new OrRequestMatcher(
                 paths.matcher(HttpMethod.POST, "/api/auth/register"),
@@ -82,34 +88,38 @@ public class SecurityConfig {
                 paths.matcher(HttpMethod.POST, "/api/auth/reset-password"));
         var bearerTokens = new DefaultBearerTokenResolver();
         return http
-            .csrf(csrf -> csrf.disable()) // Bearer token via Authorization header, not cookies
-            .cors(cors -> {})
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Preserve the original HTTP error during the container's /error dispatch.
-                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/recommendations/popular").permitAll()
-                .requestMatchers(publicAuth).permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**",
-                    "/api/product-variants", "/api/product-variants/**",
-                    "/api/product-types", "/api/product-types/**",
-                    "/api/vendors", "/api/vendors/**", "/api/tags", "/api/tags/**").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").authenticated()
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/products/**", "/api/product-variants/**",
-                    "/api/product-types/**", "/api/vendors/**", "/api/tags/**").hasRole("ADMIN")
-                .anyRequest().authenticated())
-            .oauth2ResourceServer(oauth2 -> oauth2
-                // permitAll is evaluated AFTER bearer authentication. Ignore stale credentials
-                // on these anonymous auth operations, using the same matcher as authorization.
-                .bearerTokenResolver(request -> publicAuth.matches(request)
-                        || request.getDispatcherType() == DispatcherType.ERROR
-                        ? null : bearerTokens.resolve(request))
-                .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
-            .build();
+                .csrf(csrf -> csrf.disable()) // Bearer token via Authorization header, not cookies
+                .cors(cors -> {
+                })
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Preserve the original HTTP error during the container's /error dispatch.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/recommendations/popular").permitAll()
+                        .requestMatchers(publicAuth).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**",
+                                "/api/product-variants", "/api/product-variants/**",
+                                "/api/product-types", "/api/product-types/**",
+                                "/api/vendors", "/api/vendors/**", "/api/tags", "/api/tags/**")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/products/*/reviews").authenticated()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        .requestMatchers("/api/products/**", "/api/product-variants/**",
+                                "/api/product-types/**", "/api/vendors/**", "/api/tags/**")
+                        .hasRole("ADMIN")
+                        .anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        // permitAll is evaluated AFTER bearer authentication. Ignore stale credentials
+                        // on these anonymous auth operations, using the same matcher as authorization.
+                        .bearerTokenResolver(request -> publicAuth.matches(request)
+                                || request.getDispatcherType() == DispatcherType.ERROR
+                                        ? null
+                                        : bearerTokens.resolve(request))
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
+                .build();
     }
 
     @Bean

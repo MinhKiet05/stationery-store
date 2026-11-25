@@ -21,6 +21,8 @@ function installApi() {
     window.__requests.push({route,method,token,query:Object.fromEntries(url.searchParams)}); options.signal?.throwIfAborted();
     if(route==='/api/auth/me')return Response.json({userID:1,username:'test',fullName:'Test',email:'test@example.test',role:'CUSTOMER'});
     if(route==='/api/cart')return Response.json(token==='Bearer test-B'?{items:[],subtotal:0}:window.__cart);
+    if(route==='/api/checkout/options')return Response.json({shipping:[{code:'STANDARD',label:'Standard',description:'3-5 days',fee:25000}],payments:[{code:'COD',label:'COD',description:'Pay on delivery',enabled:true,demo:false}],freeShippingThreshold:200000});
+    if(route==='/api/checkout/preview')return Response.json({subTotal:window.__cart.subtotal,discountAmount:0,shippingFee:25000,totalAmount:window.__cart.subtotal+25000,shippingMethod:'STANDARD'});
     if(route==='/api/orders')return Response.json({}, {status:500});
     if(route==='/api/cart/items'){
       const failure=window.__failCart;
@@ -61,7 +63,7 @@ try {
   const executable = [process.env.CHROME_PATH, 'C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', '/usr/bin/google-chrome', '/usr/bin/chromium'].find(value => value && existsSync(value));
   assert.ok(executable, 'Set CHROME_PATH to an installed Chromium browser');
   profile = await fs.mkdtemp(path.join(os.tmpdir(), 'stationery-admin-route-test-'));
-  browser = spawn(executable, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { windowsHide: true, stdio: 'ignore' });
+  browser = spawn(executable, ['--headless=new', '--no-sandbox', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { windowsHide: true, stdio: 'ignore' });
   await until(() => existsSync(path.join(profile, 'DevToolsActivePort')), 'browser startup');
   const port = (await fs.readFile(path.join(profile, 'DevToolsActivePort'), 'utf8')).split('\n')[0];
   const tab = await fetch(`http://127.0.0.1:${port}/json/new?about:blank`, { method: 'PUT' }).then(response => response.json());
@@ -125,21 +127,25 @@ try {
     assert.ok(requests.length>=1);assert.deepEqual([...new Set(requests.map(r=>r.query.page))],['0']);assert.ok(requests.every(r=>r.query.size==='24'));
     await select('#catalog-sort','price-desc');await until(()=>evaluate("window.__requests.some(r=>r.query.sort==='price,desc')"),'SQL sort');
   });
-  await test('Unknown checkout result blocks another submit until order history is reviewed',async()=>{
-    await go('/products/so-test');await until(()=>evaluate("!![...document.querySelectorAll('button')].find(n=>n.textContent.trim()==='Mua ngay'&&!n.disabled)"),'buy button');
-    await button('Mua ngay');await until(()=>evaluate("!!document.querySelector('dialog[open] form')"),'checkout');
-    await input('dialog textarea[name=address]','Địa chỉ kiểm thử');await input('dialog input[name=phone]','0900000000');
-    await evaluate("document.querySelector('dialog form').requestSubmit()");
-    await until(()=>evaluate("document.querySelector('dialog').textContent.includes('Chưa xác định được kết quả')"),'uncertain result');
-    await evaluate("document.querySelector('dialog form').requestSubmit()");
+  await test('Buy now uses shared checkout and unknown results block duplicate submission',async()=>{
+    await go('/products/so-test');
+    await until(()=>evaluate("!![...document.querySelectorAll('button')].find(n=>n.textContent.trim()==='Mua ngay'&&!n.disabled)"),'buy button');
+    await button('Mua ngay'); await until(()=>evaluate("!!document.querySelector('#checkout-form')"),'shared checkout');
+    await input('input[autocomplete=tel]','0900000000');
+    await input('input[autocomplete=address-level1]','City');
+    await input('input[autocomplete=address-level3]','Ward');
+    await input('input[autocomplete=street-address]','Test address');
+    await until(()=>evaluate("!document.querySelector('#checkout-form button[type=submit]').disabled"),'quote ready');
+    await evaluate("document.querySelector('#checkout-form').requestSubmit()");
+    await until(()=>evaluate("!!document.querySelector('main [role=alert]')"),'uncertain result');
+    await evaluate("document.querySelector('#checkout-form').requestSubmit()");
     assert.equal(await evaluate("window.__requests.filter(r=>r.route==='/api/orders').length"),1);
-    assert.equal(await evaluate("[...document.querySelectorAll('dialog button')].find(n=>n.textContent.includes('Xác nhận đặt hàng')).disabled"),true);
-    await click('dialog [aria-label="Đóng"]');
+    assert.equal(await evaluate("document.querySelector('#checkout-form button[type=submit]').disabled"),true);
   });
-  await test('Logout/account switch removes private cart and a late old-session write cannot restore it',async()=>{
-    await button('Mua ngay');await until(()=>evaluate("!!document.querySelector('dialog[open] form')"),'private checkout open');
+  await test('Logout/account switch removes private cart and late writes cannot restore it',async()=>{
     await evaluate("localStorage.removeItem('accessToken');window.dispatchEvent(new Event('auth-changed'))");
-    await until(()=>evaluate("!document.querySelector('dialog[open]')"),'private checkout removed');
+    await until(()=>evaluate("!document.querySelector('#checkout-form')"),'private checkout removed');
+    await go('/products/so-test');
     await evaluate("localStorage.setItem('accessToken','test-A');window.dispatchEvent(new Event('auth-changed'))");
     await until(()=>evaluate("!![...document.querySelectorAll('button')].find(n=>n.textContent.trim()==='Thêm vào giỏ hàng'&&!n.disabled)"),'fresh session ready');
     const nextQuantity=await evaluate('window.__cart.items[0].quantity+1');

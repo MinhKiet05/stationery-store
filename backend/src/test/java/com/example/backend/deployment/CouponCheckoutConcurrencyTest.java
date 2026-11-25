@@ -83,7 +83,7 @@ class CouponCheckoutConcurrencyTest {
             Coupon c=em.createQuery("select c from Coupon c where code='LASTONE'",Coupon.class).getSingleResult();
             assertThat(c.getUsedCount()).isEqualTo(1);
             var found=em.createQuery("select o from Order o",Order.class).getResultList(); assertThat(found).hasSize(1);
-            Order order=found.getFirst(); assertThat(order.getDiscountAmount()).isEqualByComparingTo("10000"); assertThat(order.getTotalAmount()).isEqualByComparingTo("90000");
+            Order order=found.getFirst(); assertThat(order.getDiscountAmount()).isEqualByComparingTo("10000"); assertThat(order.getTotalAmount()).isEqualByComparingTo(new BigDecimal("90000").add(order.getShippingFee()));
             return new String[]{order.getUser().getUsername(),order.getOrderID().toString()};
         });
         orders.cancelOrder(winner[0],Long.valueOf(winner[1]));
