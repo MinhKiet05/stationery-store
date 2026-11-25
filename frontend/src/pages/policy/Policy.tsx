@@ -131,13 +131,18 @@ const normalize = (text: string) => text.toLowerCase().normalize("NFD").replace(
 export default function Policy() {
   const { hash } = useLocation();
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState("returns");
+  const [selected, setSelected] = useState(() => hash.slice(1) || "returns");
+  const [previousHash, setPreviousHash] = useState(hash);
+  if (previousHash !== hash) {
+    setPreviousHash(hash);
+    setSelected(hash.slice(1) || "returns");
+    setQuery("");
+  }
   useEffect(() => {
     const previous = document.title;
     document.title = "Chính sách & Điều khoản | StationeryStore";
     return () => { document.title = previous; };
   }, []);
-  useEffect(() => { setSelected(hash.slice(1) || "returns"); setQuery(""); }, [hash]);
   const results = documents.filter(doc => normalize([doc.title, doc.subtitle, doc.notice, ...doc.sections.flatMap(s => [s.title, s.intro ?? "", ...s.items.flatMap(i => [i.title, i.text])])].join(" ")).includes(normalize(query.trim())));
   const active = results.find(doc => doc.id === selected) ?? results[0];
   return <main className={styles.page}>

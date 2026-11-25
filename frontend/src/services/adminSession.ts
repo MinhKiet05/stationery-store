@@ -14,10 +14,10 @@ export const adminSession = createAdminVerification({
 });
 
 // App lifetime listeners also clear the cache on logout outside Dashboard.
-export function useAdminSessionEvents() {
+export function useAdminSessionEvents(): void {
   useEffect(() => {
     const sync = () => { sessionScope(); adminSession.syncSession(); };
-    const storage = event => { if (event.key === 'accessToken' || event.key === null) sync(); };
+    const storage = (event: StorageEvent) => { if (event.key === 'accessToken' || event.key === null) sync(); };
     const activity = () => { sessionScope(); adminSession.onActivity(); };
     window.addEventListener('auth-changed', sync);
     window.addEventListener('storage', storage);

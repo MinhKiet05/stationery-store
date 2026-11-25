@@ -91,7 +91,7 @@ try {
   const focus=()=>evaluate("window.dispatchEvent(new Event('focus'));document.dispatchEvent(new Event('visibilitychange'))");
   const go=async route=>{await evaluate(`history.pushState({},'',${JSON.stringify(route)});window.dispatchEvent(new PopStateEvent('popstate'))`);await until(()=>evaluate(`location.pathname===${JSON.stringify(route)}`),'SPA route');};
   const signIn=async token=>{await evaluate(`localStorage.setItem('accessToken',${JSON.stringify(token)});window.dispatchEvent(new Event('auth-changed'))`);};
-  await evaluate("import('/tests/probes/cartProbe.tsx').then(m=>m.mount())");
+  await evaluate("import('/tests/probes/cartProbe.ts').then(m=>m.mount())");
   await until(()=>evaluate('!!window.__otherCartWrite'),'second independent cart widget');
   const badge=quantity=>evaluate(`!!document.querySelector('[aria-label="Giỏ hàng (${quantity} sản phẩm)"]')`);
   await test('Cart add updates shared header immediately, suppresses duplicate writes, then uses server response',async()=>{

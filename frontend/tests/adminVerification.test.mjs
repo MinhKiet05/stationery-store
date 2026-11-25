@@ -1,6 +1,12 @@
-import test from 'node:test';
+import test, { before, after } from 'node:test';
+import { createServer } from 'vite';
 import assert from 'node:assert/strict';
-import { createAdminVerification } from '../src/services/adminVerification.js';
+let server, createAdminVerification;
+before(async () => {
+  server = await createServer({ server: { middlewareMode: true, hmr: false } });
+  ({ createAdminVerification } = await server.ssrLoadModule('/src/services/adminVerification.ts'));
+});
+after(async () => { await server?.close(); });
 
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 function fixture(ttlMs = 300000) {

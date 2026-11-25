@@ -9,7 +9,7 @@ import { API_BASE } from '../../src/services/api';
 import { queryClient, queryKeys, sessionScope } from '../../src/services/queryCache';
 import '../../src/pages/dashboard/Dashboard.css';
 
-function Probe() {
+export default function Probe() {
   useAdminSessionEvents();
   const identity = useCurrentUser();
   return <><Header /><div className="dashboard-shell">

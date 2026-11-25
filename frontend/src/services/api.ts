@@ -1,6 +1,7 @@
 
 import { notify, userMessage } from "../utils/notifications";
 import { invalidateBusiness, sessionScope } from "./queryCache";
+import { errorDetail } from './apiError';
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "")
   .trim()
@@ -90,14 +91,8 @@ export async function apiResponse(
                     ? "Trạng thái đơn hàng đã thay đổi. Vui lòng tải lại."
                     : "Không thể kết nối cửa hàng. Vui lòng thử lại.";
 
-    const body = await response.json().catch(() => null);
-
-    const detail =
-      typeof body?.detail === "string"
-        ? body.detail
-        : typeof body?.message === "string"
-          ? body.message
-          : undefined;
+    const body: unknown = await response.json().catch(() => null);
+    const detail = errorDetail(body);
 
     throw new ApiError(
       userMessage(body, fallback),
@@ -129,7 +124,7 @@ export async function apiResponse(
   return response;
 }
 
-export async function api<T>(
+export async function api<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {

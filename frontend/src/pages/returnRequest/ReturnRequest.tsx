@@ -12,6 +12,8 @@ import {
   returnStatusLabels, shopDate, type ItemPresentation, type ReturnRequest as ReturnRecord,
 } from "../../services/returnService";
 import { ApiError } from "../../services/api";
+import { useLocation } from "react-router-dom";
+import useSessionScope from "../../services/useSessionScope";
 import styles from "./ReturnRequest.module.css";
 
 const money = (amount: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(amount);
@@ -38,15 +40,23 @@ function ProductImage({ image, title }: { image?: string; title: string }) {
 }
 
 export default function ReturnRequest() {
-  const [token, setToken] = useState(() => localStorage.getItem("accessToken"));
+  const scope = useSessionScope();
+  const { pathname, search } = useLocation();
+  return <ReturnRequestForm key={`${scope}:${pathname}:${search}`} />;
+}
+
+function ReturnRequestForm() {
+  const token = localStorage.getItem("accessToken");
   const [orderID, setOrderID] = useState<number | null>(initialOrderID);
   const [orders, setOrders] = useState<Order[]>([]);
   const [order, setOrder] = useState<Order | null>(null);
   const [requests, setRequests] = useState<ReturnRecord[]>([]);
   const [presentations, setPresentations] = useState<Record<number, ItemPresentation>>({});
-  const [loading, setLoading] = useState(Boolean(token));
+  const [loadedRequest, setLoadedRequest] = useState<string | null>(null);
   const [loadError, setLoadError] = useState("");
   const [refresh, setRefresh] = useState(0);
+  const requestKey = `${orderID}:${refresh}`;
+  const loading = Boolean(token) && loadedRequest !== requestKey;
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [reason, setReason] = useState("");
   const [conditions, setConditions] = useState<string[]>([]);
@@ -64,34 +74,23 @@ export default function ReturnRequest() {
   useEffect(() => {
     const previous = document.title;
     document.title = "Yêu cầu Trả hàng / Hoàn tiền | StationeryStore";
-    const syncAuth = () => setToken(localStorage.getItem("accessToken"));
-    window.addEventListener("auth-changed", syncAuth);
-    window.addEventListener("storage", syncAuth);
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
     return () => {
       document.title = previous;
       window.clearInterval(timer);
-      window.removeEventListener("auth-changed", syncAuth);
-      window.removeEventListener("storage", syncAuth);
       submitController.current?.abort();
     };
   }, []);
 
   useEffect(() => {
-    if (!token) {
-      setLoading(false); setOrder(null); setOrders([]); setRequests([]); setCreated(null);
-      setQuantities({}); setReason(""); setConditions([]); setDescription(""); setEvidence([""]);
-      setConfirmed(false); setErrors({}); setSubmitError("");
-      submitController.current?.abort();
-      return;
-    }
+    if (!token) return;
     const controller = new AbortController();
-    setLoading(true); setLoadError(""); setPresentations({});
     void Promise.all([
       getMyOrders(controller.signal), getMyReturns(controller.signal),
       orderID === null ? Promise.resolve(null) : getOrder(orderID, controller.signal),
     ]).then(([myOrders, myReturns, selectedOrder]) => {
       if (controller.signal.aborted) return;
+      setLoadError(""); setPresentations({});
       setOrders(myOrders); setRequests(myReturns); setOrder(selectedOrder); setNow(Date.now());
       setCreated(previous => previous ? myReturns.find(request => request.returnID === previous.returnID) ?? previous : null);
       setQuantities(previous => Object.fromEntries(Object.entries(previous)
@@ -104,9 +103,9 @@ export default function ReturnRequest() {
         .then(data => { if (!controller.signal.aborted) setPresentations(data); });
     }).catch(error => {
       if (!controller.signal.aborted) { setLoadError(returnErrorMessage(error)); setOrder(null); }
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    }).finally(() => { if (!controller.signal.aborted) setLoadedRequest(requestKey); });
     return () => controller.abort();
-  }, [token, orderID, refresh]);
+  }, [token, orderID, refresh, requestKey]);
 
   const orderRequests = requests.filter(request => request.orderID === orderID);
   const blocked = order ? eligibilityMessage(order, now) : null;

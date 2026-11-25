@@ -298,7 +298,15 @@ try {
     await test(`Login redirect stays on this site: ${JSON.stringify(destination)}`, async () => {
       await send('Page.navigate', { url: `${baseUrl}/login?redirect=${encodeURIComponent(destination)}` });
       await until(() => evaluate('Boolean(document.querySelector("main form a")) && location.pathname === "/login"'), 'login page');
-      assert.equal(await evaluate('document.querySelector("main form a").getAttribute("href")'), expected);
+      // Submit the real login form; main keeps its forgot-password link here.
+      await type('input[autocomplete="username"]', 'test-customer');
+      await type('input[autocomplete="current-password"]', 'test-password');
+      await click('main button[type="submit"], main form button[class*=submitBtn]');
+      await until(() => evaluate(`location.pathname + location.search === ${JSON.stringify(expected)}`), 'login destination');
+      assert.equal(await evaluate('location.origin'), baseUrl);
+      if (expected.startsWith('/returns/')) {
+        await until(() => evaluate('document.querySelector("#return-order")?.value === "9842"'), 'restored return order');
+      }
     });
   }
   const report = { mocked: true, passed: results.filter(result => result.passed).length, failed: results.filter(result => !result.passed).length, results };

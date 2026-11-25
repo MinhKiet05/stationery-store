@@ -96,8 +96,16 @@ try {
     const before=await evaluate("window.__requests.filter(r=>r.route.startsWith('/api/admin/')).length");
     for (const suffix of ['', '/reviews','/promotions','/returns','/orders','/products','/users']) {
       await click(`.dashboard-sidebar a[href="/dashboard${suffix}"]`);
-      await until(()=>evaluate("!!document.querySelector('.dashboard-shell') && !document.querySelector('#dashboard-content > [role=status]') && !document.querySelector('.dashboard-loading')"),'data ready');
-      await delay(80);
+      const marker = suffix ? `.${suffix.slice(1)}-page` : '.dashboard-welcome';
+      // A click can resolve before React commits navigation. Wait for the actual
+      // destination and its queries, so a lazy page cannot be skipped in round 1.
+      await until(()=>evaluate(`(async () => {
+        if (location.pathname !== ${JSON.stringify(`/dashboard${suffix}`)} ||
+            !document.querySelector(${JSON.stringify(`#dashboard-content ${marker}`)})) return false;
+        const {queryClient} = await import('/src/services/queryCache.ts');
+        const active = queryClient.getQueryCache().getAll().filter(q => q.queryKey[2] === 'admin' && q.getObserversCount() > 0);
+        return active.length > 0 && active.every(q => q.state.status === 'success' && q.state.fetchStatus === 'idle');
+      })()`),'destination data ready');
     }
     rounds.push(await evaluate("window.__requests.filter(r=>r.route.startsWith('/api/admin/')).length")-before);
   }
@@ -105,8 +113,14 @@ try {
   if(process.env.QUERY_BASELINE!=='1') assert.equal(rounds[1],0,'No fresh business re-fetch when revisiting seven dashboard routes');
   assert.equal(await identityCalls(),1);
   assert.deepEqual(exceptions,[]);
+  console.log('1 navigation cache browser check passed (two rounds across seven routes).');
 } catch (error) {
   console.error(error); process.exitCode = 1;
+  if (evaluate) console.error('Navigation diagnostics:', await evaluate(`(async () => {
+    const {queryClient} = await import('/src/services/queryCache.ts');
+    return {path:location.pathname, statusElements:[...document.querySelectorAll('#dashboard-content [role=status]')].map(n=>n.textContent),
+      queries:queryClient.getQueryCache().getAll().map(q=>({key:q.queryKey, observers:q.getObserversCount(),status:q.state.status,fetchStatus:q.state.fetchStatus}))};
+  })()`).catch(() => null));
   if (send) { const { data } = await send('Page.captureScreenshot', { format: 'png' }).catch(() => ({})); if (data) { await fs.mkdir(artifacts, { recursive: true }); await fs.writeFile(path.join(artifacts, 'failure.png'), Buffer.from(data, 'base64')); } }
 } finally {
   if (send) await send('Browser.close').catch(() => {}); socket?.close(); browser?.kill(); if (vite) await vite.close();

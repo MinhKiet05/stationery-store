@@ -86,7 +86,7 @@ export function getMyOrderHistory(
 ) {
   const query = new URLSearchParams(
     Object.entries(params)
-      .filter(([, v]) => v !== "")
+      .filter(([, v]) => v !== "" && v !== undefined)
       .map(([k, v]) => [k, String(v)]),
   );
 

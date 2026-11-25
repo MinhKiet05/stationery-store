@@ -19,7 +19,7 @@ function RequestResetForm() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [availableAt, setAvailableAt] = useState(0);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(Date.now);
   const inFlight = useRef(false);
   const remaining = Math.max(0, Math.ceil((availableAt - now) / 1000));
   useEffect(() => {

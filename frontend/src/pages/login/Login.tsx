@@ -3,6 +3,7 @@ import { Tag, Sparkles, Truck, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { login, register } from "../../services/authService";
 import { notify } from "../../utils/notifications";
+import { loginRedirect } from "../../utils/loginRedirect";
 import styles from "./Login.module.css";
 
 export default function Login() {
@@ -43,13 +44,7 @@ async function handleLogin(event: FormEvent) {
   try {
     const result = await login(username, password);
 
-    const from = location.state?.from;
-    const target =
-      typeof from?.pathname === "string" &&
-      from.pathname.startsWith("/") &&
-      !from.pathname.startsWith("//")
-        ? from.pathname + (from.search || "") + (from.hash || "")
-        : redirect;
+    const target = loginRedirect(location.state?.from, location.search);
 
     if (result.cartSynced) {
       notify.success("Đăng nhập thành công.");

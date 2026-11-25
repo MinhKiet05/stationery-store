@@ -13,7 +13,7 @@ before(async()=>{
   auth=await vite.ssrLoadModule('/src/services/authService.ts');
   orders=await vite.ssrLoadModule('/src/services/orderService.ts');
   guest=await vite.ssrLoadModule('/src/utils/guestCart.ts');
-  cache=await vite.ssrLoadModule('/src/services/queryCache.js');
+  cache=await vite.ssrLoadModule('/src/services/queryCache.ts');
 });
 afterEach(()=>{cache.queryClient.clear();globalThis.fetch=original.fetch;token='session-A';});
 after(async()=>{await vite?.close();globalThis.fetch=original.fetch;globalThis.localStorage=original.storage;globalThis.window=original.window;});

@@ -19,10 +19,11 @@ export default function ScrollToTop() {
 
   useLayoutEffect(() => {
     const changedPath = previousPath.current !== location.pathname;
+    const storedPositions = positions.current;
     const anchor = location.hash && (changedPath || previousHash.current !== location.hash);
     previousPath.current = location.pathname;
     previousHash.current = location.hash;
-    const saved = navigation === 'POP' ? positions.current.get(location.key) : undefined;
+    const saved = navigation === 'POP' ? storedPositions.get(location.key) : undefined;
     let pending = Boolean(saved || anchor);
     let current = saved ?? { left: window.scrollX, top: window.scrollY };
     let observer: MutationObserver | undefined;
@@ -80,9 +81,9 @@ export default function ScrollToTop() {
     window.addEventListener('keydown', onKey);
     return () => {
       // Keep the intended position if navigation interrupts an unfinished restore.
-      positions.current.delete(location.key);
-      positions.current.set(location.key, current);
-      if (positions.current.size > 50) positions.current.delete(positions.current.keys().next().value!);
+      storedPositions.delete(location.key);
+      storedPositions.set(location.key, current);
+      if (storedPositions.size > 50) storedPositions.delete(storedPositions.keys().next().value!);
       stop();
       window.removeEventListener('scroll', remember);
       window.removeEventListener('wheel', interrupt);

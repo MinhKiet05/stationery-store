@@ -48,6 +48,11 @@ export function installReturnMocks(fixture) {
     if (!url.pathname.startsWith('/api/')) return realFetch(input, options);
     const method = options.method || 'GET';
     state.calls.push({ path: url.pathname, method, authorization: new Headers(options.headers).get('Authorization') });
+    if (url.pathname === '/api/auth/login') return json({ accessToken: 'test-only-return-token', user: { userID: 24, username: 'test-customer', role: 'CUSTOMER' } });
+    if (url.pathname === '/api/cart') return json({ items: [], subtotal: 0 });
+    if (url.pathname === '/api/product-types') return json([]);
+    if (url.pathname === '/api/products') return json({ content: [], totalElements: 0, totalPages: 0 });
+    if (url.pathname.startsWith('/api/recommendations/')) return json({ products: [], source: 'POPULAR' });
     if (url.pathname === '/api/auth/me') return json({ userID: 24, username: 'test-customer', fullName: 'Trần Huỳnh Minh Kiệt', role: 'CUSTOMER' });
     if (state.mode === 'unauthorized') return json({ detail: 'Unauthorized' }, 401);
     if (url.pathname === '/api/orders/my-orders') return state.mode === 'loadError' ? json({}, 503) : json(state.mode === 'noOrders' ? [] : [order]);
