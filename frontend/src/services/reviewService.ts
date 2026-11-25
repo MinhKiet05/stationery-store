@@ -1,6 +1,6 @@
 import { api } from "./api";
 import { queryOptions } from '@tanstack/react-query';
-import { cacheTimes, queryKeys } from './queryCache';
+import { cacheTimes, queryKeys, type SessionScope } from './queryCache';
 
 export type ReviewImage = { imageUrl: string; imagePosition: number };
 export type Review = {
@@ -19,7 +19,7 @@ export function getProductReviews(productID: number, signal?: AbortSignal) {
   return api<Review[]>(`/api/products/${productID}/reviews`, { signal });
 }
 
-export const purchasedReviewsOptions = (productID: number, scope: string) => queryOptions({
+export const purchasedReviewsOptions = (productID: number, scope: SessionScope) => queryOptions({
   queryKey: queryKeys.private('reviews', { productID }, scope),
   queryFn: ({ signal }) => getProductReviews(productID, signal),
   staleTime: cacheTimes.reviews,
