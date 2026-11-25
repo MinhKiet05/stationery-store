@@ -3,6 +3,9 @@ import { api } from './api';
 export const dashboardIdentity = (signal) => api('/api/auth/me', { signal });
 export const dashboardRequest = (path, signal) => api(path, { signal });
 export const getAdminOrder = (id, signal) => api(`/api/admin/orders/${id}`, { signal });
+export const confirmCodPayment = (id) => api(`/api/admin/orders/${id}/confirm-payment`, {
+  method: 'POST', body: JSON.stringify({ reference: `RECEIPT-${id}` }),
+});
 export const changeAdminOrderStatus = (id, status, order) => api(`/api/admin/orders/${id}/status`, {
   method: 'PATCH', body: JSON.stringify({ status, expectedStatus: order.status, expectedPaid: order.isPaid }),
 });

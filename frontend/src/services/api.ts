@@ -1,11 +1,10 @@
 import { notify, userMessage } from "../utils/notifications";
 
-import { invalidateBusiness, sessionScope } from './queryCache';
+import { invalidateBusiness, sessionScope } from "./queryCache";
 
-export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(
-  /\/+$/,
-  "",
-);
+export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "")
+  .trim()
+  .replace(/\/+$/, "");
 
 export async function apiResponse(
   path: string,
@@ -13,12 +12,12 @@ export async function apiResponse(
 ): Promise<Response> {
   const scope = sessionScope();
   const headers = new Headers(options.headers);
-  if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
+  if (options.body && !(options.body instanceof FormData))
+    headers.set("Content-Type", "application/json");
   const token = localStorage.getItem("accessToken");
   const isPublicAuth =
     path === "/api/auth/login" || path === "/api/auth/register";
-  if (token && !isPublicAuth)
-    headers.set("Authorization", `Bearer ${token}`);
+  if (token && !isPublicAuth) headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
@@ -59,19 +58,32 @@ export async function apiResponse(
     const body = await response.json().catch(() => null);
     throw Object.assign(new Error(userMessage(body, fallback)), {
       status: response.status,
-      notificationHandled: response.status === 401 && !isPublicAuth && Boolean(token),
+      notificationHandled:
+        response.status === 401 && !isPublicAuth && Boolean(token),
     });
   }
-  if (scope !== sessionScope() || localStorage.getItem('accessToken') !== token) throw new DOMException('Session changed', 'AbortError');
-  if (options.method && options.method !== 'GET' && options.method !== 'HEAD' && !path.startsWith('/api/auth/') && !path.endsWith('/preview')) invalidateBusiness(path, scope);
+  if (scope !== sessionScope() || localStorage.getItem("accessToken") !== token)
+    throw new DOMException("Session changed", "AbortError");
+  if (
+    options.method &&
+    options.method !== "GET" &&
+    options.method !== "HEAD" &&
+    !path.startsWith("/api/auth/") &&
+    !path.endsWith("/preview")
+  )
+    invalidateBusiness(path, scope);
   return response;
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function api<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const scope = sessionScope();
   const response = await apiResponse(path, options);
   if (response.status === 204) return undefined as T;
-  const data = await response.json() as T;
-  if (scope !== sessionScope()) throw new DOMException('Session changed', 'AbortError');
+  const data = (await response.json()) as T;
+  if (scope !== sessionScope())
+    throw new DOMException("Session changed", "AbortError");
   return data;
 }

@@ -26,7 +26,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.jpa.hibernate.ddl-auto=validate",
         "app.jwt.secret-base64=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
         "spring.mail.username=test@example.test", "spring.mail.password=", "app.mail.from=test@example.test",
-        "app.ai.enabled=false", "app.ai.vector-url=", "logging.level.root=WARN"
+        "app.ai.enabled=false", "app.ai.vector-url=", "logging.level.root=WARN",
+        "app.frontend.url=https://stationery-store-nu.vercel.app"
 })
 @AutoConfigureMockMvc
 class ProductionReadinessTest {
@@ -42,7 +43,7 @@ class ProductionReadinessTest {
 
     @Test
     void flywayInitializesSchemaBeforeHibernateValidationAndDoesNotRepeatMigrations() {
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("3");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("5");
         assertThat(flyway.migrate().migrationsExecuted).isZero();
     }
 
@@ -153,7 +154,8 @@ class ProductionReadinessTest {
                 .andExpect(status().isOk());
         mvc.perform(post("/api/orders").header("Authorization", bearer).contentType("application/json")
                 .content("{\"shippingAddress\":\"Test address\",\"contactPhone\":\"0900000000\",\"paymentMethod\":\"COD\"}"))
-                .andExpect(status().isCreated()).andExpect(jsonPath("$.totalAmount").value(20));
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.subTotal").value(20))
+                .andExpect(jsonPath("$.shippingFee").value(25000)).andExpect(jsonPath("$.totalAmount").value(25020));
         mvc.perform(post("/api/ai/chat").contentType("application/json").content("{\"message\":\"bút bi\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.source").value("CATALOG_FALLBACK"));
     }

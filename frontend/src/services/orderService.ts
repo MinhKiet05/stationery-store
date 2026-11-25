@@ -1,6 +1,8 @@
 import { api } from "./api";
 
 export type OrderStatus = "PENDING" | "PROCESSING" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURN_PENDING";
+export type ShippingMethod = 'STANDARD' | 'EXPRESS';
+export type PaymentMethod = 'COD' | 'MOMO' | 'VNPAY' | 'BANK_TRANSFER' | 'CARD';
 
 export type OrderItem = {
   orderDetailID: number;
@@ -25,6 +27,11 @@ export type Order = {
   contactPhone: string;
   paymentMethod: string;
   isPaid: boolean;
+  shippingMethod?: ShippingMethod;
+  shippingFee?: number;
+  paymentMode?: 'LIVE' | 'DEMO';
+  paidAt?: string;
+  paymentReference?: string;
   couponCode: string | null;
   subTotal: number;
   discountAmount: number;
@@ -44,11 +51,14 @@ export function cancelOrder(orderID: number) {
 type CreateOrderRequest = {
   shippingAddress: string;
   contactPhone: string;
-  paymentMethod: "COD";
+  paymentMethod: PaymentMethod;
+  shippingMethod?: ShippingMethod;
+  couponCode?: string;
+  expectedTotalAmount?: number;
 };
 
 export function createOrder(order: CreateOrderRequest) {
-  return api<{ orderID: number }>("/api/orders", {
+  return api<Order>("/api/orders", {
     method: "POST",
     body: JSON.stringify(order),
   });

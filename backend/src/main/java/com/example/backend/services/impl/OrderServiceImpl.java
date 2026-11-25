@@ -15,10 +15,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -32,6 +30,7 @@ public class OrderServiceImpl implements OrderService {
     private final OrderLockRepository orderLocks;
     private final EntityManager em;
     private final com.example.backend.services.UserTrackingService tracking;
+    private final com.example.backend.services.CheckoutPolicy checkout;
 
     @Override
     @Transactional
@@ -58,7 +57,10 @@ public class OrderServiceImpl implements OrderService {
         order.setIsPaid(false);
         order.setShippingAddress(request.shippingAddress().trim());
         order.setContactPhone(request.contactPhone().trim());
-        order.setPaymentMethod(request.paymentMethod().trim());
+        PaymentMethod payment = checkout.paymentMethod(request.paymentMethod());
+        order.setPaymentMethod(payment.name());
+        order.setPaymentMode(payment == PaymentMethod.COD ? "LIVE" : "DEMO");
+        order.setShippingMethod(checkout.shippingMethod(request.shippingMethod()));
         order.setOrderDate(LocalDateTime.now());
 
         BigDecimal subTotal = BigDecimal.ZERO;
@@ -98,34 +100,18 @@ public class OrderServiceImpl implements OrderService {
             // Reload after acquiring the lock; find() may have returned a cached usage
             // count.
             em.refresh(coupon, LockModeType.PESSIMISTIC_WRITE);
-            LocalDate today = LocalDate.now();
-            if (!Boolean.TRUE.equals(coupon.getIsActive())
-                    || (coupon.getStartDate() != null && today.isBefore(coupon.getStartDate()))
-                    || (coupon.getEndDate() != null && today.isAfter(coupon.getEndDate()))
-                    || (coupon.getMinOrderValue() != null && subTotal.compareTo(coupon.getMinOrderValue()) < 0)) {
-                throw bad("Ma giam gia khong ap dung duoc");
-            }
+            discount = checkout.discount(coupon, subTotal);
             int used = coupon.getUsedCount() == null ? 0 : coupon.getUsedCount();
-            if (coupon.getUsageLimit() != null && used >= coupon.getUsageLimit())
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Ma giam gia da het luot");
-            BigDecimal value = coupon.getDiscountValue();
-            if (value == null || value.signum() < 0)
-                throw bad("Gia tri giam gia khong hop le");
-            if (coupon.getDiscountType() == DiscountType.PERCENTAGE) {
-                if (value.compareTo(BigDecimal.valueOf(100)) > 0)
-                    throw bad("Phan tram giam gia > 100");
-                discount = subTotal.multiply(value).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-            } else if (coupon.getDiscountType() == DiscountType.FIXED_AMOUNT) {
-                discount = value;
-            } else {
-                throw bad("Loai ma giam gia khong hop le");
-            }
-            discount = discount.min(subTotal);
             coupon.setUsedCount(used + 1);
             order.setCoupon(coupon);
         }
         order.setDiscountAmount(discount);
-        order.setTotalAmount(subTotal.subtract(discount).setScale(2, RoundingMode.HALF_UP));
+        BigDecimal fee = checkout.shippingFee(order.getShippingMethod(), subTotal.subtract(discount));
+        order.setShippingFee(fee);
+        order.setTotalAmount(subTotal.subtract(discount).add(fee).setScale(2, RoundingMode.HALF_UP));
+        // Do not commit a different payable amount than the customer has just reviewed.
+        if (request.expectedTotalAmount() != null && request.expectedTotalAmount().compareTo(order.getTotalAmount()) != 0)
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Giá hoặc phí giao hàng đã thay đổi. Vui lòng cập nhật tổng đơn và xác nhận lại");
         Order saved = orders.saveAndFlush(order);
         cartItems.deleteAllInBatch(currentItems);
         em.flush();
@@ -241,6 +227,8 @@ public class OrderServiceImpl implements OrderService {
         } else if ((current == OrderStatus.PENDING && target == OrderStatus.PROCESSING)
                 || (current == OrderStatus.PROCESSING && target == OrderStatus.SHIPPED)
                 || (current == OrderStatus.SHIPPED && target == OrderStatus.DELIVERED)) {
+            if (!"COD".equals(order.getPaymentMethod()) && !Boolean.TRUE.equals(order.getIsPaid()))
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Đơn thanh toán trước chưa thanh toán thành công");
             order.setStatus(target);
             if (target == OrderStatus.DELIVERED) {
                 order.setDeliveredAt(LocalDateTime.now());
@@ -299,7 +287,8 @@ public class OrderServiceImpl implements OrderService {
                 order.getStatus(), order.getShippingAddress(), order.getContactPhone(),
                 order.getPaymentMethod(), order.getIsPaid(),
                 order.getCoupon() == null ? null : order.getCoupon().getCode(),
-                subTotal, order.getDiscountAmount(), order.getTotalAmount(), order.getDeliveredAt(), details);
+                subTotal, order.getDiscountAmount(), order.getTotalAmount(), order.getDeliveredAt(), details,
+                order.getShippingMethod(), order.getShippingFee(), order.getPaymentMode(), order.getPaidAt(), order.getPaymentReference());
     }
 
     private ResponseStatusException bad(String message) {

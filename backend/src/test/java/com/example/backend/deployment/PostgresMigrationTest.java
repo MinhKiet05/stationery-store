@@ -7,6 +7,38 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import static org.assertj.core.api.Assertions.*;
 
 class PostgresMigrationTest {
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(booleans = {false, true})
+    void v4CreatesMissingReviewImagesAndPreservesAnExistingManualTable(boolean manualTable) {
+        // Keep H2's CHECK-constraint session alive across Flyway and fixture writes.
+        var dataSource = new org.springframework.jdbc.datasource.SingleConnectionDataSource(
+                "jdbc:h2:mem:migration-v4-" + manualTable + ";MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1", "sa", "", true);
+        try {
+        var jdbc = new JdbcTemplate(dataSource);
+        Flyway.configure().dataSource(dataSource).schemas("store").defaultSchema("store")
+                .locations("classpath:db/migration").target("3").cleanDisabled(true).load().migrate();
+        jdbc.update("insert into store.users(user_id,username,email,password_hash) values (1,'reviewer','reviewer@example.test','hash')");
+        jdbc.update("insert into store.products(product_id,title) values (1,'Existing product')");
+        jdbc.update("insert into store.reviews(review_id,user_id,product_id,rating) values (1,1,1,5)");
+        if (manualTable) {
+            jdbc.execute("create table store.review_images (review_id bigint not null references store.reviews(review_id) on delete cascade, image_url varchar(500) not null, image_position integer not null, cloudinary_public_id varchar(255), primary key(review_id,image_position))");
+            jdbc.update("insert into store.review_images values (1,'https://example.test/original.jpg',0,'original-public-id')");
+        }
+        var latest = Flyway.configure().dataSource(dataSource).schemas("store").defaultSchema("store")
+                .locations("classpath:db/migration").cleanDisabled(true).load();
+        assertThat(latest.migrate().migrationsExecuted).isEqualTo(1);
+        if (manualTable) {
+            assertThat(jdbc.queryForObject("select cloudinary_public_id from store.review_images where review_id=1 and image_position=0", String.class))
+                    .isEqualTo("original-public-id");
+        }
+        jdbc.update("insert into store.review_images values (1,'https://example.test/new.jpg',1,null)");
+        assertThat(jdbc.queryForObject("select count(*) from store.review_images", Long.class)).isEqualTo(manualTable ? 2L : 1L);
+        assertThat(latest.migrate().migrationsExecuted).isZero();
+        jdbc.update("delete from store.reviews where review_id=1");
+        assertThat(jdbc.queryForObject("select count(*) from store.review_images", Long.class)).isZero();
+        } finally { dataSource.destroy(); }
+    }
+
     @Test
     void v3KeepsOldApprovedRequestsUnreceivedAndPreservesTheirOriginalOrders() {
         // Keep H2's migration connection alive while exercising enum CHECK constraints.
@@ -19,7 +51,7 @@ class PostgresMigrationTest {
             jdbc.update("insert into store.orders(order_id,user_id,status,is_paid,total_amount) values (2000,1000,'DELIVERED',true,120000)");
             jdbc.update("insert into store.return_requests(return_id,order_id,user_id,reason,status,created_at) values (3000,2000,1000,'Old approved request','APPROVED',CURRENT_TIMESTAMP)");
             var latest = Flyway.configure().dataSource(dataSource).schemas("store").defaultSchema("store").locations("classpath:db/migration").cleanDisabled(true).load();
-            assertThat(latest.migrate().migrationsExecuted).isEqualTo(1);
+            assertThat(latest.migrate().migrationsExecuted).isEqualTo(2);
             assertThat(jdbc.queryForObject("select count(*) from store.return_receipts", Long.class)).isZero();
             assertThat(jdbc.queryForObject("select count(*) from store.return_receipt_items", Long.class)).isZero();
             assertThat(jdbc.queryForObject("select status from store.return_requests where return_id=3000", String.class)).isEqualTo("APPROVED");
@@ -40,7 +72,7 @@ class PostgresMigrationTest {
         jdbc.update("insert into store.products(product_id, title, handle, url) values (42, 'Existing catalog', 'existing', 'old-url')");
         var latest = Flyway.configure().dataSource(dataSource).schemas("store").defaultSchema("store")
                 .locations("classpath:db/migration").cleanDisabled(true).load();
-        assertThat(latest.migrate().migrationsExecuted).isEqualTo(2);
+        assertThat(latest.migrate().migrationsExecuted).isEqualTo(3);
         assertThat(jdbc.queryForMap("select product_id, title, handle, url from store.products where product_id=42"))
                 .containsEntry("product_id", 42L).containsEntry("title", "Existing catalog")
                 .containsEntry("handle", "existing").containsEntry("url", "old-url");
@@ -59,7 +91,7 @@ class PostgresMigrationTest {
         jdbc.update("insert into public.stationery_vectors_gemini values (1, 'preserve-existing-vector')");
         var flyway = Flyway.configure().dataSource(dataSource).schemas("store").defaultSchema("store")
                 .locations("classpath:db/migration").baselineOnMigrate(false).cleanDisabled(true).load();
-        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(3);
+        assertThat(flyway.migrate().migrationsExecuted).isEqualTo(5);
         assertThat(jdbc.queryForObject("select content from public.stationery_vectors_gemini where id=1", String.class))
                 .isEqualTo("preserve-existing-vector");
         assertThatThrownBy(() -> jdbc.update("insert into store.cart_items(variant_id, quantity, cart_id) values (999, 1, 999)"))

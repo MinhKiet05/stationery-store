@@ -1,7 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from "@tanstack/react-query";
 import { productOptions, variantsOptions, relatedOptions, reviewsOptions } from "../../services/storeQueries";
 import useSessionScope from '../../services/useSessionScope';
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   BadgeCheck,
@@ -27,12 +28,9 @@ import {
 } from "lucide-react";
 import ProductCard from "../../components/productCard/ProductCard";
 import {
-  getProductVariants,
   type Variant,
 } from "../../services/productService";
-import { type Cart } from "../../services/cartService";
 import { useCartMutation } from "../../services/useCartMutation";
-import { createOrder } from "../../services/orderService";
 import { trackProductView } from "../../services/aiService";
 import { addToGuestCart, getGuestCart } from "../../utils/guestCart";
 import { notify, userMessage } from "../../utils/notifications";
@@ -76,7 +74,7 @@ export default function ProductDetail({ handle }: { handle: string }) {
 }
 
 function ProductDetailContent({ handle }: { handle: string }) {
-  const client = useQueryClient();
+  const navigate = useNavigate();
   const cartMutation = useCartMutation();
   const productQuery = useQuery(productOptions(handle)), product = productQuery.data;
   const variantsQuery = useQuery(variantsOptions(product?.productID ?? 0));
@@ -95,12 +93,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
   const reviewsQuery = useQuery(reviewsOptions(product?.productID ?? 0));
   const reviews = reviewsQuery.data ?? [];
   const reviewState = reviewsQuery.isPending ? 'loading' : reviewsQuery.isError ? 'error' : 'ready';
-  const [modal, setModal] = useState<"image" | "checkout" | null>(null);
-  const [cart, setCart] = useState<Cart | null>(null);
-  const [checkoutError, setCheckoutError] = useState("");
-  const [ordering, setOrdering] = useState(false);
-  const [orderUncertain, setOrderUncertain] = useState(false);
-  const [orderID, setOrderID] = useState<number | null>(null);
+  const [modal, setModal] = useState<"image" | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const details = useRef<HTMLElement>(null);
   const busy = useRef(false);
@@ -155,16 +148,10 @@ function ProductDetailContent({ handle }: { handle: string }) {
       return;
     busy.current = true;
     setAdding(true);
-    setCheckoutError("");
-    setOrderID(null);
-    setCart(null);
     try {
       if (localStorage.getItem("accessToken")) {
-        const current = await cartMutation.mutateAsync({ kind: 'add', variant, quantity, productTitle: product!.title });
-        if (buyNow) {
-          setCart(current);
-          setModal("checkout");
-        }
+        await cartMutation.mutateAsync({ kind: 'add', variant, quantity, productTitle: product!.title });
+        if (buyNow) navigate("/checkout");
       } else {
         const existing =
           getGuestCart().find((item) => item.variantID === selected)
@@ -174,7 +161,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
             "Số lượng trong giỏ vượt quá tồn kho. Vui lòng giảm số lượng.",
           );
         addToGuestCart(selected, quantity);
-        if (buyNow) setModal("checkout");
+        if (buyNow) navigate("/cart");
       }
       notify.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng.`);
       window.dispatchEvent(new Event("cart-changed"));
@@ -188,43 +175,6 @@ function ProductDetailContent({ handle }: { handle: string }) {
     } finally {
       setAdding(false);
       busy.current = false;
-    }
-  }
-
-  async function placeOrder(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy.current || !cart || orderUncertain) return;
-    busy.current = true;
-    setOrdering(true);
-    setCheckoutError("");
-    const form = new FormData(event.currentTarget);
-    try {
-      const order = await createOrder({
-        shippingAddress: String(form.get("address")).trim(),
-        contactPhone: String(form.get("phone")).trim(),
-        paymentMethod: "COD",
-      });
-      setOrderID(order.orderID);
-      notify.success(`Đặt hàng thành công. Mã đơn hàng: #ST-${order.orderID}.`);
-      window.dispatchEvent(new Event("cart-changed"));
-      // Refresh failures must not turn a successful order into an apparent failure.
-      if (product)
-        void getProductVariants(product.productID)
-          .then((data) => {
-            client.setQueryData(variantsOptions(product.productID).queryKey, data);
-            setQuantity(1);
-          })
-          .catch(() => {});
-    } catch (err) {
-      const status = (err as { status?: number })?.status;
-      if (!status || status >= 500) setOrderUncertain(true);
-      setCheckoutError(!status || status >= 500
-        ? 'Chưa xác định được kết quả đặt hàng. Hãy kiểm tra Lịch sử đơn hàng trước khi đặt lại.'
-        : userMessage(err, "Không thể đặt hàng. Vui lòng thử lại."));
-      notify.error(err, "Không thể đặt hàng. Vui lòng thử lại.");
-    } finally {
-      busy.current = false;
-      setOrdering(false);
     }
   }
 
@@ -713,119 +663,24 @@ function ProductDetailContent({ handle }: { handle: string }) {
       <dialog
         ref={dialog}
         className={`${styles.dialog} ${modal === "image" ? styles.imageDialog : ""}`}
-        onCancel={(e) => {
-          if (ordering) e.preventDefault();
-          else setModal(null);
-        }}
+        onCancel={() => setModal(null)}
         onClose={() => setModal(null)}
         onClick={(e) => {
-          if (e.target === e.currentTarget && !ordering) setModal(null);
+          if (e.target === e.currentTarget) setModal(null);
         }}
         aria-labelledby="detail-dialog-title"
       >
         <button
           className={styles.close}
           aria-label="Đóng"
-          disabled={ordering}
           onClick={() => setModal(null)}
         >
           <X size={21} />
         </button>
-        {modal === "image" ? (
-          <>
-            <h2 id="detail-dialog-title" className={styles.srOnly}>
-              {product?.title}
-            </h2>
-            <img src={images[imageIndex]} alt={product?.title} />
-          </>
-        ) : (
-          modal === "checkout" && (
-            <div className={styles.checkout}>
-              <h2 id="detail-dialog-title">
-                {orderID ? "Đặt hàng thành công" : "Hoàn tất đơn hàng"}
-              </h2>
-              {orderID ? (
-                <div className={styles.success}>
-                  <BadgeCheck size={44} />
-                  <p>Đơn hàng #{orderID} đã được tiếp nhận.</p>
-                  <p>Cảm ơn bạn đã mua sắm tại StationeryStore.</p>
-                  <button
-                    className={styles.primary}
-                    onClick={() => setModal(null)}
-                  >
-                    Tiếp tục mua sắm
-                  </button>
-                </div>
-              ) : !cart ? (
-                <>
-                  <p>
-                    Sản phẩm đã được lưu trong giỏ hàng của bạn. Vui lòng đăng
-                    nhập để tiếp tục đặt hàng.
-                  </p>
-                  <a className={styles.primary} href="/login">
-                    Đăng nhập để thanh toán <ArrowRight size={16} />
-                  </a>
-                </>
-              ) : (
-                <form onSubmit={(e) => void placeOrder(e)}>
-                  <p className={styles.muted}>
-                    Đơn hàng bao gồm toàn bộ sản phẩm trong giỏ hàng.
-                  </p>
-                  <div className={styles.checkoutItems}>
-                    {cart.items.map((item) => (
-                      <div key={item.cartItemID}>
-                        <span>
-                          {item.productTitle}
-                          <small>
-                            {item.variantTitle} × {item.quantity}
-                          </small>
-                        </span>
-                        <strong>{money(item.lineTotal)}</strong>
-                      </div>
-                    ))}
-                  </div>
-                  <div className={styles.total}>
-                    <span>Tổng tiền hàng</span>
-                    <strong>{money(cart.subtotal)}</strong>
-                  </div>
-                  <label>
-                    Địa chỉ nhận hàng
-                    <textarea
-                      name="address"
-                      required
-                      maxLength={500}
-                      autoComplete="street-address"
-                      disabled={ordering}
-                    />
-                  </label>
-                  <label>
-                    Số điện thoại
-                    <input
-                      name="phone"
-                      type="tel"
-                      required
-                      maxLength={30}
-                      autoComplete="tel"
-                      disabled={ordering}
-                    />
-                  </label>
-                  <p className={styles.muted}>
-                    Thanh toán khi nhận hàng (COD).
-                  </p>
-                  {checkoutError && (
-                    <p role="alert" className={styles.formError}>
-                      {checkoutError}
-                    </p>
-                  )}
-                  {orderUncertain && <a href="/my-profile/orders">Kiểm tra lịch sử đơn hàng</a>}
-                  <button className={styles.primary} disabled={ordering || orderUncertain}>
-                    {ordering ? "Đang đặt hàng…" : "Xác nhận đặt hàng"}
-                  </button>
-                </form>
-              )}
-            </div>
-          )
-        )}
+        {modal === "image" && <>
+          <h2 id="detail-dialog-title" className={styles.srOnly}>{product?.title}</h2>
+          <img src={images[imageIndex]} alt={product?.title} />
+        </>}
       </dialog>
     </main>
   );

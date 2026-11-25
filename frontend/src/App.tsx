@@ -11,6 +11,8 @@ const ResetPassword = lazy(() => import('./pages/forgotPassword/ResetPassword'))
 const AboutUs = lazy(() => import('./pages/aboutUs/AboutUs'));
 const Policy = lazy(() => import('./pages/policy/Policy'));
 const SearchPage = lazy(() => import('./pages/searchPage/SearchPage'));
+const CartPage = lazy(() => import('./pages/carts/CartPage'));
+const CheckoutPage = lazy(() => import('./pages/carts/CheckoutPage'));
 import AiChatWidget from "./components/aiChat/AiChatWidget";
 const MyProfile = lazy(() => import('./pages/myProfile/MyProfile'));
 const AccountInfoTab = lazy(() => import('./pages/myProfile/tabs/AccountInfoTab'));
@@ -76,6 +78,8 @@ function App() {
         </Route>
         {/* Nhóm trang có Header & Footer */}
         <Route element={<MainLayout />}>
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/" element={<HomePage />} />
           {['/about-us', '/about', '/gioi-thieu', '/contact', '/lien-he'].map(path => <Route key={path} path={path} element={<AboutUs />} />)}
           <Route path="/policy" element={<Policy />} />

@@ -107,7 +107,8 @@ class ExcelImportApiTest {
         var p=Product.builder().title("Checkout imported voucher").build();em.persist(p);var v=ProductVariant.builder().product(p).title("Variant").sku("TEST-CHECKOUT").stockQuantity(5).price(new BigDecimal("100000")).build();em.persist(v);
         var cart=Cart.builder().user(u).build();em.persist(cart);em.persist(CartItem.builder().cart(cart).variant(v).quantity(1).build());em.flush();
         mvc.perform(post("/api/orders").with(user("import-shopper").roles("CUSTOMER")).contentType("application/json").content("{\"shippingAddress\":\"Test address\",\"contactPhone\":\"0901234567\",\"paymentMethod\":\"COD\",\"couponCode\":\"TEST-EXCEL-02\"}"))
-            .andExpect(status().isCreated()).andExpect(jsonPath("$.discountAmount").value(10000)).andExpect(jsonPath("$.totalAmount").value(90000));
+            .andExpect(status().isCreated()).andExpect(jsonPath("$.discountAmount").value(10000))
+            .andExpect(jsonPath("$.shippingFee").value(25000)).andExpect(jsonPath("$.totalAmount").value(115000));
         assertThat(em.createQuery("select c.usedCount from Coupon c where c.code='TEST-EXCEL-02'",Integer.class).getSingleResult()).isEqualTo(1);
     }
     @Test void importsProductsVariantsUnicodeLeadingZeroTextStockAndNeverFetchesImages()throws Exception {

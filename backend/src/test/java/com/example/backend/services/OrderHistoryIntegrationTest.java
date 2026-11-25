@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.*;
         "logging.level.root=WARN", "logging.level.org.hibernate.SQL=OFF"
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(OrderServiceImpl.class)
+@Import({OrderServiceImpl.class, CheckoutPolicy.class})
 @ActiveProfiles("test")
 class OrderHistoryIntegrationTest {
     @Autowired EntityManager em;

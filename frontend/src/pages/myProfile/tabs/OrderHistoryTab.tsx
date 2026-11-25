@@ -9,12 +9,13 @@ import { useProfile } from '../profileContext';
 import { notify, userMessage } from '../../../utils/notifications';
 import { orderStatuses, orderStatusLabel } from '../orderHistory';
 import styles from './OrderHistoryTab.module.css';
+import PaymentModal from '../../carts/PaymentModal';
 
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 const date = (value: string) => value && !Number.isNaN(Date.parse(value))
   ? new Date(value).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
   : 'Chưa cập nhật';
-const paymentLabel = (method: string) => ({ COD: 'Thanh toán khi nhận hàng', BANK_TRANSFER: 'Chuyển khoản ngân hàng', MOMO: 'MoMo', VNPAY: 'VNPay' }[method] ?? method);
+const paymentLabel = (method: string) => ({ COD: 'Thanh toán khi nhận hàng', BANK_TRANSFER: 'Chuyển khoản ngân hàng', MOMO: 'MoMo', VNPAY: 'VNPay', CARD: 'Thẻ Visa / Mastercard / JCB' }[method] ?? method);
 const statusStyle: Record<OrderStatus, string> = {
   PENDING: 'pending', PROCESSING: 'pending', SHIPPED: 'shipping',
   DELIVERED: 'success', CANCELLED: 'cancelled', RETURN_PENDING: 'pending',
@@ -29,6 +30,8 @@ export default function OrderHistoryTab() {
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
   const [cancelling, setCancelling] = useState<number | null>(null);
+  const [payingOrder, setPayingOrder] = useState<Order | null>(null);
+  useEffect(() => { setPayingOrder(null); }, [scope]);
 
   // State cho Modal
   const [viewingOrder, setViewingOrder] = useState<Order | null>(null);
@@ -157,6 +160,7 @@ export default function OrderHistoryTab() {
                   </div>
                   <div className={styles.footerRight}>
                     <div className={styles.actionButtons}>
+                      {order.paymentMode === 'DEMO' && !order.isPaid && order.status === 'PENDING' && <button className={[styles.btn, styles.btnPrimary].join(' ')} onClick={() => setPayingOrder(order)}>Thanh toán ngay</button>}
                       {(!order.isPaid && (order.status === 'PENDING' || order.status === 'PROCESSING')) && (
                         <button className={[styles.btn, styles.btnOutline].join(' ')} disabled={cancelling !== null} onClick={() => void handleCancel(order.orderID)}>
                           {cancelling === order.orderID ? 'Đang hủy…' : 'Hủy đơn hàng'}
@@ -228,6 +232,7 @@ export default function OrderHistoryTab() {
                 <div className={styles.infoCard}>
                   <h4><CreditCard size={16} /> Thanh toán</h4>
                   <p>{paymentLabel(viewingOrder.paymentMethod)}</p>
+                  <p>Vận chuyển: {viewingOrder.shippingMethod === 'EXPRESS' ? 'Giao nhanh' : 'Tiêu chuẩn'} · {money(viewingOrder.shippingFee ?? 0)}</p>
                   <p className={viewingOrder.isPaid ? styles.textSuccess : styles.textWarning}>
                     {viewingOrder.isPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}
                   </p>
@@ -291,6 +296,7 @@ export default function OrderHistoryTab() {
           </div>
         )}
       </dialog>
+      {payingOrder && <PaymentModal order={payingOrder} onClose={() => setPayingOrder(null)} onPaid={updated => { setPayingOrder(updated); if (viewingOrder?.orderID === updated.orderID) setViewingOrder(updated); void history.refetch(); refreshOrders(); }} />}
     </section>
   );
 }
