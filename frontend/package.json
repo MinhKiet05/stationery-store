@@ -9,6 +9,7 @@
     "test:catalog": "node --test tests/catalogService.test.mjs",
     "test:homepage": "node scripts/test-homepage-catalog.mjs",
     "test:profile": "node --test tests/profile.test.mjs",
+    "test:order-review": "node scripts/test-order-review.mjs",
     "test:about": "node scripts/test-about.mjs",
     "test:returns": "node scripts/test-returns.mjs",
     "test:notifications": "node scripts/test-notifications.mjs",

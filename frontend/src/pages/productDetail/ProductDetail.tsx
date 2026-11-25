@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from 'react-router-dom';
 import { productOptions, variantsOptions, relatedOptions, reviewsOptions } from "../../services/storeQueries";
 import useSessionScope from '../../services/useSessionScope';
 import { useEffect, useRef, useState, type FormEvent } from "react";
@@ -646,7 +647,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
                   {tab === "reviews" && (
                     <>
                       <h2>Đánh giá từ khách hàng</h2>
-                      <a className={styles.reviewAction} href={`/review?productId=${product.productID}`}>Đánh giá sản phẩm đã mua</a>
+                      <Link className={styles.reviewAction} to="/my-profile/orders">Đánh giá sản phẩm đã mua</Link>
                       <div className={styles.reviewSummary}>
                         <strong>
                           {(product.ratingAverage ?? 0).toFixed(1)}
