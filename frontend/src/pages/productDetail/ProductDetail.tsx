@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import ReviewMediaGallery from '../../components/review/ReviewMediaGallery';
 import { Link } from 'react-router-dom';
 import { productOptions, variantsOptions, relatedOptions, reviewsOptions } from "../../services/storeQueries";
 import useSessionScope from '../../services/useSessionScope';
@@ -672,9 +673,9 @@ function ProductDetailContent({ handle }: { handle: string }) {
                         reviews.map((review) => (
                           <article
                             className={styles.review}
-                            key={review.reviewID}
+                            key={`${product.productID}:${review.reviewID}`}
                           >
-                            <div>
+                            <div className={styles.reviewHeader}>
                               <strong>{review.username}</strong>
                               <time dateTime={review.reviewDate}>
                                 {new Date(review.reviewDate).toLocaleDateString(
@@ -684,7 +685,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
                             </div>
                             <Stars rating={review.rating} />
                             <p>{review.comment}</p>
-                            {!!review.images?.length && <div className={styles.reviewImages}>{review.images.map(image => <a key={image.imagePosition} href={image.imageUrl} target="_blank" rel="noreferrer"><img src={image.imageUrl} alt={`Ảnh đánh giá của ${review.username}`} loading="lazy" /></a>)}</div>}
+                            <ReviewMediaGallery key={JSON.stringify(review.images)} images={review.images} username={review.username} />
                           </article>
                         ))
                       )}
