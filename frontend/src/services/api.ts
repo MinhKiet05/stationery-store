@@ -3,6 +3,18 @@ export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(
   "",
 );
 
+export class ApiError extends Error {
+  readonly status: number;
+  readonly detail?: string;
+
+  constructor(message: string, status: number, detail?: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.detail = detail;
+  }
+}
+
 export async function api<T>(
   path: string,
   options: RequestInit = {},
@@ -28,7 +40,10 @@ export async function api<T>(
       localStorage.removeItem("accessToken");
       window.dispatchEvent(new Event("auth-changed"));
     }
-    throw new Error(
+    const problem = await response.json().catch(() => null) as { detail?: unknown; message?: unknown } | null;
+    const detail = typeof problem?.detail === "string" ? problem.detail
+      : typeof problem?.message === "string" ? problem.message : undefined;
+    throw new ApiError(
       response.status === 429
         ? "Bạn gửi hơi nhanh. Hãy thử lại sau một phút."
         : response.status === 401
@@ -36,6 +51,8 @@ export async function api<T>(
             ? "Tên đăng nhập hoặc mật khẩu không đúng."
             : "Vui lòng đăng nhập lại."
           : "Không thể kết nối cửa hàng. Vui lòng thử lại.",
+      response.status,
+      detail,
     );
   }
   return response.json() as Promise<T>;

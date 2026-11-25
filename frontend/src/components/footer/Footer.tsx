@@ -42,6 +42,7 @@ export default function Footer() {
               <li><a href="#" className={styles.link}>Hướng dẫn mua hàng</a></li>
               <li><a href="#" className={styles.link}>Chính sách giao hàng & kiểm hàng</a></li>
               <li><a href="#" className={styles.link}>Chính sách đổi trả 7 ngày</a></li>
+              <li><a href="/returns/new" className={styles.link}>Yêu cầu trả hàng & hoàn tiền</a></li>
               <li><a href="#" className={styles.link}>Hướng dẫn thanh toán an toàn</a></li>
               <li><a href="/about#faq" className={styles.link}>Câu hỏi thường gặp FAQ</a></li>
             </ul>

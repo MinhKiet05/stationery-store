@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "test:about": "node scripts/test-about.mjs",
+    "test:returns": "node scripts/test-returns.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },

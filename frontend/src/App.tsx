@@ -5,14 +5,17 @@ import ProductDetail from "./pages/productDetail/ProductDetail";
 import Login from "./pages/login/Login";
 import AiChatWidget from "./components/aiChat/AiChatWidget";
 import AboutUs from "./pages/aboutUs/AboutUs";
+import ReturnRequest from "./pages/returnRequest/ReturnRequest";
 function App() {
   const productMatch = window.location.pathname.match(/^\/products\/([^/]+)\/?$/);
   const isAboutUsPage = /^\/(about|about-us|gioi-thieu|contact|lien-he)\/?$/.test(window.location.pathname);
+  const isReturnPage = /^\/returns(?:\/new)?\/?$/.test(window.location.pathname)
+    || /^\/orders\/\d+\/returns?(?:\/new)?\/?$/.test(window.location.pathname);
   return (
     <>
       <Header cartCount={3} />
       {/* Nội dung trang */}
-      {isAboutUsPage ? <AboutUs /> : productMatch ? <ProductDetail handle={decodeURIComponent(productMatch[1])} />
+      {isReturnPage ? <ReturnRequest /> : isAboutUsPage ? <AboutUs /> : productMatch ? <ProductDetail handle={decodeURIComponent(productMatch[1])} />
         : window.location.pathname === "/login" ? <Login /> : <HomePage />}
       <Footer/>
       <AiChatWidget />
