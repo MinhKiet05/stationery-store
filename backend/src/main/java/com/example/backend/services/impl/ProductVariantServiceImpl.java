@@ -2,6 +2,9 @@ package com.example.backend.services.impl;
 
 import com.example.backend.dto.productvariant.ProductVariantRequest;
 import com.example.backend.dto.productvariant.ProductVariantResponse;
+import com.example.backend.dto.productvariant.UpdateStockRequest;
+import jakarta.persistence.EntityManager;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.example.backend.model.Product;
 import com.example.backend.model.ProductVariant;
 import com.example.backend.repositories.ProductRepository;
@@ -24,19 +27,39 @@ public class ProductVariantServiceImpl implements ProductVariantService {
 
     private final ProductVariantRepository variantRepository;
     private final ProductRepository productRepository;
+    private final EntityManager em;
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN')")
+    public ProductVariantResponse updateStock(Long id, UpdateStockRequest request) {
+        if (request == null || request.stockQuantity() == null || request.stockQuantity().signum() < 0 || request.version() == null || request.version() < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ton kho hoac phien ban khong hop le");
+        }
+        int quantity;
+        try { quantity = request.stockQuantity().intValueExact(); }
+        catch (ArithmeticException invalid) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ton kho phai la so nguyen hop le"); }
+        ProductVariant variant = variantRepository.findWithLockByVariantID(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Khong tim thay bien the"));
+        em.refresh(variant);
+        if (!Objects.equals(variant.getVersion(), request.version())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ton kho da thay doi. Vui long tai lai");
+        }
+        requireActiveProduct(variant.getProduct().getProductID());
+        variant.setStockQuantity(quantity);
+        return toResponse(variantRepository.saveAndFlush(variant));
+    }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProductVariantResponse> getAllVariants() {
-        return variantRepository.findAll().stream().map(this::toResponse).toList();
+        return variantRepository.findAllResponses();
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProductVariantResponse> getVariantsByProduct(Long productID) {
         requireActiveProduct(productID);
-        return variantRepository.findByProduct_ProductID(productID)
-                .stream().map(this::toResponse).toList();
+        return variantRepository.findResponsesByProductID(productID);
     }
 
     @Override
@@ -56,6 +79,27 @@ public class ProductVariantServiceImpl implements ProductVariantService {
         ProductVariant variant = new ProductVariant();
         applyRequest(variant, request, product, sku);
         return toResponse(variantRepository.saveAndFlush(variant));
+    }
+
+    @Override @PreAuthorize("hasRole('ADMIN')")
+    public List<ProductVariantResponse> createBatch(List<ProductVariantRequest> requests) {
+        var skus = new java.util.HashSet<String>();
+        var ids = new java.util.HashSet<Long>();
+        for (var r : requests) {
+            validate(r);
+            String sku=normalizeSku(r.sku());
+            if(sku==null || !skus.add(sku))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"SKU trong hoac trung lap");
+            ids.add(r.productID());
+        }
+        if(!skus.isEmpty() && !em.createQuery("select v.sku from ProductVariant v where v.sku in :skus",String.class).setParameter("skus",skus).getResultList().isEmpty())throw new ResponseStatusException(HttpStatus.CONFLICT,"SKU da ton tai");
+        var parents=productRepository.findAllById(ids).stream().collect(java.util.stream.Collectors.toMap(Product::getProductID,java.util.function.Function.identity()));
+        var result=new java.util.ArrayList<ProductVariant>();
+        for(var r:requests){
+            var p=parents.get(r.productID());
+            if(p==null || !Boolean.TRUE.equals(p.getIsActive()))throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"San pham khong hop le");
+            var v=new ProductVariant();applyRequest(v,r,p,normalizeSku(r.sku()));result.add(variantRepository.save(v));
+        }
+        em.flush();return result.stream().map(this::toResponse).toList();
     }
 
     @Override

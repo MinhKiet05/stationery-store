@@ -1,22 +1,20 @@
 package com.example.backend.ai;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
-import org.springframework.web.server.ResponseStatusException;
-import java.util.*;
+import com.example.backend.security.RequestRateLimiter;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import java.time.Duration;
 
 @Component @RequiredArgsConstructor
 public class ChatRateLimiter {
     private final AiProperties properties;
-    private final Map<String, Window> windows = new HashMap<>();
-    public synchronized void check(String address) {
-        long now = System.currentTimeMillis();
-        windows.entrySet().removeIf(e -> now - e.getValue().start >= 60_000);
-        if (!windows.containsKey(address) && windows.size() >= 10_000) reject();
-        Window window = windows.computeIfAbsent(address, k -> new Window(now));
-        if (++window.count > Math.max(1, properties.getChatRequestsPerMinute())) reject();
+    private final RequestRateLimiter limiter;
+    public void check(String address) {
+        var auth = SecurityContextHolder.getContext().getAuthentication();
+        String identity = auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken)
+                ? "user:" + auth.getName() : "ip:" + address;
+        limiter.acquire("chat", identity, Math.max(1, properties.getChatRequestsPerMinute()), Duration.ofMinutes(1));
     }
-    private void reject() { throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "Bạn gửi hơi nhanh. Vui lòng thử lại sau một phút."); }
-    private static class Window { final long start; int count; Window(long start) { this.start = start; } }
 }

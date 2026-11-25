@@ -2,6 +2,7 @@ package com.example.backend.security;
 
 import com.example.backend.model.User;
 import com.example.backend.repositories.UserRepository;
+import jakarta.servlet.DispatcherType;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +19,9 @@ import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.*;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -70,16 +74,25 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
                                            JwtAuthenticationConverter converter) throws Exception {
+        var paths = PathPatternRequestMatcher.withDefaults();
+        var publicAuth = new OrRequestMatcher(
+                paths.matcher(HttpMethod.POST, "/api/auth/register"),
+                paths.matcher(HttpMethod.POST, "/api/auth/login"),
+                paths.matcher(HttpMethod.POST, "/api/auth/forgot-password"),
+                paths.matcher(HttpMethod.POST, "/api/auth/reset-password"));
+        var bearerTokens = new DefaultBearerTokenResolver();
         return http
             .csrf(csrf -> csrf.disable()) // Bearer token via Authorization header, not cookies
             .cors(cors -> {})
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                // Preserve the original HTTP error during the container's /error dispatch.
+                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/ai/chat").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/recommendations/popular").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/forgot-password",
-                        "/api/auth/reset-password").permitAll()
+                .requestMatchers(publicAuth).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/**",
                     "/api/product-variants", "/api/product-variants/**",
                     "/api/product-types", "/api/product-types/**",
@@ -89,16 +102,24 @@ public class SecurityConfig {
                 .requestMatchers("/api/products/**", "/api/product-variants/**",
                     "/api/product-types/**", "/api/vendors/**", "/api/tags/**").hasRole("ADMIN")
                 .anyRequest().authenticated())
-            .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
+            .oauth2ResourceServer(oauth2 -> oauth2
+                // permitAll is evaluated AFTER bearer authentication. Ignore stale credentials
+                // on these anonymous auth operations, using the same matcher as authorization.
+                .bearerTokenResolver(request -> publicAuth.matches(request)
+                        || request.getDispatcherType() == DispatcherType.ERROR
+                        ? null : bearerTokens.resolve(request))
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(converter)))
             .build();
     }
 
     @Bean
-    CorsConfigurationSource corsConfigurationSource() {
+    CorsConfigurationSource corsConfigurationSource(@Value("${app.frontend.url}") String frontendUrl) {
         CorsConfiguration cors = new CorsConfiguration();
-        cors.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:5174"));
+        cors.setAllowedOrigins(List.of(frontendUrl.strip().replaceAll("/+$", "")));
+        cors.setAllowCredentials(false); // Authentication uses the Authorization header, not cookies.
         cors.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        cors.setExposedHeaders(List.of("Content-Disposition", "Retry-After"));
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cors);
         return source;

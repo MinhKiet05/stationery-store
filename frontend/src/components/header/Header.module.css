@@ -9,7 +9,15 @@
 }
 
 .header, .header * { box-sizing: border-box; }
-
+.successAlert {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  padding: 0.75rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
 /* --- Top Info Bar --- */
 .topBar {
   background-color: #091426;
@@ -85,10 +93,13 @@
 .logoImg {
   height: auto;
   max-height: 44px;
-  width: 44px;
+  width: 50px;
   object-fit: contain;
   object-position: left;
 }
+
+.logo { gap: 8px; }
+.header *, .header *::before, .header *::after { box-sizing: border-box; }
 
 /* --- Search Section --- */
 .searchSection {
@@ -229,61 +240,6 @@
   padding-left: 20px;
 }
 
-.profileBtn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  padding: 4px;
-  border-radius: 8px;
-  transition: background-color 0.2s;
-}
-
-.profileBtn:hover {
-  background-color: #f8fafc;
-}
-
-.avatar {
-  display: flex;
-  height: 36px;
-  width: 36px;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background-color: #fde8d0;
-  font-size: 12px;
-  font-weight: 700;
-  color: #c2410c;
-  overflow: hidden;
-}
-
-.avatarImg {
-  height: 100%;
-  width: 100%;
-  object-fit: cover;
-}
-
-.userInfo {
-  display: flex;
-  flex-direction: column;
-}
-
-.userName {
-  font-size: 13px;
-  font-weight: 700;
-  color: #091426;
-}
-
-.userRole {
-  font-size: 11px;
-  font-weight: 600;
-  color: #ea580c;
-}
-
 .loginBtn {
   display: inline-flex;
   align-items: center;
@@ -378,6 +334,10 @@
 }
 
 /* Responsive adjustments */
+.mainHeader, .navContent, .topBarContent { padding-left: 32px; padding-right: 32px; }
+.navLink { padding-left: 10px; padding-right: 10px; font-size: 13px; }
+.guarantee { white-space: nowrap; }
+
 @media (max-width: 1024px) {
   .topBarItem.divider { display: none; }
   .profileContainer { display: none; }
@@ -391,7 +351,6 @@
   .mainHeader { flex-wrap: wrap; gap: 12px; padding: 14px 18px; }
   .logo { width: auto; flex: 1; }
   .logoText { font-size: 17px; }
-  .logoImg { width: 34px; }
   .actions { gap: 8px; }
   .actionIconBtn { padding: 6px; }
   .searchSection { order: 3; flex-basis: 100%; }

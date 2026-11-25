@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
-@RestControllerAdvice(assignableTypes = StatisticsController.class)
+@RestControllerAdvice(assignableTypes = {StatisticsController.class, DashboardController.class})
 public class StatisticsExceptionHandler {
 
     @ExceptionHandler(ResponseStatusException.class)

@@ -30,6 +30,23 @@ import java.util.Locale;
 public class CouponServiceImpl implements CouponService {
     private final CouponRepository coupons;
     private final EntityManager entityManager;
+    private final jakarta.validation.Validator validator;
+
+    @Override @Transactional @PreAuthorize("hasRole('ADMIN')")
+    public List<CouponResponse> createBatch(List<CouponRequest> requests) {
+        var codes = new java.util.HashSet<String>();
+        for (var r : requests) {
+            if (!validator.validate(r).isEmpty()) throw bad("Du lieu voucher khong hop le");
+            validateDefinition(r);
+            if (!codes.add(r.code().trim().toUpperCase(Locale.ROOT))) throw bad("Ma voucher trung lap");
+        }
+        if (!codes.isEmpty() && !entityManager.createQuery("select c.code from Coupon c where c.code in :codes",String.class).setParameter("codes",codes).getResultList().isEmpty())
+            throw new ResponseStatusException(HttpStatus.CONFLICT,"Ma giam gia da ton tai");
+        var saved = new java.util.ArrayList<Coupon>();
+        for (var r : requests) { var c = new Coupon(); applyFields(c,r); c.setUsedCount(0); saved.add(coupons.save(c)); }
+        entityManager.flush();
+        return saved.stream().map(CouponResponse::from).toList();
+    }
 
     @Override
     @PreAuthorize("hasRole('ADMIN')")
@@ -60,6 +77,9 @@ public class CouponServiceImpl implements CouponService {
     public CouponResponse update(Long id, CouponRequest request) {
         validateDefinition(request);
         Coupon coupon = lockedCoupon(id);
+        if (request.expectedState() != null && !request.expectedState().equals(CouponResponse.from(coupon).stateToken())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Du lieu da thay doi. Vui long tai lai");
+        }
         if (request.usageLimit() != null && request.usageLimit() < usedCount(coupon)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Gioi han nho hon so luot da dung");
         }
@@ -127,7 +147,11 @@ public class CouponServiceImpl implements CouponService {
                 .ifPresent(other -> {
                     throw new ResponseStatusException(HttpStatus.CONFLICT, "Ma giam gia da ton tai");
                 });
-        coupon.setCode(code);
+        applyFields(coupon, request);
+    }
+
+    private void applyFields(Coupon coupon, CouponRequest request) {
+        coupon.setCode(request.code().trim().toUpperCase(Locale.ROOT));
         coupon.setDiscountType(request.discountType());
         coupon.setDiscountValue(request.discountValue());
         coupon.setMinOrderValue(request.minOrderValue());

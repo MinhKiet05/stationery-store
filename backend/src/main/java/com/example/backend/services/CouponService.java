@@ -8,6 +8,7 @@ public interface CouponService {
     List<CouponResponse> getCoupons();
     CouponResponse getCoupon(Long id);
     CouponResponse create(CouponRequest request);
+    List<CouponResponse> createBatch(List<CouponRequest> requests);
     CouponResponse update(Long id, CouponRequest request);
     void deactivate(Long id);
     CouponValidationResponse validate(ValidateCouponRequest request);

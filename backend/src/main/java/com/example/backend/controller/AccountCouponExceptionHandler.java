@@ -16,12 +16,12 @@ public class AccountCouponExceptionHandler {
     @ExceptionHandler(ResponseStatusException.class)
     public ProblemDetail businessError(ResponseStatusException exception) {
         return ProblemDetail.forStatusAndDetail(exception.getStatusCode(),
-                exception.getReason() == null ? "Yeu cau khong hop le" : exception.getReason());
+                exception.getReason() == null ? "Yêu cầu không hợp lệ" : exception.getReason());
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail validationError(MethodArgumentNotValidException exception) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Du lieu khong hop le");
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Dữ liệu không hợp lệ");
         Map<String, String> errors = new LinkedHashMap<>();
         exception.getBindingResult().getFieldErrors().forEach(error ->
                 errors.putIfAbsent(error.getField(), error.getDefaultMessage()));
@@ -32,6 +32,12 @@ public class AccountCouponExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ProblemDetail malformedBody() {
         // Never expose parser diagnostics, Java class names or request credentials.
-        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "JSON hoac kieu du lieu khong hop le");
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "JSON hoặc kiểu dữ liệu không hợp lệ");
     }
+
+    @ExceptionHandler(org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class)
+    public ProblemDetail invalidId() { return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Mã dữ liệu không hợp lệ"); }
+
+    @ExceptionHandler(org.springframework.dao.DataAccessException.class)
+    public ProblemDetail unavailable() { return ProblemDetail.forStatusAndDetail(HttpStatus.SERVICE_UNAVAILABLE, "Không thể xử lý yêu cầu lúc này"); }
 }

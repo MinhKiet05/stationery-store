@@ -1,7 +1,9 @@
-import { getCurrentUser, type UserInfoResponse } from "../../services/authService";
+import { useCurrentUser, useCart } from "../../services/storeQueries";
+import { getGuestCart } from "../../utils/guestCart";
 import { API_BASE } from "../../services/api";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import styles from "./Header.module.css";
+import UserAccountDropdown from "../userAccountDropdown/UserAccountDropdown";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";
 import {
   Bell,
@@ -33,93 +35,40 @@ const navigation = [
   { label: "Dụng cụ văn phòng", href: "/products?category=dung-cu-van-phong" },
   { label: "Quà tặng & Phụ kiện", href: "/products?category=qua-tang-phu-kien" },
   { label: "Khuyến mãi", href: "/promotions", promotion: true },
-  { label: "Blog văn phòng phẩm", href: "/blog" },
+  { label: "Về chúng tôi", href: "/about-us" },
 ];
 
 const TOKEN_KEY = "accessToken";
-
-function roleLabel(role: string) {
-  switch (role.toUpperCase()) {
-    case "ADMIN":
-    case "SUPER_ADMIN":
-      return "Quản trị viên";
-    case "CUSTOMER":
-      return "Thành viên Bạc"; // Cập nhật text cứng hiển thị tương tự ảnh thiết kế
-    default:
-      return role;
-  }
-}
-
-function initials(name: string) {
-  return name.trim().split(/\s+/).slice(-2).map((word) => word[0] || "").join("").toUpperCase();
-}
 
 export default function Header({
   apiBaseUrl = API_BASE,
   loginHref = "/login",
   cartHref = "/cart",
-  profileHref = "/profile",
-  ordersHref = "/orders",
+  profileHref = "/my-profile",
+  ordersHref = "/my-profile/orders",
   notificationsHref = "/notifications",
-  cartCount = 3, // Set mặc định 3 theo ảnh thiết kế
+  cartCount: suppliedCartCount,
   onSearch,
   onLogout,
 }: HeaderProps) {
-  const [user, setUser] = useState<UserInfoResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
-
-  const fetchCurrentUser = useCallback(async (signal?: AbortSignal) => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const data = await getCurrentUser(apiBaseUrl, signal);
-      if (!signal?.aborted) setUser(data);
-    } catch (error) {
-      if (!signal?.aborted) {
-        console.error("Không lấy được thông tin tài khoản:", error);
-        setUser(null);
-      }
-    } finally {
-      if (!signal?.aborted) setLoading(false);
-    }
-  }, [apiBaseUrl]);
-
+  const identity = useCurrentUser(apiBaseUrl);
+  const cartQuery = useCart();
+  const [guestCount, setGuestCount] = useState(() => getGuestCart().reduce((sum, item) => sum + item.quantity, 0));
   useEffect(() => {
-    const controller = new AbortController();
-    const initialFetch = window.setTimeout(() => void fetchCurrentUser(controller.signal), 0);
-    const reload = () => void fetchCurrentUser();
-    window.addEventListener("storage", reload);
-    window.addEventListener("auth-changed", reload);
-    return () => {
-      window.clearTimeout(initialFetch);
-      controller.abort();
-      window.removeEventListener("storage", reload);
-      window.removeEventListener("auth-changed", reload);
-    };
-  }, [fetchCurrentUser]);
-
+    const sync = () => setGuestCount(getGuestCart().reduce((sum, item) => sum + item.quantity, 0));
+    window.addEventListener('cart-changed', sync); window.addEventListener('storage', sync);
+    return () => { window.removeEventListener('cart-changed', sync); window.removeEventListener('storage', sync); };
+  }, []);
+  const cartCount = suppliedCartCount ?? (localStorage.getItem(TOKEN_KEY) ? cartQuery.data?.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0 : guestCount);
+  const user = localStorage.getItem(TOKEN_KEY) ? identity.data : null;
+  const loading = !!localStorage.getItem(TOKEN_KEY) && identity.isPending;
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") ?? "");
   function submitSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const query = search.trim();
     if (!query) return;
     if (onSearch) onSearch(query);
-    else window.location.href = `/products?search=${encodeURIComponent(query)}`;
-  }
-
-  function logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    setUser(null);
-    setAccountMenuOpen(false);
-    onLogout?.();
-    window.dispatchEvent(new Event("auth-changed"));
+    else window.location.href = `/search?search=${encodeURIComponent(query)}`;
   }
 
   return (
@@ -171,7 +120,7 @@ export default function Header({
               Tìm kiếm
             </button>
           </form>
-          <p className={styles.suggestions}>Gợi ý: <span className={styles.suggestionHighlight}>Bút gel xóa được · Sổ tay A5 bìa da · Bảng keo washi · Giấy in Double A</span></p>
+          <p className={styles.suggestions}>Gợi ý: <span className={styles.suggestionHighlight}>Bút gel xóa được · Sổ tay A5 bìa da · Băng keo washi · Giấy in Double A</span></p>
         </div>
 
         <div className={styles.actions}>
@@ -189,40 +138,11 @@ export default function Header({
             )}
           </a>
 
-          {/* Account Area */}
-          <div className={styles.profileContainer}>
-            {loading ? (
-              <div style={{ height: '40px', width: '120px', backgroundColor: '#f1f5f9', borderRadius: '8px' }} />
-            ) : user ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setAccountMenuOpen(!accountMenuOpen)}
-                  className={styles.profileBtn}
-                >
-                  <span className={styles.avatar}>
-                    {user.avatarUrl ? (
-                      <img src={user.avatarUrl} alt="Avatar" className={styles.avatarImg} />
-                    ) : (
-                      initials(user.fullName || user.username)
-                    )}
-                  </span>
-                  <div className={styles.userInfo}>
-                    <span className={styles.userName}>{user.fullName || user.username}</span>
-                    <span className={styles.userRole}>{roleLabel(user.role)}</span>
-                  </div>
-                </button>
-                {accountMenuOpen && <div className={styles.userInfo}>
-                  <a href={profileHref}>Tài khoản</a>
-                  <button type="button" onClick={logout}>Đăng xuất</button>
-                </div>}
-              </>
-            ) : (
-              <a href={loginHref} className={styles.loginBtn}>
-                <LogIn size={18} /> Đăng nhập
-              </a>
-            )}
-          </div>
+          {loading ? (
+            <div style={{ height: 40, width: 120, backgroundColor: '#f1f5f9', borderRadius: 8 }} />
+          ) : user ? <UserAccountDropdown user={user} profileHref={profileHref} onLogout={onLogout} /> : (
+            <div className={styles.profileContainer}><a href={loginHref} className={styles.loginBtn}><LogIn size={18} /> Đăng nhập</a></div>
+          )}
         </div>
       </div>
 
@@ -234,7 +154,8 @@ export default function Header({
               <a
                 key={item.href}
                 href={item.href}
-                className={`${styles.navLink} ${window.location.pathname === item.href ? styles.navLinkActive : ""} ${item.promotion ? styles.navLinkHot : ""}`}
+                aria-current={item.href === window.location.pathname + window.location.search || (item.href === "/" && window.location.pathname === "/") ? "page" : undefined}
+                className={`${styles.navLink} ${item.href === window.location.pathname + window.location.search || (item.href === "/" && window.location.pathname === "/") ? styles.navLinkActive : ""} ${item.promotion ? styles.navLinkHot : ""}`}
               >
                 {item.promotion && <Flame size={16} style={{ marginRight: '4px' }} />}
                 {item.label}

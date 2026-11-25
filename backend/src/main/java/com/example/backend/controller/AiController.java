@@ -17,6 +17,7 @@ public class AiController {
     private final RecommendationService recommendations;
     private final ShoppingChatService chat;
     private final ChatRateLimiter limiter;
+    private final com.example.backend.security.TrustedClientAddress clientAddress;
     private final ProductIndexJob index;
     @GetMapping("/api/recommendations/me")
     public RecommendationResponse me(Authentication authentication, @RequestParam(defaultValue = "3") @Min(1) @Max(12) int limit) {
@@ -34,12 +35,12 @@ public class AiController {
     }
     @PostMapping("/api/ai/chat")
     public ChatResponse chat(@Valid @RequestBody ChatRequest request, HttpServletRequest http) {
-        limiter.check(http.getRemoteAddr()); // Do not trust spoofable X-Forwarded-For headers.
+        limiter.check(clientAddress.resolve(http));
         return chat.chat(request.message().trim());
     }
     @PostMapping("/api/admin/ai/index")
     public ProductIndexJob.IndexResult index() {
         try { return index.reindex(); }
-        catch (RuntimeException ex) { throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Không thể index. Kiểm tra Ollama và pgvector."); }
+        catch (RuntimeException ex) { throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Không thể index. Kiểm tra Gemini và pgvector."); }
     }
 }

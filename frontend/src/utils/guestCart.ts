@@ -8,7 +8,9 @@ const CART_KEY = "stationery_guest_cart";
 export function getGuestCart(): GuestCartItem[] {
     try {
         const data = localStorage.getItem(CART_KEY);
-        return data ? JSON.parse(data) : [];
+        const parsed = data ? JSON.parse(data) : [];
+        return Array.isArray(parsed) ? parsed.filter(item => item && Number.isSafeInteger(item.variantID) && item.variantID > 0 &&
+            Number.isSafeInteger(item.quantity) && item.quantity > 0) : [];
     } catch {
         return [];
     }

@@ -5,6 +5,22 @@
   padding-bottom: 40px;
 }
 
+.homePage *, .homePage *::before, .homePage *::after { box-sizing: border-box; }
+.homePage section, .listCard { min-width: 0; }
+.status, .discoverySubtitle { color: #475569; }
+.loadMoreRow { display: flex; justify-content: center; margin: -16px 0 40px; }
+.loadMore { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 24px;
+  border: 1px solid #ea580c; border-radius: 8px; color: #fff; background: #ea580c; text-decoration: none;
+  font: inherit; font-weight: 600; cursor: pointer; transition: background .2s; }
+.loadMore:hover { background: #c2410c; }
+.loadMore:disabled { opacity: .65; cursor: wait; }
+.loadMore:focus-visible, .categoryCard:focus-visible { outline: 3px solid #f97316; outline-offset: 4px; }
+.categoryCard[aria-disabled] { opacity: .7; }
+.skeleton { height: 310px; border-radius: 12px; background: linear-gradient(100deg,#e2e8f0 30%,#f8fafc 50%,#e2e8f0 70%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite; }
+@keyframes shimmer { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+
 .container {
   max-width: 1280px;
   margin: 0 auto;
@@ -476,7 +492,7 @@
 
 .productsGrid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 48px;
 }
@@ -644,6 +660,12 @@
   margin: 0;
 }
 
+@media (max-width: 1199px) {
+  .productsGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .sectionHeader { flex-wrap: wrap; gap: 16px; }
+  .tabs { flex-wrap: wrap; }
+}
+
 @media (max-width: 1024px) {
   .heroSection {
     grid-template-columns: 1fr;
@@ -655,6 +677,22 @@
     grid-template-columns: repeat(3, 1fr);
   }
   .productsGrid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+}
+
+@media (max-width: 767px) {
+  .container { padding: 0 16px; }
+  .productsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .twoCols, .promoBannersGrid { grid-template-columns: 1fr; }
+  .subBanners { flex-direction: column; }
+  .featuresGrid, .brandLogos { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .featureItem { padding: 0; border: 0; }
+  .categoriesGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mainBanner { padding: 32px 20px; }
+  .mainContent { max-width: 100%; }
+  .heroTitle { font-size: 30px; }
+  .actions { flex-wrap: wrap; }
+  .whiteSection, .listCard { padding: 16px; }
+  .announcement { flex-wrap: wrap; gap: 8px; padding: 8px 16px; }
 }

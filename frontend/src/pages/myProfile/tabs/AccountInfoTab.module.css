@@ -1,0 +1,269 @@
+.tabContainer {
+  padding: 2rem;
+}
+
+.header h2 {
+  font-size: 1.25rem;
+  color: #1e293b;
+  margin: 0 0 0.5rem;
+}
+
+.header p {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 2rem;
+}
+
+/* Avatar Section */
+.avatarSection {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  margin-bottom: 2.5rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.avatarLarge {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatarActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.btnUpload {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #1e293b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.btnDelete {
+  padding: 0.5rem 1rem;
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.avatarHint {
+  width: 100%;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  margin: 0.5rem 0 0;
+}
+
+/* Form Grid */
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.inputGroup span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #1e293b;
+  display: flex;
+  justify-content: space-between;
+}
+
+.verified {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.inputGroup input, .inputGroup select {
+  padding: 0.75rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: #f8fafc;
+  outline: none;
+}
+
+.inputGroup input:focus {
+  border-color: #f97316;
+  background: #fff;
+}
+
+.inputGroup small {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.inputWithAction {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.inputWithAction input {
+  flex-grow: 1;
+}
+
+.inputWithAction button {
+  padding: 0 1rem;
+  background: transparent;
+  border: none;
+  color: #f97316;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dateSelects {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.radioGroup {
+  display: flex;
+  gap: 1.5rem;
+  padding: 0.75rem 0;
+}
+
+.radioGroup label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+/* Hobbies */
+.hobbiesSection {
+  margin-bottom: 2.5rem;
+}
+
+.hobbiesHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.hobbiesHeader small {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.tag, .tagActive {
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border: 1px solid #cbd5e1;
+  background: white;
+  color: #64748b;
+}
+
+.tagActive {
+  background: #fffaf5;
+  border-color: #f97316;
+  color: #ea580c;
+  font-weight: 500;
+}
+
+/* Actions */
+.formActions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+}
+
+.btnSave {
+  padding: 0.75rem 2rem;
+  background: #f97316;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnCancel {
+  padding: 0.75rem 2rem;
+  background: #f1f5f9;
+  color: #475569;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lastUpdate {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Security Commitment */
+.securityCommitment {
+  display: flex;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.shieldIcon {
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+.formFields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.inputGroup { min-width: 0; }
+.inputGroup input { min-width: 0; width: 100%; box-sizing: border-box; }
+@media (max-width: 640px) {
+  .tabContainer { padding: 20px; }
+  .formGrid { grid-template-columns: 1fr; }
+  .formActions { flex-wrap: wrap; }
+}
+
+.securityCommitment strong {
+  display: block;
+  font-size: 0.85rem;
+  color: #1e293b;
+  margin-bottom: 0.25rem;
+}
+
+.securityCommitment p {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.5;
+}

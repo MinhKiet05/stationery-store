@@ -1,3 +1,5 @@
 package com.example.backend.dto.auth;
 import jakarta.validation.constraints.NotBlank;
-public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
+public record LoginRequest(@NotBlank String username, @NotBlank String password) {
+    @Override public String toString() { return "LoginRequest[credentials=<redacted>]"; }
+}

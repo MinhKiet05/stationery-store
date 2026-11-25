@@ -39,7 +39,8 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public UserResponse user(@PathVariable Long id) {
+    public UserResponse user(@PathVariable Long id, jakarta.servlet.http.HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-store");
         return service.getUser(id);
     }
 

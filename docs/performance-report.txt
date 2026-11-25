@@ -1,0 +1,60 @@
+Đã tối ưu trong workspace; không commit/push/deploy hoặc ghi/migrate production.
+Danh sách file đầy đủ: performance-files.txt. SQL review: performance-index-review.sql.
+
+Điểm nghẽn được xác định
+- Hook Dashboard dùng useEffect nên mỗi lần mount lại gọi HTTP và reset loading.
+- Catalog tải tuần tự tất cả các trang size=100 rồi lọc/sort/phân trang trong trình duyệt.
+- Các trang sản phẩm không chia sẻ kết quả đọc; wishlist chạy request đồng thời không giới hạn.
+- Profile tải toàn bộ orders để đếm và phân trang phía client.
+- KPI sản phẩm chạy ba count query trên cùng bộ lọc.
+- Storefront import tĩnh hầu hết route; header hiển thị số giỏ hàng cố định.
+Chưa có Render logs, PostgreSQL staging/pg_stat_statements hay số đo latency production. Không kết luận cold start/network/SQL nào là nguyên nhân chính trên production.
+
+Số đo local
+- Chromium/Vite, StrictMode, API intercept trước React; hai vòng ghé 7 trang Dashboard: replay riêng hook cũ từ commit ff12c1e0a1bbf571bb2b9b8d1c0582b3d69de1ce cho [36,36] request quản trị, hook mới [32,0]. Đếm request bắt đầu, có cả lượt hủy do StrictMode development. Vòng quay lại fresh cache giảm 36 -> 0. Đây không phải benchmark thời gian production.
+- Cùng fixture H2: replay công thức KPI cũ 3 SQL -> aggregate mới 1 SQL, cùng kết quả. Catalog page mới 3 SQL, LIMIT/OFFSET tại DB.
+- Budget cũ vẫn đạt: products size20=3 SQL, size40=4, cart45=4, reviews45=2, variants45=1, users46=1, orders legacy45=15, returns45=7.
+- Entry JS trước task 418.18 kB / gzip125.18 kB; sau389.80 kB / gzip121.63 kB, gồm cả TanStack Query. Log .cache/query-final-build.log. Không đồng nhất entry chunk với tổng tải mọi route hoặc thời gian render.
+
+Query và bảo mật
+Thêm @tanstack/react-query 5.108.4 và dependency query-core; một QueryClient ở module và provider tại main.tsx. Cache RAM, không persist dữ liệu admin/user. Mặc định staleTime60s, gcTime15m, focus/reconnect chỉ refetch nếu stale. Read retry tối đa1 cho network/408/429/502/503/504; không retry AbortError/400/401/403/404/409/422. Mutation retry=false.
+
+Key public: ['public', resource, params] cho products/productDetail/inventory/reviews/categories/vendors. Params gồm handle/ID, page/size, keyword, category, brands, giá, rating, stock, sale, sort hoặc related category.
+Key private: ['session', opaque-generation, resource, params] cho currentUser/profile/cart/orders/recommendations. CurrentUser có API base; orders có page/size/search/status hoặc summary. Không chứa JWT.
+Key admin: ['session', generation, 'admin', canonicalPath] chứa đủ query parameters/range/groupBy. Modal dùng loader identity riêng và ID, staleTime/gcTime=0; mở lại luôn đọc snapshot/version mới. Không refetch ngầm detail khi đang quyết định nghiệp vụ.
+TTL: categories/vendors15m; products3m; detail/reviews2m; vouchers/stats1m; cart/orders/returns/users30s; inventory15s; currentUser/profile5m. Backend vẫn quyết định giá/tồn kho/quyền.
+
+Giữ nguyên AdminRoute/nested layout, single-flight và TTL xác minh ADMIN cũ. CurrentUser query chỉ phục vụ hiển thị, không thay authorization proof. Logout/account switch đổi generation, cancel/remove private queries, clear mutation cache; role revoked xóa admin queries. Response cũ bị loại khi đổi phiên, kể cả lúc đọc body. Không thay SecurityConfig/JWT thành permitAll hoặc cache quyền trên backend.
+
+Dashboard và prefetch
+Tất cả trang/widget dùng chung useQuery adapter. Có data thì giữ lại khi background fetch/lỗi và hiện thông báo nhẹ; skeleton khi chưa có data. Đổi page/filter không lấy trang trước làm kết quả trang mới. Header/Sidebar giữ nguyên.
+Hover/focus một số menu chỉ prefetch sau khi backend xác minh ADMIN cho đúng token hiện tại. Product link dùng cùng detail key. Debounce180ms, tối đa1 prefetch chạy đồng thời, hủy ý định khi rời link, chỉ đọc thiếu/stale. Không prefetch users, toàn catalog, mọi Dashboard page sau login hoặc next-page không có nhu cầu rõ ràng.
+
+Optimistic và invalidation
+- useCartMutation hỗ trợ API add/quantity/remove sẵn có; UI sản phẩm hiện dùng add. Cancel read, snapshot, cập nhật RAM/header ngay nếu có cart, dùng response chính thức, rollback và GET reconcile khi lỗi. Khóa theo phiên chặn ghi trùng từ hai component; chỉ mở sau reconcile. Không rollback vào phiên mới. Toast thành công sau backend acknowledge.
+- Guest cart/wishlist vẫn ghi localStorage đồng bộ, không tạo API wishlist giả. Storage lỗi giữ trạng thái thực. Wishlist tái sử dụng public detail cache, tối đa4 request đồng thời.
+- Checkout/order decisions/cancel/return approve/receive/restock/inventory/roles/delete/import quan trọng chỉ pending và backend-confirmed. Checkout network/5xx không rõ kết quả khóa submit lại và dẫn tới lịch sử để đối chiếu. Không thêm thanh toán/hoàn tiền tự động.
+- Write thành công đánh dấu stale đúng domain; inactive pages không đồng loạt refetch, callback modal refresh widget đang dùng. Product -> list/detail/inventory/product stats; order -> orders/cart/inventory/returns/vouchers/overview; return -> orders/returns/overview, chỉ restock tác động inventory; coupon -> voucher; review -> reviews/rating sản phẩm; user -> user/profile/currentUser/stats liên quan. Không invalidate toàn ứng dụng.
+- Merge guest cart khi login cancel read cũ và lưu cart response vào cache; profile update lưu hồ sơ và refresh identity đang dùng.
+
+Backend và contract
+/api/products/search thêm mode catalog=true với brands/rating/inStock/onSale và DB pagination/sort; size<=100, whitelist sort, escape LIKE, ID tie-breaker. Tìm kiếm tiếng Việt nhiều từ qua title/vendor/category bằng translate, không cần extension DB mới. Giá fallback priceMin như catalog cũ. Không có catalog flag thì contract search legacy giữ nguyên.
+/api/orders/my-orders giữ response list cũ khi không có page/summary. Mode page trả content/totalElements/totalPages/statusCounts; summary=true chỉ aggregate, không hydrate orders/items. Username lấy từ Authentication, không nhận user ID từ client. Search dùng EXISTS thay vì collection fetch join với pagination. Banner/OrderHistoryTab đã dùng summary/page.
+AdminProductRepository.statistics gộp ba count thành một aggregate, cùng filter/low-stock definition. Không đổi relationships thành EAGER.
+Giữ pool max4/minIdle0/connectionTimeout10s, open-in-view=false, batch_fetch_size32, show-sql=false. Không tăng pool khi chưa biết Supabase quota. Chưa thêm Caffeine vì chưa đo được lợi ích sau khi bỏ request thừa; tránh cache eviction/transaction race chưa cần thiết. Không thêm Redis/Kafka/Redux.
+
+Bundle, ảnh và tương thích
+Lazy route product/search/profile/tabs/auth/about/policy; giữ Dashboard chunks sẵn có và shared shell. Không thêm chart/Excel library browser. ProductCard/ProductImage dùng thumbnail unsigned Cloudinary image/upload, resize/q_auto/f_auto. Giữ URL signed/query-string/transformed/host khác; hero/detail ảnh chính vẫn eager, ảnh danh sách phía dưới lazy có kích thước. Không thay upload/ảnh gốc.
+Khôi phục alias About mà footer đang dùng. Sửa harness About tự chạy Vite và kiểm tra nội dung thực thay vì số ảnh/map cố định. Bổ sung file test:profile còn thiếu.
+
+Kiểm thử
+Backend Java21: ./mvnw.cmd -o clean compile test. .cache/query-full-tests.log: 284 tests, 257 pass, 27 PostgreSQL opt-in skipped, 0 failures/errors. Có SQL budget, filter/pagination/ownership, lịch sử giá, concurrency/state/security regression. PostgreSQL-specific execution chưa được xác minh; không dùng Supabase làm DB test.
+Frontend build đạt. 32 unit tests đạt (query7, catalog6, profile7, admin-verification12); 166 nhóm browser đạt (Dashboard23, reviews10, promotions12, products11, users10, orders9, returns14, import9, admin-route13, notifications17, about32, storefront-query6), thêm bài đo navigation fresh-cache đạt. Log .cache/query-final-*.log. Lượt sau cùng kiểm tra lại profile/admin-route/storefront/notifications và build sau các guard đổi phiên. git diff --check đạt.
+Benchmark: QUERY_BASELINE=1 node scripts/test-query-navigation.mjs rồi chạy không có QUERY_BASELINE. Script pin baseline commit; QUERY_BASELINE_REF cho phép chọn ref khác. Chạy browser tests tuần tự để không tranh Vite optimize cache. Fixtures chỉ trong tests/scripts, app dùng API thật. Không gửi email/thanh toán thật.
+
+Index và sau deploy
+performance-index-review.sql không nằm trong Flyway và chưa được thực thi. Có SELECT pg_indexes/EXPLAIN và candidate CREATE INDEX CONCURRENTLY đang comment cho order-date/review-date/return-date sorting. Không có index bắt buộc để deploy. Chỉ chọn sau khi đo representative staging EXPLAIN (ANALYZE, BUFFERS), so sánh index đang có và chi phí ghi. Không thêm index cho mọi column/trigram chưa có bằng chứng.
+Deploy backend trước frontend vì query modes mới. Sau deploy kiểm tra DevTools: fresh/stale navigation, focus, manual refresh, search/page/history counters, account switch/logout/401/403, cart merge/rollback, quyền/trạng thái/version backend.
+Tách DNS/connect/TTFB/transfer, cold/warm, DB acquisition/SQL count và external API trong phép đo staging/production được cho phép. Không log JWT/body riêng tư. Chưa biết Render/Supabase region nên chưa chọn region cụ thể. Không đổi hosting plan/keep-alive.
+Render Free idle spin-down sau15 phút, khởi động có thể khoảng1 phút: https://render.com/docs/free . Cache frontend không loại bỏ cold start cho request đầu/F5/stale, latency liên vùng hoặc quota/CPU/RAM hosting.
+Tham khảo: https://tanstack.com/query/latest/docs/framework/react/guides/optimistic-updates ; https://tanstack.com/query/latest/docs/framework/react/guides/query-cancellation ; https://www.postgresql.org/docs/current/sql-createindex.html .

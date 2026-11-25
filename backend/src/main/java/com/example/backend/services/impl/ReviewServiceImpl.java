@@ -2,6 +2,9 @@ package com.example.backend.services.impl;
 
 import com.example.backend.dto.review.ReviewRequest;
 import com.example.backend.dto.review.ReviewResponse;
+import com.example.backend.dto.review.ReviewImageResponse;
+import com.example.backend.dto.review.ReviewRow;
+import com.example.backend.model.ReviewImage;
 import com.example.backend.model.Product;
 import com.example.backend.model.OrderStatus;
 import com.example.backend.model.Review;
@@ -11,18 +14,27 @@ import com.example.backend.repositories.OrderDetailRepository;
 import com.example.backend.repositories.ReviewRepository;
 import com.example.backend.repositories.UserRepository;
 import com.example.backend.services.ReviewService;
+import com.example.backend.services.ReviewImageStorage;
+import com.example.backend.services.ReviewImageValidator;
+import com.example.backend.services.ReviewImageCleanup;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
 import java.util.Objects;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.HashSet;
+import java.util.stream.IntStream;
 
 @Service
 @RequiredArgsConstructor
@@ -32,18 +44,35 @@ public class ReviewServiceImpl implements ReviewService {
     private final OrderDetailRepository orderDetails;
     private final UserRepository users;
     private final EntityManager em;
+    private final ReviewImageStorage imageStorage;
+    private final ReviewImageValidator imageValidator;
+    private final ReviewImageCleanup imageCleanup;
 
     @Override
     @Transactional(readOnly = true)
     public List<ReviewResponse> getByProduct(Long productID) {
         product(productID);
-        return reviews.findByProduct_ProductID(productID).stream()
-                .map(this::toResponse).toList();
+        var responses = new LinkedHashMap<Long, ReviewResponse>();
+        for (ReviewRow row : reviews.findRowsByProductID(productID)) {
+            ReviewResponse response = responses.computeIfAbsent(row.reviewID(), id -> new ReviewResponse(
+                    row.reviewID(), row.productID(), row.userID(), row.username(), row.rating(),
+                    row.comment(), row.reviewDate(), new ArrayList<>()));
+            if (row.imageUrl() != null) {
+                response.images().add(new ReviewImageResponse(row.imageUrl(), row.imagePosition()));
+            }
+        }
+        return List.copyOf(responses.values());
     }
 
     @Override
     @Transactional
     public ReviewResponse create(Long productID, String username, ReviewRequest request) {
+        return create(productID, username, request, List.of());
+    }
+
+    @Override
+    @Transactional
+    public ReviewResponse create(Long productID, String username, ReviewRequest request, List<MultipartFile> images) {
         validate(request);
         User user = currentUser(username);
         Product product = lockProduct(productID);
@@ -59,6 +88,7 @@ public class ReviewServiceImpl implements ReviewService {
         review.setProduct(product);
         review.setRating(request.rating());
         review.setComment(request.comment().trim());
+        appendImages(review, imageValidator.validate(images, 0));
         review = reviews.saveAndFlush(review);
         refreshRating(product);
         return toResponse(review);
@@ -67,6 +97,13 @@ public class ReviewServiceImpl implements ReviewService {
     @Override
     @Transactional
     public ReviewResponse update(Long reviewID, String username, ReviewRequest request) {
+        return update(reviewID, username, request, List.of(), List.of());
+    }
+
+    @Override
+    @Transactional
+    public ReviewResponse update(Long reviewID, String username, ReviewRequest request,
+                                 List<MultipartFile> images, List<Integer> removeImagePositions) {
         validate(request);
         User user = currentUser(username);
         Product product = lockProduct(productIDOfReview(reviewID));
@@ -74,6 +111,16 @@ public class ReviewServiceImpl implements ReviewService {
         if (!Objects.equals(review.getUser().getUserID(), user.getUserID())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Khong duoc sua danh gia cua nguoi khac");
         }
+        List<Integer> removals = removeImagePositions == null ? List.of() : removeImagePositions;
+        if (new HashSet<>(removals).size() != removals.size()
+                || removals.stream().anyMatch(i -> i == null || i < 0 || i >= review.getImages().size())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Vi tri anh can xoa khong hop le");
+        }
+        List<byte[]> validated = imageValidator.validate(images, review.getImages().size() - removals.size());
+        List<String> removedIds = removals.stream().map(i -> review.getImages().get(i).getPublicId()).toList();
+        imageCleanup.afterCommit(removedIds);
+        removals.stream().sorted(java.util.Comparator.reverseOrder()).forEach(i -> review.getImages().remove(i.intValue()));
+        appendImages(review, validated);
         review.setRating(request.rating());
         review.setComment(request.comment().trim());
         reviews.flush();
@@ -90,6 +137,7 @@ public class ReviewServiceImpl implements ReviewService {
         if (!Objects.equals(review.getUser().getUserID(), user.getUserID())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Khong duoc xoa danh gia cua nguoi khac");
         }
+        imageCleanup.afterCommit(review.getImages().stream().map(ReviewImage::getPublicId).toList());
         reviews.delete(review);
         reviews.flush();
         refreshRating(product);
@@ -101,6 +149,20 @@ public class ReviewServiceImpl implements ReviewService {
         product.setReviewCount(Math.toIntExact(count));
         product.setRatingAverage(count == 0 ? BigDecimal.ZERO.setScale(2) :
                 BigDecimal.valueOf(sum).divide(BigDecimal.valueOf(count), 2, RoundingMode.HALF_UP));
+    }
+
+    @Override
+    @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
+    public void adminDelete(Long reviewID) {
+        // Use the same product lock, aggregates and after-commit image cleanup as owner deletion.
+        Product product = lockProduct(productIDOfReview(reviewID));
+        Review review = review(reviewID);
+        em.refresh(review);
+        imageCleanup.afterCommit(review.getImages().stream().map(ReviewImage::getPublicId).toList());
+        reviews.delete(review);
+        reviews.flush();
+        refreshRating(product);
     }
 
     private Product lockProduct(Long productID) {
@@ -145,6 +207,15 @@ public class ReviewServiceImpl implements ReviewService {
     private ReviewResponse toResponse(Review review) {
         return new ReviewResponse(review.getReviewID(), review.getProduct().getProductID(),
                 review.getUser().getUserID(), review.getUser().getUsername(), review.getRating(),
-                review.getComment(), review.getReviewDate());
+                review.getComment(), review.getReviewDate(), IntStream.range(0, review.getImages().size())
+                .mapToObj(i -> new ReviewImageResponse(review.getImages().get(i).getImageUrl(), i)).toList());
+    }
+
+    private void appendImages(Review review, List<byte[]> images) {
+        for (byte[] bytes : images) {
+            String publicId = imageStorage.newPublicId();
+            imageCleanup.onRollback(publicId);
+            review.getImages().add(imageStorage.upload(bytes, publicId));
+        }
     }
 }

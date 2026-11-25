@@ -1,9 +1,11 @@
 import { getGuestCart } from "../utils/guestCart";
-import { api, API_BASE } from "./api";
+import { queryClient, queryKeys, sessionScope } from "./queryCache";
+import { api } from "./api";
 
 export type Cart = {
     items: {
         cartItemID: number;
+        variantID?: number;
         productTitle: string;
         variantTitle: string;
         quantity: number;
@@ -19,29 +21,16 @@ export function addCartItem(variantID: number, quantity: number) {
     });
 }
 
-const BASE_URL = API_BASE;
-
 export async function mergeGuestCart(accessToken: string) {
     const items = getGuestCart();
-
-    if (items.length === 0) {
-        return null;
+    if (!items.length) return null;
+    const scope = sessionScope();
+    if (localStorage.getItem('accessToken') !== accessToken) throw new DOMException('Session changed', 'AbortError');
+    const result = await api<Cart>('/api/cart/merge', { method: 'POST', body: JSON.stringify({ items }) });
+    if (scope === sessionScope()) {
+        const key = queryKeys.private('cart', {}, scope);
+        await queryClient.cancelQueries({ queryKey: key });
+        queryClient.setQueryData(key, result);
     }
-
-    const response = await fetch(`${BASE_URL}/api/cart/merge`, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${accessToken}`
-        },
-        body: JSON.stringify({ items })
-    });
-
-    if (!response.ok) {
-        throw new Error(
-            `Merge cart failed: ${response.status}`
-        );
-    }
-
-    return response.json();
+    return result;
 }

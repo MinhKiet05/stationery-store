@@ -8,6 +8,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -141,6 +142,37 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
+    public MyOrderHistoryResponse myOrderHistory(String username, int page, int size, String search, OrderStatus status, boolean summary) {
+        if (page < 0 || page > 10000 || size < 1 || size > 50 || search.length() > 150) throw bad("Bộ lọc không hợp lệ");
+        var user = currentUser(username);
+        String where = " where o.user.userID=:user";
+        var params = new LinkedHashMap<String,Object>(); params.put("user", user.getUserID());
+        if (!search.isBlank()) {
+            int index=0;
+            for (String word : search.trim().split("\\s+")) {
+                String name="word"+index++;
+                String text = "concat(coalesce(p.title,''),' ',coalesce(v.title,''),' ',coalesce(b.name,''))";
+                where += " and (concat('#st-',cast(o.orderID as string)) like :"+name+" escape '!' or concat('#',cast(o.orderID as string)) like :"+name+" escape '!' or " +
+                    "exists(select d.orderDetailID from OrderDetail d join d.variant v join v.product p left join p.vendor b where d.order=o and " +
+                    com.example.backend.services.NormalizedSearch.hql(text)+" like :"+name+" escape '!'))";
+                params.put(name,com.example.backend.services.NormalizedSearch.pattern(word));
+            }
+        }
+        var countQuery=em.createQuery("select o.status,count(o) from Order o"+where+" group by o.status",Object[].class);
+        params.forEach(countQuery::setParameter);
+        var counts=new EnumMap<OrderStatus,Long>(OrderStatus.class);
+        for (Object[] row:countQuery.getResultList()) counts.put((OrderStatus)row[0],((Number)row[1]).longValue());
+        long total=status==null ? counts.values().stream().mapToLong(Long::longValue).sum() : counts.getOrDefault(status,0L);
+        if (summary) return new MyOrderHistoryResponse(List.of(),total,0,counts);
+        if (status!=null) { where+=" and o.status=:status";params.put("status",status); }
+        var query=em.createQuery("select o from Order o"+where+" order by o.orderDate desc,o.orderID desc",Order.class);
+        params.forEach(query::setParameter);
+        var content=query.setFirstResult(page*size).setMaxResults(size).getResultList().stream().map(this::toResponse).toList();
+        return new MyOrderHistoryResponse(content,total,(int)((total+size-1)/size),counts);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public OrderResponse getOrder(String username, Long orderID) {
         User user = currentUser(username);
         return toResponse(orders.findByOrderIDAndUser_UserID(orderID, user.getUserID())
@@ -161,6 +193,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
     public List<OrderResponse> adminOrders() {
         return orders.findAll(org.springframework.data.domain.Sort.by(
                 org.springframework.data.domain.Sort.Direction.DESC, "orderDate"))
@@ -168,12 +201,37 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
+    public AdminOrderDetailResponse adminOrder(Long orderID) {
+        Order order = orders.findById(orderID).orElseThrow(() -> notFound("Khong tim thay don hang"));
+        Map<Long, String> skus = new LinkedHashMap<>();
+        order.getOrderDetails().forEach(item -> {
+            if (item.getVariant().getSku() != null) skus.put(item.getVariant().getVariantID(), item.getVariant().getSku());
+        });
+        User customer = order.getUser();
+        var returns = order.getReturnRequests().stream()
+                .sorted(Comparator.comparing(ReturnRequest::getCreatedAt).reversed())
+                .map(item -> new AdminOrderDetailResponse.ReturnSummary(item.getReturnID(), item.getReason(),
+                        item.getStatus(), item.getCreatedAt(), item.getProcessedAt(), item.getAdminNote())).toList();
+        return new AdminOrderDetailResponse(toResponse(order), customer.getFullName(), customer.getUsername(),
+                customer.getEmail(), skus, returns);
+    }
+
+    @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public OrderResponse adminChangeStatus(Long orderID, UpdateOrderStatusRequest request) {
         Order order = orderLocks.lockById(orderID)
                 .orElseThrow(() -> notFound("Khong tim thay don hang"));
+        // Reload after waiting for another writer; the persistence context may already contain this order.
+        em.refresh(order);
         OrderStatus target = request.status();
         OrderStatus current = order.getStatus();
+        if ((request.expectedStatus() != null && request.expectedStatus() != current)
+                || (request.expectedPaid() != null && !Objects.equals(request.expectedPaid(), order.getIsPaid()))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Don hang da thay doi. Vui long tai lai");
+        }
         if (target == null)
             throw bad("status khong duoc null");
         if (target == current)
@@ -205,8 +263,11 @@ public class OrderServiceImpl implements OrderService {
         for (OrderDetail item : order.getOrderDetails())
             quantities.merge(item.getVariant().getVariantID(), item.getQuantity(), Integer::sum);
         for (var entry : quantities.entrySet()) {
-            ProductVariant variant = variants.findWithLockByVariantID(entry.getKey())
-                    .orElseThrow(() -> notFound("Bien the khong ton tai"));
+            ProductVariant variant = em.find(ProductVariant.class, entry.getKey());
+            if (variant == null) throw notFound("Bien the khong ton tai");
+            // Read the current version while acquiring the inventory lock, including when
+            // another cancellation changed a variant already loaded by this transaction.
+            em.refresh(variant, LockModeType.PESSIMISTIC_WRITE);
             variant.setStockQuantity(Math.addExact(variant.getStockQuantity(), entry.getValue()));
         }
         if (order.getCoupon() != null) {
@@ -230,8 +291,7 @@ public class OrderServiceImpl implements OrderService {
 
     private OrderResponse toResponse(Order order) {
         List<OrderDetailResponse> details = order.getOrderDetails().stream()
-                .map(d -> new OrderDetailResponse(d.getOrderDetailID(), d.getVariant().getVariantID(),
-                        d.getVariant().getTitle(), d.getQuantity(), d.getUnitPrice(), d.getSubTotal()))
+                .map(this::toDetailResponse)
                 .toList();
         BigDecimal subTotal = details.stream().map(OrderDetailResponse::subTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -244,6 +304,17 @@ public class OrderServiceImpl implements OrderService {
 
     private ResponseStatusException bad(String message) {
         return new ResponseStatusException(HttpStatus.BAD_REQUEST, message);
+    }
+
+    private OrderDetailResponse toDetailResponse(OrderDetail detail) {
+        ProductVariant variant = detail.getVariant();
+        Product product = variant.getProduct();
+        String image = product.getImages().stream()
+                .filter(url -> url != null && !url.isBlank()).findFirst().orElse(null);
+        return new OrderDetailResponse(detail.getOrderDetailID(), variant.getVariantID(),
+                variant.getTitle(), detail.getQuantity(), detail.getUnitPrice(), detail.getSubTotal(),
+                product.getProductID(), product.getTitle(), product.getHandle(), image,
+                product.getVendor() == null ? null : product.getVendor().getName());
     }
 
     private ResponseStatusException notFound(String message) {

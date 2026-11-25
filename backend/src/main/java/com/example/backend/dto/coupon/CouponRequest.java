@@ -14,5 +14,11 @@ public record CouponRequest(
         LocalDate startDate,
         LocalDate endDate,
         @Positive Integer usageLimit,
-        @NotNull Boolean isActive) {
+        @NotNull Boolean isActive,
+        @Pattern(regexp = "[a-f0-9]{64}") String expectedState) {
+    public CouponRequest(String code, DiscountType discountType, BigDecimal discountValue,
+                         BigDecimal minOrderValue, LocalDate startDate, LocalDate endDate,
+                         Integer usageLimit, Boolean isActive) {
+        this(code, discountType, discountValue, minOrderValue, startDate, endDate, usageLimit, isActive, null);
+    }
 }

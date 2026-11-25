@@ -1,4 +1,10 @@
+import { useEffect, useState, type MouseEvent } from "react";
 import { Heart, ShoppingCart, Star } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { isFavoriteProduct, toggleFavoriteProduct } from "../../utils/favoriteStorage";
+import { productOptions } from '../../services/storeQueries';
+import { schedulePrefetch, cancelPrefetch } from '../../services/queryCache';
+import { thumbnail } from '../../utils/thumbnail';
 import styles from "./ProductCard.module.css";
 
 export interface Product {
@@ -26,7 +32,21 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  // Format tiền tệ VNĐ
+  const navigate = useNavigate();
+  const [saved, setSaved] = useState(() => isFavoriteProduct(product.productID));
+
+  // Đồng bộ trạng thái khi productID đổi hoặc khi nơi khác bấm tim
+  useEffect(() => {
+    const sync = () => setSaved(isFavoriteProduct(product.productID));
+    sync();
+    window.addEventListener("favorites-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("favorites-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [product.productID]);
+
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("vi-VN", {
       style: "currency",
@@ -34,23 +54,33 @@ export default function ProductCard({ product }: ProductCardProps) {
     }).format(price);
   };
 
-  // Tính phần trăm giảm giá
   const hasDiscount = product.compareAtPrice > product.price;
   const discountPercent = hasDiscount
     ? Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)
     : 0;
 
+  const productUrl = `/products/${encodeURIComponent(product.handle || String(product.productID))}`;
+
+  function handleToggleFavorite(e: MouseEvent<HTMLButtonElement>) {
+    e.preventDefault();
+    e.stopPropagation(); // Tránh kích hoạt click vào card nếu có
+    const next = toggleFavoriteProduct(product.productID);
+    setSaved(next);
+  }
+
+  const prefetch = () => schedulePrefetch(productOptions(product.handle || String(product.productID)));
   return (
-    <div className={styles.card}>
+    <div className={styles.card} onMouseEnter={prefetch} onFocus={prefetch} onMouseLeave={cancelPrefetch} onBlur={cancelPrefetch}>
       {/* Khối hình ảnh */}
       <div className={styles.imageContainer}>
-        <a href={`/products/${encodeURIComponent(product.handle || String(product.productID))}`} className={styles.imageLink}>
+        <Link to={productUrl} className={styles.imageLink}>
           <img
-            src={product.images?.[0] || "/placeholder.png"}
+            src={thumbnail(product.images?.[0], 384) || "/placeholder.png"}
+            loading="lazy" decoding="async" width={192} height={192}
             alt={product.title}
             className={styles.image}
           />
-        </a>
+        </Link>
 
         {/* Badge giảm giá */}
         {hasDiscount && (
@@ -59,28 +89,33 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
 
-        {/* Nút yêu thích */}
+        {/* Nút yêu thích đồng bộ */}
         <button
-          aria-label="Thêm vào yêu thích"
+          type="button"
+          aria-label={saved ? "Bỏ yêu thích" : "Thêm vào yêu thích"}
+          aria-pressed={saved}
           className={styles.wishlistBtn}
+          onClick={handleToggleFavorite}
         >
-          <Heart size={16} />
+          <Heart
+            size={16}
+            color={saved ? "#ff7518" : "currentColor"}
+            fill={saved ? "#ff7518" : "none"}
+          />
         </button>
       </div>
 
       {/* Nội dung thông tin */}
       <div className={styles.content}>
-        {/* Thương hiệu */}
         <span className={styles.vendorName}>
           {product.vendorName}
         </span>
 
-        {/* Tên sản phẩm */}
-        <a href={`/products/${encodeURIComponent(product.handle || String(product.productID))}`} className={styles.titleLink}>
+        <Link to={productUrl} className={styles.titleLink}>
           <h3 className={styles.title}>
             {product.title}
           </h3>
-        </a>
+        </Link>
 
         {/* Đánh giá */}
         <div className={styles.rating}>
@@ -103,9 +138,10 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
 
           <button
+            type="button"
             aria-label="Thêm vào giỏ hàng"
             className={styles.cartBtn}
-            onClick={() => { window.location.href = `/products/${encodeURIComponent(product.handle || String(product.productID))}`; }}
+            onClick={() => navigate(productUrl)}
           >
             <ShoppingCart size={18} />
           </button>

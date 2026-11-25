@@ -1,0 +1,217 @@
+STATIONERY STORE — IMPORT EXCEL CHO VOUCHER VÀ SẢN PHẨM
+
+Phạm vi và an toàn
+Chỉ ADMIN. CREATE_ONLY, không chỉnh sửa bản ghi cũ, không cộng/ghi đè tồn kho.
+Các file TEST- chỉ dành cho database test; không tự import vào production.
+Không cần migration hoặc secret mới. Không cài thêm dependency Excel/cache.
+Hai file tham khảo của người dùng chưa được đính kèm trong lượt yêu cầu này;
+hai workbook chính thức ở đây được tạo theo entity/DTO/nghiệp vụ trong source.
+
+File chính thức
+  vouchers-import-test.xlsx: 10 voucher, cả PERCENTAGE và FIXED_AMOUNT.
+  products-import-test.xlsx: 10 sản phẩm và 15 biến thể, tiếng Việt, tồn kho 0,
+  thấp và nhiều mức giá. Images chỉ chứa header vì ảnh không bắt buộc.
+  vendor/productType/tags được để trống vì không được giả định dữ liệu có sẵn.
+  Có thể điền tham chiếu thực tế từ Reference của template tải qua giao diện.
+  Storefront hiện lọc theo danh mục hoạt động; nên chọn productType thực tế
+  đang hoạt động trước khi import sản phẩm để bán trên storefront.
+
+Schema Excel (giữ nguyên tên sheet, header và thứ tự)
+
+Voucher — sheet Vouchers:
+  code*, discountType*, discountValue*, minOrderValue, usageLimit,
+  startDate, endDate, isActive*
+  * = bắt buộc.
+  code: Text, tối đa 50 ký tự A-Za-z0-9_-, trim và chuyển uppercase.
+  discountType: PERCENTAGE hoặc FIXED_AMOUNT; discountValue > 0;
+  PERCENTAGE <= 100. minOrderValue không âm; usageLimit nguyên > 0 nếu có.
+  Ngày yyyy-MM-dd, không có giờ/timezone. Null = không hạn chế tương ứng.
+  Giữ quy tắc CRUD hiện tại: endDate bằng hoặc sau startDate.
+  Hiệu lực voucher dùng LocalDate của backend, giống checkout hiện tại.
+  isActive: true/false. usedCount luôn bắt đầu 0, không nhập từ file.
+  Không có name, description, maxDiscountValue, FREESHIP, VIP/brand conditions.
+
+Product — sheet Products:
+  productKey*, title*, handle*, description, price*, compareAtPrice,
+  vendor, productType, tags, available*
+  productKey: Text <=100, duy nhất trong file, chỉ để liên kết các sheet.
+  title <=200. handle <=255, bắt buộc riêng với import để có khóa duy nhất
+  chống nhập lại; đây là handle nghiệp vụ, không phải ID tự tăng.
+  vendor/productType/tags: tên thực tế xác định duy nhất, hoặc id:<ID> từ
+  Reference. Nhiều tag phân cách bằng dấu ;. Tối đa 100 tag/sản phẩm.
+  Category phải đang hoạt động. Không tự tạo vendor/category/tag.
+  available true/false = cho phép bán. isActive luôn true theo CRUD tạo mới.
+  price là giá cơ sở Product, độc lập với giá Variant, không tự đồng bộ giá.
+
+Sheet Variants:
+  productKey*, sku*, title*, price*, compareAtPrice, stockQuantity*,
+  available*, option1, option2, option3
+  Mỗi Product cần ít nhất một Variant. sku Text <=100, trim, phân biệt hoa
+  thường như service/unique constraint hiện tại; bắt buộc riêng với import.
+  title <=200; option1/2/3 <=255. Không có barcode trong entity hiện tại.
+  stockQuantity: số nguyên 0..2147483647, chỉ là tồn kho ban đầu của SKU mới.
+  available true/false. Tổng số biến thể bị chặn bởi giới hạn dòng của file.
+
+Sheet Images (bắt buộc có header; dữ liệu tùy chọn):
+  productKey*, imageUrl*, imagePosition*
+  Nếu có dòng: URL HTTP(S) <=500 ký tự, có host, không chứa tài khoản/mật khẩu.
+  imagePosition nguyên không âm, không trùng trong một productKey. Ảnh được
+  sắp theo vị trí tăng dần; tối đa 20 ảnh/sản phẩm. Không nhúng ảnh vào file.
+  Không fetch URL, không upload URL lên Cloudinary, không phát sinh SSRF.
+
+Tiền: BigDecimal; không âm, tối đa 10 chữ số nguyên và 2 chữ số thập phân.
+Giữ nguyên quy tắc compareAtPrice của CRUD: không âm, cùng giới hạn tiền;
+không tự bổ sung ràng buộc compareAtPrice phải lớn hơn price.
+Mã/SKU/handle/productKey và các tham chiếu phải dùng ô Text để giữ số 0 đầu.
+Ô mã dạng Number bị từ chối thay vì đoán số 0 hoặc scientific notation.
+Dòng trống được bỏ qua. Guide và Reference không được tính là dữ liệu import.
+Template có dropdown enum/boolean, định dạng Text/tiền/số nguyên, hướng dẫn
+và Reference lấy từ dữ liệu backend thật tại thời điểm tải template.
+
+API
+  GET  /api/admin/products/import/template
+  POST /api/admin/products/import/preview
+  POST /api/admin/products/import/confirm
+  GET  /api/admin/promotions/import/template
+  POST /api/admin/promotions/import/preview
+  POST /api/admin/promotions/import/confirm
+  Template trả .xlsx, Content-Disposition và Cache-Control:no-store.
+  Preview: multipart/form-data, file=<workbook.xlsx>.
+  Confirm: multipart/form-data, file=<đúng bytes đã preview>, importToken=<token>.
+  Không đặt Content-Type JSON khi dùng FormData; browser tự tạo boundary.
+
+Preview response:
+  totalRows, validRows, invalidRows, duplicateRows, canImport,
+  rows:[{sheet,rowNumber,values,status,errors:[{field,code,message}]}],
+  importToken, maxFileBytes, maxRows.
+  status của dòng: VALID, INVALID hoặc DUPLICATE. Ba bộ đếm không chồng nhau.
+  Toàn bộ file được kiểm tra; UI chỉ phân trang preview 10 dòng mỗi trang.
+  Lỗi cấu trúc/file nguy hiểm trả 400; quá dung lượng/số dòng trả 413.
+
+Confirm response ví dụ Product:
+  {"status":"CREATED","createdRecords":25,"createdProducts":10,
+   "createdVariants":15,"createdVouchers":0,"aiStatus":"SCHEDULED"}
+  createdRecords = Product + Variant, hoặc số voucher; không cộng ảnh/tag links.
+  aiStatus: SCHEDULED, DISABLED, hoặc NOT_APPLICABLE (voucher).
+  401: chưa/không còn xác thực; 403: không còn quyền ADMIN.
+  409: preview hết hạn/khác file/khác tài khoản, dữ liệu đã thay đổi hoặc trùng.
+  Không trả Entity, SQL, stacktrace, credential hoặc thông tin bên thứ ba.
+
+Validation, transaction và chống trùng
+  Preview read-only, không persist/không gọi các dịch vụ bên ngoài.
+  Kiểm tra tồn tại/trùng code/SKU/handle/title theo query IN; tham chiếu bằng
+  DTO projection (3 query). Preview Product: 6 query; Voucher: 1 query.
+  Token HMAC có domain riêng, gắn với ADMIN + loại import + SHA-256 bytes file
+  + hạn 15 phút. Không phải JWT đăng nhập. Không lưu file/token vào database.
+  Confirm xác minh token và quyền từ DB, parse/validate lại toàn bộ file.
+  Confirm được serialize qua khóa dòng ADMIN đầu tiên hiện có trong database,
+  cùng thứ tự với cơ chế đổi quyền/khóa tài khoản. Không cần bảng/migration mới;
+  khóa này cũng bảo vệ quy tắc tên Product không trùng giữa concurrent imports.
+  Không khóa/cập nhật tồn kho SKU đang kinh doanh. Read/checkout không cần khóa này.
+  Sau đó gọi batch methods của CouponService/ProductService/ProductVariantService,
+  dùng chung validation/application logic với CRUD, không bypass bằng native insert.
+  Một transaction cho cả batch; lỗi khi lưu rollback toàn bộ Product/Variant/
+  ảnh/tag hoặc Voucher. Unique constraints hiện có bảo vệ handle/SKU/code.
+  IDENTITY hiện tại yêu cầu INSERT từng entity; không tuyên bố JDBC batch insert.
+  Query kiểm tra và reference được gom theo batch; không probe từng dòng.
+  Import lại cùng file sẽ bị từ chối, không tăng tồn kho/lượt sử dụng.
+  Nếu confirm timeout: UI chặn gửi lại; phải preview/đọc lại trạng thái trước.
+  Không có lịch sử import/idempotency ledger hoặc cập nhật bản ghi có sẵn.
+  Tên Product chưa có unique constraint riêng; quy tắc tên giữa import và CRUD
+  chạy đồng thời giữ giới hạn concurrency hiện có của CRUD. Handle/SKU vẫn có
+  unique constraint và không thể bị ghi đè/nhân đôi khi chạy đồng thời.
+
+Giới hạn và bảo vệ file
+  app.admin.import.max-file-bytes=5242880
+  app.admin.import.max-rows=1000
+  Tổng dòng Products+Variants+Images không vượt max-rows; không phải 1000 Product
+  cộng thêm số Variant/Images không giới hạn. UI hiện giới hạn tối đa 5 MB.
+  spring.servlet.multipart.max-file-size hiện có 5MB: muốn tăng giới hạn server
+  phải cập nhật cấu hình servlet và giới hạn phía frontend tương ứng.
+  Không cần env var mới bắt buộc; có thể override các property bằng cấu hình Spring.
+  Chỉ OOXML .xlsx; kiểm tra ZIP thực tế, POI workbook type, workbook lỗi,
+  macro/embedded bin/externalLinks, header/sheet và kiểu ô. Không evaluate formula.
+  Không chấp nhận hyperlink trong workbook. Formula trong dữ liệu trả lỗi theo dòng.
+  Bảo toàn các giới hạn ZIP bomb mặc định của POI; thêm preflight giới hạn
+  2.000 ZIP entries, 16 MB/entry và 32 MB tổng giải nén, tối đa 32 cột.
+  Không hạ min-inflate-ratio để chấp nhận file có tỷ lệ nén nguy hiểm.
+  Đóng workbook/stream trong try-with-resources. Không lưu upload lên ổ đĩa.
+
+AI RAG
+  Không gọi Gemini hoặc ghi vector trong transaction import.
+  ProductIndexJob hiện có quét trang dữ liệu đã commit, retry mỗi lịch chạy;
+  deterministic vector ID và fingerprint hiện có tránh vector trùng/rebuild toàn bộ.
+  Gemini lỗi không rollback sản phẩm đã commit. Lần chạy lịch sau sẽ thử lại.
+  SCHEDULED chỉ nghĩa đã lưu và sẽ được job hiện có quét, chưa xác nhận đồng bộ.
+  Khi app.ai.enabled=false, trả DISABLED. Không thêm queue/vector store mới.
+
+Frontend và cache
+  ImportExcelModal dùng chung cho Product/Voucher, native AdminModal +
+  ConfirmAdminAction, API client và toast hiện có, focus/Escape/busy/mobile.
+  Không có TanStack Query trong dự án; không cài cache thứ hai.
+  Thành công chỉ retry đúng list/statistics của trang, giữ Header/Sidebar và phiên
+  AdminRoute. Reference không bị tạo mới nên không cần invalidate options.
+  Storefront hiện đọc dữ liệu khi mount, không có persistent catalog query cache
+  cần invalidate. Không reload toàn trang hoặc xác minh ADMIN lại khi import.
+
+Các file triển khai chính
+  backend/src/main/java/com/example/backend/excel/ImportModels.java
+  backend/src/main/java/com/example/backend/excel/ExcelCellReader.java
+  backend/src/main/java/com/example/backend/excel/ExcelImportValidator.java
+  backend/src/main/java/com/example/backend/excel/ExcelImportService.java
+  backend/src/main/java/com/example/backend/excel/ExcelTemplateService.java
+  backend/src/main/java/com/example/backend/controller/ExcelImportController.java
+  backend/src/main/java/com/example/backend/controller/ExcelImportExceptionHandler.java
+  backend/src/main/java/com/example/backend/controller/AdminOperationExceptionHandler.java (scope handler)
+  backend/src/main/java/com/example/backend/services/{CouponService,ProductService,ProductVariantService}.java
+  backend/src/main/java/com/example/backend/services/impl/{CouponServiceImpl,ProductServiceImpl,ProductVariantServiceImpl}.java
+  frontend/src/components/dashboard/ImportExcelModal.jsx và .css
+  frontend/src/components/dashboard/AdminModal.jsx (giữ focus khi nút bị disabled)
+  frontend/src/services/excelImportApi.js và api.ts (hỗ trợ multipart)
+  frontend/src/pages/dashboard/{ProductsPage,PromotionsPage}.jsx (nút/Modal/refresh)
+  frontend/package.json (script test)
+  backend/src/test/java/com/example/backend/deployment/ExcelImportApiTest.java
+  frontend/scripts/test-excel-import.mjs
+  frontend/scripts/test-admin-reviews.mjs (hồi quy focus khi chuyển ảnh cuối)
+
+Ví dụ request (PowerShell, từ docs/import-samples; chỉ dùng backend local/test):
+  curl.exe -H "Authorization: Bearer <ADMIN_JWT>" -F "file=@vouchers-import-test.xlsx" http://localhost:8080/api/admin/promotions/import/preview
+  curl.exe -H "Authorization: Bearer <ADMIN_JWT>" -F "file=@vouchers-import-test.xlsx" -F "importToken=<TOKEN_TU_PREVIEW>" http://localhost:8080/api/admin/promotions/import/confirm
+  Với Product, thay promotions bằng products và chọn products-import-test.xlsx.
+
+Chạy test trong workspace (Windows PowerShell)
+  $env:JAVA_HOME='C:/Program Files/Java/jdk-21'
+  $env:Path="$env:JAVA_HOME/bin;$env:Path"
+  cd backend
+  ./mvnw.cmd -o clean compile test
+  # Tạo lại đúng hai sample bằng POI khi chủ động muốn cập nhật fixture:
+  ./mvnw.cmd -o test '-Dtest=ExcelImportApiTest' '-Dgenerate.import.samples=true'
+  cd ../frontend
+  npm run test:excel-import
+  npm run test:admin-products
+  npm run test:admin-promotions
+  npm run test:admin-route
+  npm run test:dashboard
+  npm run test:admin-users
+  npm run test:admin-orders
+  npm run test:admin-reviews
+  npm run test:admin-returns
+  npm run test:admin-verification
+  npm run build
+
+Các test chỉ dùng H2/mock trong môi trường test; không production, không gửi
+email/ảnh/Gemini thật. PostgreSQL opt-in của dự án cần database localhost test
+riêng; không được trỏ Supabase production để chạy các test có thay đổi dữ liệu.
+
+Kết quả xác minh trong workspace
+  Maven clean compile test: 279 tests, 254 passed, 25 skipped, 0 failures/errors.
+  25 tests PostgreSQL opt-in chưa chạy do chưa cấu hình database localhost test.
+  Xác minh import lần cuối sau giới hạn độ dài token: 18 tests passed.
+  Frontend build: thành công.
+  Browser: 111 nhóm kiểm thử passed (Import 9, Review 10, Return 14, Product 11,
+  Promotion 12, AdminRoute 13, Dashboard 23, User 10, Order 9).
+  Admin verification unit tests: 12 passed.
+  Có kiểm tra rollback, race code/SKU/title, checkout voucher, committed indexing,
+  Gemini lỗi/retry, FormData boundary, duplicate submit, unknown outcome và focus.
+  Log build/test nằm trong .cache, không chứa dữ liệu production.
+  Không commit/push/deploy hoặc import vào database production.

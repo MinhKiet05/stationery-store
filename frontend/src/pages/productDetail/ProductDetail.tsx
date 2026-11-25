@@ -1,3 +1,6 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { productOptions, variantsOptions, relatedOptions, reviewsOptions } from "../../services/storeQueries";
+import useSessionScope from '../../services/useSessionScope';
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ArrowRight,
@@ -22,20 +25,21 @@ import {
   FileText,
   MessageSquare,
 } from "lucide-react";
-import ProductCard, {
-  type Product,
-} from "../../components/productCard/ProductCard";
+import ProductCard from "../../components/productCard/ProductCard";
 import {
-  getProduct,
   getProductVariants,
-  getRelatedProducts,
   type Variant,
 } from "../../services/productService";
-import { getProductReviews, type Review } from "../../services/reviewService";
-import { addCartItem, type Cart } from "../../services/cartService";
+import { type Cart } from "../../services/cartService";
+import { useCartMutation } from "../../services/useCartMutation";
 import { createOrder } from "../../services/orderService";
 import { trackProductView } from "../../services/aiService";
 import { addToGuestCart, getGuestCart } from "../../utils/guestCart";
+import { notify, userMessage } from "../../utils/notifications";
+import {
+  isFavoriteProduct,
+  toggleFavoriteProduct,
+} from "../../utils/favoriteStorage";
 import styles from "./ProductDetail.module.css";
 
 type Tab = "specs" | "description" | "reviews";
@@ -66,98 +70,56 @@ function Stars({ rating }: { rating: number }) {
 }
 
 export default function ProductDetail({ handle }: { handle: string }) {
-  // Reset the complete page state when navigating to a different product.
-  return <ProductDetailContent key={handle} handle={handle} />;
+  const scope = useSessionScope();
+  // Checkout drafts/results belong to one session; public product queries remain reusable.
+  return <ProductDetailContent key={`${handle}:${scope}`} handle={handle} />;
 }
 
 function ProductDetailContent({ handle }: { handle: string }) {
-  const [product, setProduct] = useState<Product | null>(null);
-  const [variants, setVariants] = useState<Variant[]>([]);
-  const [related, setRelated] = useState<Product[]>([]);
+  const client = useQueryClient();
+  const cartMutation = useCartMutation();
+  const productQuery = useQuery(productOptions(handle)), product = productQuery.data;
+  const variantsQuery = useQuery(variantsOptions(product?.productID ?? 0));
+  const variants = variantsQuery.data ?? [];
+  const relatedQuery = useQuery(relatedOptions(product?.productTypeID ?? 0));
+  const related = (relatedQuery.data?.content ?? []).filter(p => p.productID !== product?.productID && p.isActive && p.available).slice(0, 5);
   const [selected, setSelected] = useState(0);
   const [imageIndex, setImageIndex] = useState(0);
   const [imageFailed, setImageFailed] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const loading = productQuery.isPending || !!product && variantsQuery.isPending;
+  const error = productQuery.isError && !product || variantsQuery.isError && !variantsQuery.data ? userMessage(productQuery.error || variantsQuery.error, 'Không tải được sản phẩm. Vui lòng thử lại.') : '';
   const [adding, setAdding] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [tab, setTab] = useState<Tab>("specs");
-  const [reviews, setReviews] = useState<Review[]>([]);
-  const [reviewState, setReviewState] = useState<"loading" | "ready" | "error">(
-    "loading",
-  );
+  const [tab, setTab] = useState<Tab>(() => window.location.hash === "#reviews" ? "reviews" : "specs");
+  const reviewsQuery = useQuery(reviewsOptions(product?.productID ?? 0));
+  const reviews = reviewsQuery.data ?? [];
+  const reviewState = reviewsQuery.isPending ? 'loading' : reviewsQuery.isError ? 'error' : 'ready';
   const [modal, setModal] = useState<"image" | "checkout" | null>(null);
   const [cart, setCart] = useState<Cart | null>(null);
   const [checkoutError, setCheckoutError] = useState("");
   const [ordering, setOrdering] = useState(false);
+  const [orderUncertain, setOrderUncertain] = useState(false);
   const [orderID, setOrderID] = useState<number | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const details = useRef<HTMLElement>(null);
   const busy = useRef(false);
 
   useEffect(() => {
-    const controller = new AbortController();
-    async function load() {
-      try {
-        const data = await getProduct(handle, controller.signal);
-        const choices = await getProductVariants(data.productID, controller.signal);
-        if (controller.signal.aborted) return;
-        setProduct(data);
-        setVariants(choices);
-        setSelected((choices.find(inStock) ?? choices[0])?.variantID ?? 0);
-        try {
-          setSaved(
-            localStorage.getItem(`favorite-product-${data.productID}`) ===
-              "true",
-          );
-        } catch {
-          setSaved(false);
-        }
-        void trackProductView(data.productID).catch(() => {});
-        void getRelatedProducts(data.productTypeID, controller.signal)
-          .then((result) => {
-            if (!controller.signal.aborted)
-              setRelated(
-                result.content
-                  .filter(
-                    (p) =>
-                      p.productID !== data.productID &&
-                      p.isActive &&
-                      p.available,
-                  )
-                  .slice(0, 5),
-              );
-          })
-          .catch(() => {});
-      } catch (err) {
-        if (!controller.signal.aborted)
-          setError(
-            err instanceof Error ? err.message : "Không tải được sản phẩm.",
-          );
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    }
-    void load();
-    return () => controller.abort();
-  }, [handle]);
+    if (variants.length) setSelected((current) => variants.some(v => v.variantID === current) ? current : (variants.find(inStock) ?? variants[0]).variantID);
+  }, [variants]);
+  useEffect(() => { if (product) { setSaved(isFavoriteProduct(product.productID)); void trackProductView(product.productID).catch(() => {}); } }, [product?.productID]);
 
+  // Đồng bộ trạng thái yêu thích nếu người dùng bấm tim ở ProductCard hoặc tab khác
   useEffect(() => {
     if (!product) return;
-    const controller = new AbortController();
-    void getProductReviews(product.productID, controller.signal)
-      .then((data) => {
-        if (!controller.signal.aborted) {
-          setReviews(data);
-          setReviewState("ready");
-        }
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setReviewState("error");
-      });
-    return () => controller.abort();
+    const sync = () => setSaved(isFavoriteProduct(product.productID));
+    window.addEventListener("favorites-changed", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("favorites-changed", sync);
+      window.removeEventListener("storage", sync);
+    };
   }, [product]);
 
   useEffect(() => {
@@ -193,13 +155,12 @@ function ProductDetailContent({ handle }: { handle: string }) {
       return;
     busy.current = true;
     setAdding(true);
-    setNotice("");
     setCheckoutError("");
     setOrderID(null);
     setCart(null);
     try {
       if (localStorage.getItem("accessToken")) {
-        const current = await addCartItem(selected, quantity);
+        const current = await cartMutation.mutateAsync({ kind: 'add', variant, quantity, productTitle: product!.title });
         if (buyNow) {
           setCart(current);
           setModal("checkout");
@@ -215,12 +176,15 @@ function ProductDetailContent({ handle }: { handle: string }) {
         addToGuestCart(selected, quantity);
         if (buyNow) setModal("checkout");
       }
-      setNotice(`Đã thêm ${quantity} sản phẩm vào giỏ hàng.`);
+      notify.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng.`);
       window.dispatchEvent(new Event("cart-changed"));
     } catch (err) {
-      setNotice(
-        err instanceof Error ? err.message : "Không thêm được sản phẩm.",
-      );
+      if (err instanceof DOMException && err.name === 'AbortError') return;
+      if (err instanceof Error && err.message === "Số lượng trong giỏ vượt quá tồn kho. Vui lòng giảm số lượng.") {
+        notify.warning(err.message);
+      } else {
+        notify.error(err, "Không thêm được sản phẩm. Vui lòng thử lại.");
+      }
     } finally {
       setAdding(false);
       busy.current = false;
@@ -229,7 +193,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
 
   async function placeOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy.current || !cart) return;
+    if (busy.current || !cart || orderUncertain) return;
     busy.current = true;
     setOrdering(true);
     setCheckoutError("");
@@ -241,21 +205,23 @@ function ProductDetailContent({ handle }: { handle: string }) {
         paymentMethod: "COD",
       });
       setOrderID(order.orderID);
+      notify.success(`Đặt hàng thành công. Mã đơn hàng: #ST-${order.orderID}.`);
       window.dispatchEvent(new Event("cart-changed"));
       // Refresh failures must not turn a successful order into an apparent failure.
       if (product)
         void getProductVariants(product.productID)
           .then((data) => {
-            setVariants(data);
+            client.setQueryData(variantsOptions(product.productID).queryKey, data);
             setQuantity(1);
           })
           .catch(() => {});
     } catch (err) {
-      setCheckoutError(
-        err instanceof Error
-          ? err.message
-          : "Không thể đặt hàng. Vui lòng thử lại.",
-      );
+      const status = (err as { status?: number })?.status;
+      if (!status || status >= 500) setOrderUncertain(true);
+      setCheckoutError(!status || status >= 500
+        ? 'Chưa xác định được kết quả đặt hàng. Hãy kiểm tra Lịch sử đơn hàng trước khi đặt lại.'
+        : userMessage(err, "Không thể đặt hàng. Vui lòng thử lại."));
+      notify.error(err, "Không thể đặt hàng. Vui lòng thử lại.");
     } finally {
       busy.current = false;
       setOrdering(false);
@@ -264,34 +230,30 @@ function ProductDetailContent({ handle }: { handle: string }) {
 
   function toggleFavorite() {
     if (!product) return;
-    try {
-      localStorage.setItem(
-        `favorite-product-${product.productID}`,
-        String(!saved),
-      );
-      setSaved(!saved);
-    } catch {
-      setNotice("Không thể lưu yêu thích trên trình duyệt này.");
-    }
+    const next = toggleFavoriteProduct(product.productID);
+    setSaved(next);
   }
+
   async function share() {
     try {
-      if (navigator.share)
+      if (navigator.share) {
         await navigator.share({
           title: product?.title,
           url: window.location.href,
         });
-      else {
+        notify.success("Đã chia sẻ liên kết sản phẩm.");
+      } else {
         await navigator.clipboard.writeText(window.location.href);
-        setNotice("Đã sao chép liên kết sản phẩm.");
+        notify.success("Đã sao chép liên kết sản phẩm.");
       }
     } catch (err) {
       if (!(err instanceof DOMException && err.name === "AbortError"))
-        setNotice(
+        notify.info(
           "Bạn có thể sao chép đường dẫn trên thanh địa chỉ để chia sẻ.",
         );
     }
   }
+
   function openTab(next: Tab) {
     setTab(next);
     details.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -485,7 +447,6 @@ function ProductDetailContent({ handle }: { handle: string }) {
                           onClick={() => {
                             setSelected(v.variantID);
                             setQuantity(1);
-                            setNotice("");
                           }}
                         >
                           {v.title}
@@ -573,12 +534,9 @@ function ProductDetailContent({ handle }: { handle: string }) {
                       Giao hàng tận nơi
                     </span>
                   </div>
-                  <p className={styles.notice} role="status" aria-live="polite">
-                    {notice}
-                  </p>
                 </div>
               </section>
-              <section ref={details} className={styles.detailsPanel}>
+              <section id="reviews" ref={details} className={styles.detailsPanel}>
                 <div
                   className={styles.tabs}
                   role="tablist"
@@ -684,6 +642,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
                   {tab === "reviews" && (
                     <>
                       <h2>Đánh giá từ khách hàng</h2>
+                      <a className={styles.reviewAction} href={`/review?productId=${product.productID}`}>Đánh giá sản phẩm đã mua</a>
                       <div className={styles.reviewSummary}>
                         <strong>
                           {(product.ratingAverage ?? 0).toFixed(1)}
@@ -720,6 +679,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
                             </div>
                             <Stars rating={review.rating} />
                             <p>{review.comment}</p>
+                            {!!review.images?.length && <div className={styles.reviewImages}>{review.images.map(image => <a key={image.imagePosition} href={image.imageUrl} target="_blank" rel="noreferrer"><img src={image.imageUrl} alt={`Ảnh đánh giá của ${review.username}`} loading="lazy" /></a>)}</div>}
                           </article>
                         ))
                       )}
@@ -859,7 +819,8 @@ function ProductDetailContent({ handle }: { handle: string }) {
                       {checkoutError}
                     </p>
                   )}
-                  <button className={styles.primary} disabled={ordering}>
+                  {orderUncertain && <a href="/my-profile/orders">Kiểm tra lịch sử đơn hàng</a>}
+                  <button className={styles.primary} disabled={ordering || orderUncertain}>
                     {ordering ? "Đang đặt hàng…" : "Xác nhận đặt hàng"}
                   </button>
                 </form>

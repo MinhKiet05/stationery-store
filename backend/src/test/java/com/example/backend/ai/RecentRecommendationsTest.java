@@ -11,6 +11,7 @@ import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
@@ -20,7 +21,7 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 @DataJpaTest(properties = {
-        "spring.datasource.url=jdbc:h2:mem:recent-recommendations;MODE=MSSQLServer;DB_CLOSE_DELAY=-1",
+        "spring.datasource.url=jdbc:h2:mem:recent-recommendations;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "spring.datasource.driver-class-name=org.h2.Driver",
@@ -29,6 +30,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({TrackingHistory.class, AiProperties.class, ProductCatalog.class, RecommendationServiceImpl.class})
+@ActiveProfiles("test")
 class RecentRecommendationsTest {
     @Autowired EntityManager em;
     @Autowired RecommendationService recommendations;

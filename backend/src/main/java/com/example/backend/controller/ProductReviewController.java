@@ -16,6 +16,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import org.springframework.http.MediaType;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/products/{productID}/reviews")
@@ -28,11 +31,20 @@ public class ProductReviewController {
         return service.getByProduct(productID);
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ReviewResponse> create(@PathVariable Long productID,
                                                  @Valid @RequestBody ReviewRequest request,
                                                  Authentication authentication) {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.create(productID, authentication.getName(), request));
+    }
+
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ReviewResponse> createWithImages(@PathVariable Long productID,
+            @Valid @RequestPart("review") ReviewRequest request,
+            @RequestPart(value = "images", required = false) List<MultipartFile> images,
+            Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(service.create(productID, authentication.getName(), request, images));
     }
 }
