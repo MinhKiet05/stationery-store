@@ -3,13 +3,13 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Link, useLocation } from 'react-router-dom';
 import ScrollToTop from '../../src/components/ScrollToTop';
 
-function Probe() {
+export default function Probe() {
   const location = useLocation();
-  const [ready, setReady] = useState(false);
+  const [readyPath, setReadyPath] = useState<string | null>(null);
+  const ready = readyPath === location.pathname;
   const [modal, setModal] = useState(false);
   useEffect(() => {
-    setReady(false);
-    const timer = setTimeout(() => setReady(true), 180);
+    const timer = setTimeout(() => setReadyPath(location.pathname), 180);
     return () => clearTimeout(timer);
   }, [location.pathname]);
   return <>

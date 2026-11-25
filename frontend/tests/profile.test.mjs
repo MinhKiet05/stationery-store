@@ -1,7 +1,7 @@
 import { before, after, afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
-let vite, profiles, orders, guest, cache, auth;
+let vite, profiles, orders, guest, cache, auth, reviews;
 const original={fetch:globalThis.fetch,storage:globalThis.localStorage,window:globalThis.window};
 let token='session-A'; const events=new EventTarget();
 before(async()=>{
@@ -12,11 +12,46 @@ before(async()=>{
   profiles=await vite.ssrLoadModule('/src/services/userService.ts');
   auth=await vite.ssrLoadModule('/src/services/authService.ts');
   orders=await vite.ssrLoadModule('/src/services/orderService.ts');
+  reviews=await vite.ssrLoadModule('/src/services/reviewService.ts');
   guest=await vite.ssrLoadModule('/src/utils/guestCart.ts');
-  cache=await vite.ssrLoadModule('/src/services/queryCache.js');
+  cache=await vite.ssrLoadModule('/src/services/queryCache.ts');
 });
 afterEach(()=>{cache.queryClient.clear();globalThis.fetch=original.fetch;token='session-A';});
 after(async()=>{await vite?.close();globalThis.fetch=original.fetch;globalThis.localStorage=original.storage;globalThis.window=original.window;});
+
+test('purchased review validates rating, comment and images before making a request', async()=>{
+  let calls=0;globalThis.fetch=async()=>{calls++;return Response.json({});};
+  const valid={rating:5,comment:'Sản phẩm dùng tốt.',images:[]};
+  for(const change of [{rating:0},{rating:6},{rating:1.5},{comment:'   '},{comment:'a'.repeat(501)},
+    {images:[new File(['bad'],'test.svg',{type:'image/svg+xml'})]},
+    {images:[new File([],'empty.png',{type:'image/png'})]},
+    {images:[new File([new Uint8Array(5*1024*1024+1)],'large.png',{type:'image/png'})]},
+    {images:Array.from({length:6},()=>new File(['image'],'test.png',{type:'image/png'}))}]) {
+    await assert.rejects(reviews.createProductReview(12,{...valid,...change}));
+  }
+  assert.equal(calls,0);
+});
+
+test('purchased review sends authenticated JSON or multipart to the selected product',async()=>{
+  const calls=[];globalThis.fetch=async(path,options)=>{calls.push({path,options});return Response.json({reviewID:3,productID:12,rating:4,comment:'Dùng tốt'});};
+  await reviews.createProductReview(12,{rating:4,comment:'Dùng tốt',images:[]});
+  assert.equal(calls[0].path,'/api/products/12/reviews');assert.equal(calls[0].options.method,'POST');
+  assert.deepEqual(JSON.parse(calls[0].options.body),{rating:4,comment:'Dùng tốt'});
+  assert.equal(new Headers(calls[0].options.headers).get('Authorization'),'Bearer session-A');
+  const image=new File(['image'],'review.png',{type:'image/png'});
+  await reviews.createProductReview(12,{rating:5,comment:'Có ảnh thật',images:[image]});
+  assert.ok(calls[1].options.body instanceof FormData);
+  assert.deepEqual(JSON.parse(await calls[1].options.body.get('review').text()),{rating:5,comment:'Có ảnh thật'});
+  assert.equal(calls[1].options.body.getAll('images')[0].name,'review.png');
+  assert.equal(new Headers(calls[1].options.headers).has('Content-Type'),false);
+});
+
+test('purchased review does not turn forbidden or duplicate responses into success',async()=>{
+  for(const status of [403,409]) {
+    globalThis.fetch=async()=>Response.json({message:'private diagnostic'},{status});
+    await assert.rejects(reviews.createProductReview(12,{rating:5,comment:'Đánh giá thực tế',images:[]}),error=>error.status===status&&!error.message.includes('private diagnostic'));
+  }
+});
 test('profile reads the authenticated self endpoint and saves only the submitted profile contract',async()=>{
   const body={email:'self@example.test',fullName:'Customer',phoneNumber:'0900000000',address:'Address'},calls=[];
   globalThis.fetch=async(path,options)=>{calls.push({path,options});return Response.json({userID:3,...body});};

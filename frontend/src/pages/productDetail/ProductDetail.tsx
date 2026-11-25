@@ -1,7 +1,13 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { productOptions, variantsOptions, relatedOptions, reviewsOptions } from "../../services/storeQueries";
-import useSessionScope from '../../services/useSessionScope';
+import ReviewMediaGallery from "../../components/review/ReviewMediaGallery";
+import {
+  productOptions,
+  variantsOptions,
+  relatedOptions,
+  reviewsOptions,
+} from "../../services/storeQueries";
+import useSessionScope from "../../services/useSessionScope";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
@@ -27,9 +33,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import ProductCard from "../../components/productCard/ProductCard";
-import {
-  type Variant,
-} from "../../services/productService";
+import { type Variant } from "../../services/productService";
 import { useCartMutation } from "../../services/useCartMutation";
 import { trackProductView } from "../../services/aiService";
 import { addToGuestCart, getGuestCart } from "../../utils/guestCart";
@@ -76,32 +80,62 @@ export default function ProductDetail({ handle }: { handle: string }) {
 function ProductDetailContent({ handle }: { handle: string }) {
   const navigate = useNavigate();
   const cartMutation = useCartMutation();
-  const productQuery = useQuery(productOptions(handle)), product = productQuery.data;
+  const productQuery = useQuery(productOptions(handle)),
+    product = productQuery.data;
   const variantsQuery = useQuery(variantsOptions(product?.productID ?? 0));
   const variants = variantsQuery.data ?? [];
   const relatedQuery = useQuery(relatedOptions(product?.productTypeID ?? 0));
-  const related = (relatedQuery.data?.content ?? []).filter(p => p.productID !== product?.productID && p.isActive && p.available).slice(0, 5);
-  const [selected, setSelected] = useState(0);
+  const related = (relatedQuery.data?.content ?? [])
+    .filter(
+      (p) => p.productID !== product?.productID && p.isActive && p.available,
+    )
+    .slice(0, 5);
+  const [selectedID, setSelected] = useState(0);
+  const selected =
+    (
+      variants.find((v) => v.variantID === selectedID) ??
+      variants.find(inStock) ??
+      variants[0]
+    )?.variantID ?? 0;
   const [imageIndex, setImageIndex] = useState(0);
   const [imageFailed, setImageFailed] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const loading = productQuery.isPending || !!product && variantsQuery.isPending;
-  const error = productQuery.isError && !product || variantsQuery.isError && !variantsQuery.data ? userMessage(productQuery.error || variantsQuery.error, 'Không tải được sản phẩm. Vui lòng thử lại.') : '';
+  const loading =
+    productQuery.isPending || (!!product && variantsQuery.isPending);
+  const error =
+    (productQuery.isError && !product) ||
+    (variantsQuery.isError && !variantsQuery.data)
+      ? userMessage(
+          productQuery.error || variantsQuery.error,
+          "Không tải được sản phẩm. Vui lòng thử lại.",
+        )
+      : "";
   const [adding, setAdding] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [tab, setTab] = useState<Tab>("specs");
+  const [tab, setTab] = useState<Tab>(() =>
+    window.location.hash === "#reviews" ? "reviews" : "specs",
+  );
   const reviewsQuery = useQuery(reviewsOptions(product?.productID ?? 0));
   const reviews = reviewsQuery.data ?? [];
-  const reviewState = reviewsQuery.isPending ? 'loading' : reviewsQuery.isError ? 'error' : 'ready';
+  const reviewState = reviewsQuery.isPending
+    ? "loading"
+    : reviewsQuery.isError
+      ? "error"
+      : "ready";
   const [modal, setModal] = useState<"image" | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const details = useRef<HTMLElement>(null);
   const busy = useRef(false);
 
+  const productID = product?.productID;
+  const [favoriteProductID, setFavoriteProductID] = useState(productID);
+  if (favoriteProductID !== productID) {
+    setFavoriteProductID(productID);
+    setSaved(productID ? isFavoriteProduct(productID) : false);
+  }
   useEffect(() => {
-    if (variants.length) setSelected((current) => variants.some(v => v.variantID === current) ? current : (variants.find(inStock) ?? variants[0]).variantID);
-  }, [variants]);
-  useEffect(() => { if (product) { setSaved(isFavoriteProduct(product.productID)); void trackProductView(product.productID).catch(() => {}); } }, [product?.productID]);
+    if (productID) void trackProductView(productID).catch(() => {});
+  }, [productID]);
 
   // Đồng bộ trạng thái yêu thích nếu người dùng bấm tim ở ProductCard hoặc tab khác
   useEffect(() => {
@@ -150,7 +184,12 @@ function ProductDetailContent({ handle }: { handle: string }) {
     setAdding(true);
     try {
       if (localStorage.getItem("accessToken")) {
-        await cartMutation.mutateAsync({ kind: 'add', variant, quantity, productTitle: product!.title });
+        await cartMutation.mutateAsync({
+          kind: "add",
+          variant,
+          quantity,
+          productTitle: product!.title,
+        });
         if (buyNow) navigate("/checkout");
       } else {
         const existing =
@@ -166,8 +205,12 @@ function ProductDetailContent({ handle }: { handle: string }) {
       notify.success(`Đã thêm ${quantity} sản phẩm vào giỏ hàng.`);
       window.dispatchEvent(new Event("cart-changed"));
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'AbortError') return;
-      if (err instanceof Error && err.message === "Số lượng trong giỏ vượt quá tồn kho. Vui lòng giảm số lượng.") {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (
+        err instanceof Error &&
+        err.message ===
+          "Số lượng trong giỏ vượt quá tồn kho. Vui lòng giảm số lượng."
+      ) {
         notify.warning(err.message);
       } else {
         notify.error(err, "Không thêm được sản phẩm. Vui lòng thử lại.");
@@ -486,7 +529,11 @@ function ProductDetailContent({ handle }: { handle: string }) {
                   </div>
                 </div>
               </section>
-              <section ref={details} className={styles.detailsPanel}>
+              <section
+                id="reviews"
+                ref={details}
+                className={styles.detailsPanel}
+              >
                 <div
                   className={styles.tabs}
                   role="tablist"
@@ -592,6 +639,12 @@ function ProductDetailContent({ handle }: { handle: string }) {
                   {tab === "reviews" && (
                     <>
                       <h2>Đánh giá từ khách hàng</h2>
+                      <Link
+                        className={styles.reviewAction}
+                        to="/my-profile/orders"
+                      >
+                        Đánh giá sản phẩm đã mua
+                      </Link>
                       <div className={styles.reviewSummary}>
                         <strong>
                           {(product.ratingAverage ?? 0).toFixed(1)}
@@ -616,9 +669,9 @@ function ProductDetailContent({ handle }: { handle: string }) {
                         reviews.map((review) => (
                           <article
                             className={styles.review}
-                            key={review.reviewID}
+                            key={`${product.productID}:${review.reviewID}`}
                           >
-                            <div>
+                            <div className={styles.reviewHeader}>
                               <strong>{review.username}</strong>
                               <time dateTime={review.reviewDate}>
                                 {new Date(review.reviewDate).toLocaleDateString(
@@ -628,6 +681,11 @@ function ProductDetailContent({ handle }: { handle: string }) {
                             </div>
                             <Stars rating={review.rating} />
                             <p>{review.comment}</p>
+                            <ReviewMediaGallery
+                              key={JSON.stringify(review.images)}
+                              images={review.images}
+                              username={review.username}
+                            />
                           </article>
                         ))
                       )}
@@ -677,10 +735,14 @@ function ProductDetailContent({ handle }: { handle: string }) {
         >
           <X size={21} />
         </button>
-        {modal === "image" && <>
-          <h2 id="detail-dialog-title" className={styles.srOnly}>{product?.title}</h2>
-          <img src={images[imageIndex]} alt={product?.title} />
-        </>}
+        {modal === "image" && (
+          <>
+            <h2 id="detail-dialog-title" className={styles.srOnly}>
+              {product?.title}
+            </h2>
+            <img src={images[imageIndex]} alt={product?.title} />
+          </>
+        )}
       </dialog>
     </main>
   );

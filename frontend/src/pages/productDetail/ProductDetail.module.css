@@ -92,7 +92,7 @@
 .reviewSummary small { font-size: 15px; color: #969ca6; }
 .reviewSummary p { color: #70798a; margin-top: 5px; }
 .review { border-bottom: 1px solid #eceff5; padding: 20px 0; }
-.review > div { display: flex; justify-content: space-between; margin-bottom: 7px; gap: 10px; }
+.reviewHeader { display: flex; justify-content: space-between; margin-bottom: 7px; gap: 10px; }
 .review time { color: #8b93a1; font-size: 11px; }
 .review p { margin-top: 8px; line-height: 1.7; color: #566175; white-space: pre-line; }
 .related { margin-top: 40px; }
@@ -146,3 +146,6 @@
 @media (max-width: 720px) { .page { padding: 18px 16px 40px; } .detail { grid-template-columns: 1fr; padding: 18px; gap: 26px; } .mainImage { max-height: 500px; } .info h1 { font-size: 25px; } .assurances { grid-template-columns: 1fr 1fr; } .stock { margin: 18px 0; } .products { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; } .sectionHeading { align-items: flex-start; } .sectionHeading h2 { font-size: 20px; } .sectionHeading a { font-size: 11px; } .specGrid { grid-template-columns: 1fr; } .specGrid > div { flex-wrap: nowrap; } .tabContent { padding: 25px 18px; } .tabs { padding: 0 6px; } .tabs button { padding: 16px 10px; } .loading { grid-template-columns: 1fr; padding: 22px; } .breadcrumb { font-size: 10px; gap: 5px; } .detailsPanel { margin-top: 24px; } }
 @media (max-width: 400px) { .purchaseActions { grid-template-columns: 1fr; } .assurances { grid-template-columns: 1fr; } .utilityRow > span { margin-left: 0; } .sectionHeading { flex-direction: column; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } .page button { transition: none; } }
+
+.reviewAction { display: inline-flex; align-items: center; padding: 9px 16px; margin: 14px 0 20px; background: #fff7ed; color: #c6530c; border: 1px solid #fed7aa; border-radius: 6px; font-weight: 600; text-decoration: none; }
+.reviewAction:hover { background: #ffedd5; }

@@ -54,6 +54,8 @@ function installMockApi() {
       return Response.json({content:url.searchParams.has('summary')?[]:content,totalElements:content.length,totalPages:1,statusCounts:{PENDING:1,DELIVERED:1}});
     }
     if (route.endsWith("/cancel")) return Response.json({ ...order(1), status: "CANCELLED" });
+    if (route === "/api/orders/2") return Response.json(order(2));
+    if (route === "/api/returns/my-requests") return Response.json([]);
     if (route === "/api/orders") return Response.json({ orderID: 3 });
     if (route === "/api/cart" || route === "/api/cart/items" || route === "/api/cart/merge") return Response.json(cart);
     if (route === "/api/products" || route === "/api/products/search") return Response.json({ content: [product], totalPages: 1, totalElements: 1 });
@@ -200,7 +202,8 @@ try {
     await evaluate("Storage.prototype.setItem=window.__originalSetItem");
     await evaluate("localStorage.setItem('accessToken','local-browser-test'); window.dispatchEvent(new Event('auth-changed')); window.__failure={route:'/api/cart/items',status:409,body:{detail:'Khong du ton kho cho bien the 1'}}");
     await clickText("Thêm vào giỏ hàng"); await notice("vượt quá tồn kho", "warning"); await clear();
-    await evaluate("localStorage.removeItem('accessToken'); window.__failure=null");
+    await evaluate("localStorage.removeItem('accessToken'); window.dispatchEvent(new Event('auth-changed')); window.__failure=null");
+    await until(() => evaluate("!!document.querySelector('header a[href=\"/login\"]') && !!document.querySelector('[aria-label=\"Thêm vào yêu thích\"]')"), "guest session settled");
   });
   await test("Favorite add/remove: one owner, no toast from synchronization effects", async () => {
     await evaluate("document.querySelector('[aria-label=\"Thêm vào yêu thích\"]').click()"); await notice("Đã thêm sản phẩm vào danh sách yêu thích", "success"); await clear();
@@ -245,13 +248,16 @@ try {
     await clickText("Xóa tất cả"); await notice("Đã xóa danh sách yêu thích", "success");
     assert.equal(await evaluate("localStorage.getItem('favorite-product-1')"), null); await clear();
   });
-  await test("Order cancellation and return-information replace the old alert", async () => {
+  await test("Order cancellation notifies once and return action opens the selected order", async () => {
     await navigate("/my-profile/orders", "[aria-label='Tìm đơn hàng']");
     await until(() => evaluate("document.body.textContent.includes('Hủy đơn hàng')"), "orders load");
     await clickText("Hủy đơn hàng"); await notice("Đã hủy đơn hàng #ST-1", "success"); await clear();
-    await clickText("Yêu cầu trả hàng"); await notice("sẽ được hỗ trợ trong thời gian tới", "info"); await clear();
+    await clickText("Yêu cầu trả hàng");
+    await until(() => evaluate("location.pathname==='/returns/new' && new URLSearchParams(location.search).get('orderId')==='2' && document.querySelector('#return-order')?.value==='2'"), "selected return order");
+    assert.equal(await count(), 0);
   });
   await test("Sidebar logout survives navigation", async () => {
+    await navigate("/my-profile", "input[autocomplete='street-address']");
     await clickText("Đăng xuất tài khoản"); await until(() => evaluate("location.pathname==='/login'"), "logout navigation");
     await notice("Đăng xuất thành công", "success"); assert.equal(await evaluate("localStorage.getItem('accessToken')"), null); await clear();
   });
@@ -272,13 +278,13 @@ try {
     assert.equal(await evaluate("document.querySelector('[role=log]').textContent.includes('Không thể kết nối cửa hàng')"), true);
     await clear(); await evaluate("window.__failure=null;document.querySelector('[aria-label=\"Đóng trò chuyện\"]').click()");
   });
-  await test("Forgot/reset password: neutral email notice and one success after the existing hard redirect", async () => {
+  await test("Forgot/reset password: neutral email notice and one success after following the email link", async () => {
     await navigate("/forgot-password", "input[type=email]");
-    await type("input[type=email]", "test@example.test"); await clickText("Gửi mã xác nhận");
+    await type("input[type=email]", "test@example.test"); await clickText("Gửi liên kết đặt lại mật khẩu");
     await notice("Nếu email tồn tại", "info"); await clear();
-    await type("input[placeholder='Nhập mã xác thực từ email...']", "test-reset-code");
-    await type("input[placeholder='8 - 72 ký tự']", "new-password");
-    await type("input[placeholder='Nhập lại mật khẩu mới']", "new-password");
+    await navigate("/reset-password?token=test-reset-code", "input[autocomplete='new-password']");
+    await type("label:first-of-type input[autocomplete='new-password']", "new-password");
+    await type("label:last-of-type input[autocomplete='new-password']", "new-password");
     await clickText("Xác nhận đặt lại mật khẩu");
     await until(() => evaluate("window.__requests.some(r=>r.route==='/api/auth/reset-password')"), "reset request");
     await until(() => evaluate("location.pathname==='/login'"), "reset redirect");

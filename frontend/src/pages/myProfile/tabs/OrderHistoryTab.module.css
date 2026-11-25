@@ -618,3 +618,8 @@
     grid-template-columns: 1fr;
   }
 }
+.btnReview { color: #c6530c; background: #fff7ed; border: 1px solid #fed7aa; }
+.btnReview:hover:not(:disabled) { background: #ffedd5; }
+.reviewStatus { display: block; margin-top: 6px; color: #16824b; font-size: 12px; font-weight: 600; }
+.actionButtons { flex-wrap: wrap; }
+.orderFooter { flex-wrap: wrap; gap: 12px; }

@@ -84,7 +84,19 @@ try {
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1100, deviceScaleFactor: 1, mobile: false });
   const featured='section[aria-label="Sản phẩm nổi bật"]', discovery='section[aria-label="Khám phá thêm sản phẩm"]';
   const cards=section=>evaluate(`document.querySelectorAll('${section} h3').length`);
-  const searchReady=()=>until(()=>evaluate('!!document.querySelector("#catalog-results article")'), 'catalog ready');
+  const searchReady=()=>until(()=>evaluate(`(async () => {
+    if (!document.querySelector('main[aria-busy="false"] #catalog-results article')) return false;
+    const {queryClient} = await import('/src/services/queryCache.ts');
+    const params = new URLSearchParams(location.search), category = params.get('category') || '';
+    const expectedCategory = /^\\d+$/.test(category) ? category : '';
+    return queryClient.getQueryCache().getAll().some(q => {
+      const [scope, resource, filters] = q.queryKey;
+      return scope === 'public' && resource === 'products' && q.getObserversCount() > 0 &&
+        filters.productTypeID === expectedCategory && filters.page === Number(params.get('page') || 1) - 1 &&
+        filters.size === Number(params.get('size') || 24) &&
+        q.state.status === 'success' && q.state.fetchStatus === 'idle';
+    });
+  })()`), 'catalog ready for current URL');
   const go=route=>evaluate(`history.pushState({},'',${JSON.stringify(route)});window.dispatchEvent(new PopStateEvent('popstate'))`);
   await navigate();
   await until(()=>cards(featured).then(n=>n===10),'ten featured products');
@@ -128,7 +140,7 @@ try {
       await click(`a[href="/search?category=${id}"]`); await searchReady();
       assert.equal(await evaluate('new URLSearchParams(location.search).get("category")'),String(id));
       assert.equal(await evaluate(`window.__requests.some(r=>r.route==='/api/products/search'&&r.query.productTypeID==='${id}')`),true);
-      const titles = await evaluate(`Array.from(document.querySelectorAll('#catalog-results article button[class*="productTitle"]')).map(n=>n.textContent.trim())`);
+      const titles = await evaluate(`Array.from(document.querySelectorAll('#catalog-results article a[class*="productTitle"]')).map(n=>n.textContent.trim())`);
       assert.equal(titles.length,24);
       assert.ok(titles.every(title => (Number(title.split(' ').at(-1))-1)%6+77===id));
     }
@@ -142,6 +154,7 @@ try {
     assert.equal(await evaluate('new URLSearchParams(location.search).has("page")'),false);
     await button('Bút gel','document.querySelector("#catalog-filters")'); await searchReady();
     assert.equal(await evaluate('new URLSearchParams(location.search).get("category")'),'81');
+    await until(()=>evaluate('!!document.querySelector(\'button[aria-label="Bỏ lọc Bút gel"]\')'), 'category chip ready');
     await click('button[aria-label="Bỏ lọc Bút gel"]');
     await until(()=>evaluate('!new URLSearchParams(location.search).has("category")'),'chip clears category');
   });

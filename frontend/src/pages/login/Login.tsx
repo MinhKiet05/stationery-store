@@ -3,6 +3,7 @@ import { Tag, Sparkles, Truck, Eye, EyeOff, ArrowRight } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { login, register } from "../../services/authService";
 import { notify } from "../../utils/notifications";
+import { loginRedirect } from "../../utils/loginRedirect";
 import styles from "./Login.module.css";
 
 export default function Login() {
@@ -34,29 +35,32 @@ export default function Login() {
     setError("");
   }
 
-  async function handleLogin(event: FormEvent) {
-    event.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      const result = await login(username, password);
-      if (result.cartSynced) {
-        notify.success("Đăng nhập thành công.");
-        const from = location.state?.from;
-        const target = typeof from?.pathname === "string" && from.pathname.startsWith("/") && !from.pathname.startsWith("//")
-          ? from.pathname + (from.search || "")
-          : "/";
-        navigate(target, { replace: true });
-      } else {
-        notify.warning("Đăng nhập thành công. Chưa đồng bộ được giỏ khách.");
-      }
-    } catch (err) {
-      notify.error(err, "Đăng nhập thất bại. Vui lòng thử lại.");
-    } finally {
-      setBusy(false);
+async function handleLogin(event: FormEvent) {
+  event.preventDefault();
+  if (busy) return;
+  setBusy(true);
+  setError("");
+
+  try {
+    const result = await login(username, password);
+
+    const target = loginRedirect(location.state?.from, location.search);
+
+    if (result.cartSynced) {
+      notify.success("Đăng nhập thành công.");
+    } else {
+      notify.warning(
+        "Đăng nhập thành công. Chưa đồng bộ được giỏ khách."
+      );
     }
+
+    navigate(target, { replace: true });
+  } catch (err) {
+    notify.error(err, "Đăng nhập thất bại. Vui lòng thử lại.");
+  } finally {
+    setBusy(false);
   }
+}
 
   async function handleRegister(event: FormEvent) {
     event.preventDefault();
