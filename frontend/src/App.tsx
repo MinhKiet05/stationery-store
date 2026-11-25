@@ -30,6 +30,7 @@ const UsersPage = lazy(() => import('./pages/dashboard/UsersPage.jsx'));
 const OrdersPage = lazy(() => import('./pages/dashboard/OrdersPage.jsx'));
 const ReturnsPage = lazy(() => import('./pages/dashboard/ReturnsPage.jsx'));
 const DashboardPlaceholder = lazy(() => import('./pages/dashboard/DashboardPlaceholder.jsx'));
+const ReturnRequest = lazy(() => import('./pages/returnRequest/ReturnRequest'));
 // Layout chung cho các trang có Header & Footer
 function MainLayout() {
   return (
@@ -57,53 +58,78 @@ function ProductSearchRedirect() {
   return <Navigate to={{ pathname: "/search", search, hash }} replace />;
 }
 
+
 function App() {
   useAdminSessionEvents();
   return (
     <BrowserRouter>
       <ScrollToTop />
-      <Suspense fallback={<p role="status">Đang tải trang…</p>}><Routes>
-        <Route path="/dashboard" element={<Suspense fallback={<div role="status">Đang tải khu vực quản trị…</div>}><AdminRoute /></Suspense>}>
-          <Route element={<DashboardLayout />}>
-            <Route index element={<OverviewPage />} />
-            <Route path="reviews" element={<ReviewsPage />} />
-            <Route path="promotions" element={<PromotionsPage />} />
-            <Route path="returns" element={<ReturnsPage />} />
-            <Route path="orders" element={<OrdersPage />} />
-            <Route path="products" element={<ProductsPage />} />
-            <Route path="users" element={<UsersPage />} />
-            <Route path="*" element={<DashboardPlaceholder title="Trang quản trị" />} />
+      <Suspense fallback={<p role="status">Đang tải trang…</p>}>
+        <Routes>
+          {/* Nhóm trang quản trị */}
+          <Route path="/dashboard" element={
+            <Suspense fallback={<div role="status">Đang tải khu vực quản trị…</div>}>
+              <AdminRoute />
+            </Suspense>
+          }>
+            <Route element={<DashboardLayout />}>
+              <Route index element={<OverviewPage />} />
+              <Route path="reviews" element={<ReviewsPage />} />
+              <Route path="promotions" element={<PromotionsPage />} />
+              <Route path="returns" element={<ReturnsPage />} />
+              <Route path="orders" element={<OrdersPage />} />
+              <Route path="products" element={<ProductsPage />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="*" element={<DashboardPlaceholder title="Trang quản trị" />} />
+            </Route>
           </Route>
-        </Route>
-        {/* Nhóm trang có Header & Footer */}
-        <Route element={<MainLayout />}>
-          <Route path="/" element={<HomePage />} />
-          {['/about-us', '/about', '/gioi-thieu', '/contact', '/lien-he'].map(path => <Route key={path} path={path} element={<AboutUs />} />)}
-          <Route path="/policy" element={<Policy />} />
-          <Route path="/review" element={<ReviewPage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/products" element={<ProductSearchRedirect />} />
-          <Route path="/products/:handle" element={<ProductDetailWrapper />} />
-          <Route path="/my-profile" element={<MyProfile />}>
-            <Route index element={<AccountInfoTab />} />
-            <Route path="orders" element={<OrderHistoryTab />} />
-            <Route path="wishlist" element={<WishlistTab />} />
-            <Route path="security" element={<SecurityTab />} />
-          </Route>
-          <Route path="/profile" element={<Navigate to="/my-profile" replace />} />
-          <Route path="/orders" element={<Navigate to="/my-profile/orders" replace />} />
-        </Route>
 
-        {/* Nhóm trang Auth độc lập */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
-      </Routes></Suspense>
+          {/* Nhóm trang có Header & Footer */}
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<HomePage />} />
+            {['/about-us', '/about', '/gioi-thieu', '/contact', '/lien-he'].map(path =>
+              <Route key={path} path={path} element={<AboutUs />} />
+            )}
+            <Route path="/policy" element={<Policy />} />
+            <Route path="/review" element={<ReviewPage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/products" element={<ProductSearchRedirect />} />
+            <Route path="/products/:handle" element={<ProductDetailWrapper />} />
+
+            {/* Trang tài khoản */}
+            <Route path="/my-profile" element={<MyProfile />}>
+              <Route index element={<AccountInfoTab />} />
+              <Route path="orders" element={<OrderHistoryTab />} />
+              <Route path="wishlist" element={<WishlistTab />} />
+              <Route path="security" element={<SecurityTab />} />
+            </Route>
+
+            <Route path="/profile" element={<Navigate to="/my-profile" replace />} />
+            <Route path="/orders" element={<Navigate to="/my-profile/orders" replace />} />
+
+            {/* Trang yêu cầu trả hàng của khách hàng */}
+            <Route path="/returns" element={<ReturnRequest />} />
+            <Route path="/returns/new" element={<ReturnRequest />} />
+            <Route path="/orders/:orderId/return" element={<ReturnRequest />} />
+            <Route path="/orders/:orderId/return/new" element={<ReturnRequest />} />
+            <Route path="/orders/:orderId/returns" element={<ReturnRequest />} />
+            <Route path="/orders/:orderId/returns/new" element={<ReturnRequest />} />
+          </Route>
+
+          {/* Nhóm trang Auth độc lập */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+        </Routes>
+      </Suspense>
 
       <StoreChat />
       <AppNotifications />
     </BrowserRouter>
   );
 }
+
+export default App;
+
 
 export default App;

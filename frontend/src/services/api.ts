@@ -1,11 +1,29 @@
+
 import { notify, userMessage } from "../utils/notifications";
+import { invalidateBusiness, sessionScope } from "./queryCache";
 
-import { invalidateBusiness, sessionScope } from './queryCache';
+export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "")
+  .trim()
+  .replace(/\/+$/, "");
 
-export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").trim().replace(
-  /\/+$/,
-  "",
-);
+export class ApiError extends Error {
+  readonly status: number;
+  readonly detail?: string;
+  readonly notificationHandled: boolean;
+
+  constructor(
+    message: string,
+    status: number,
+    detail?: string,
+    notificationHandled = false,
+  ) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.detail = detail;
+    this.notificationHandled = notificationHandled;
+  }
+}
 
 export async function apiResponse(
   path: string,
@@ -13,19 +31,32 @@ export async function apiResponse(
 ): Promise<Response> {
   const scope = sessionScope();
   const headers = new Headers(options.headers);
-  if (options.body && !(options.body instanceof FormData)) headers.set("Content-Type", "application/json");
+
+  if (options.body && !(options.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
   const token = localStorage.getItem("accessToken");
+
   const isPublicAuth =
-    path === "/api/auth/login" || path === "/api/auth/register";
-  if (token && !isPublicAuth)
+    path === "/api/auth/login" ||
+    path === "/api/auth/register";
+
+  if (token && !isPublicAuth) {
     headers.set("Authorization", `Bearer ${token}`);
+  }
+
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
     signal: options.signal
-      ? AbortSignal.any([options.signal, AbortSignal.timeout(65000)])
+      ? AbortSignal.any([
+          options.signal,
+          AbortSignal.timeout(65000),
+        ])
       : AbortSignal.timeout(65000),
   });
+
   if (!response.ok) {
     if (
       response.status === 401 &&
@@ -38,6 +69,7 @@ export async function apiResponse(
       window.dispatchEvent(new Event("auth-changed"));
       notify.sessionExpired();
     }
+
     const fallback =
       response.status === 429
         ? "Bạn gửi hơi nhanh. Hãy thử lại sau một phút."
@@ -53,25 +85,66 @@ export async function apiResponse(
                 ? "Email này đã được sử dụng bởi tài khoản khác."
                 : path === "/api/users/me" && response.status === 400
                   ? "Thông tin hồ sơ không hợp lệ. Vui lòng kiểm tra lại."
-                  : path.startsWith("/api/orders/") && response.status === 409
-                    ? "Trạng thái đơn hàng đã thay đổi hoặc đơn đã thanh toán nên không thể hủy. Vui lòng tải lại."
+                  : path.startsWith("/api/orders/") &&
+                      response.status === 409
+                    ? "Trạng thái đơn hàng đã thay đổi. Vui lòng tải lại."
                     : "Không thể kết nối cửa hàng. Vui lòng thử lại.";
+
     const body = await response.json().catch(() => null);
-    throw Object.assign(new Error(userMessage(body, fallback)), {
-      status: response.status,
-      notificationHandled: response.status === 401 && !isPublicAuth && Boolean(token),
-    });
+
+    const detail =
+      typeof body?.detail === "string"
+        ? body.detail
+        : typeof body?.message === "string"
+          ? body.message
+          : undefined;
+
+    throw new ApiError(
+      userMessage(body, fallback),
+      response.status,
+      detail,
+      response.status === 401 &&
+        !isPublicAuth &&
+        Boolean(token),
+    );
   }
-  if (scope !== sessionScope() || localStorage.getItem('accessToken') !== token) throw new DOMException('Session changed', 'AbortError');
-  if (options.method && options.method !== 'GET' && options.method !== 'HEAD' && !path.startsWith('/api/auth/') && !path.endsWith('/preview')) invalidateBusiness(path, scope);
+
+  if (
+    scope !== sessionScope() ||
+    localStorage.getItem("accessToken") !== token
+  ) {
+    throw new DOMException("Session changed", "AbortError");
+  }
+
+  if (
+    options.method &&
+    options.method !== "GET" &&
+    options.method !== "HEAD" &&
+    !path.startsWith("/api/auth/") &&
+    !path.endsWith("/preview")
+  ) {
+    invalidateBusiness(path, scope);
+  }
+
   return response;
 }
 
-export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function api<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const scope = sessionScope();
   const response = await apiResponse(path, options);
-  if (response.status === 204) return undefined as T;
-  const data = await response.json() as T;
-  if (scope !== sessionScope()) throw new DOMException('Session changed', 'AbortError');
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const data = (await response.json()) as T;
+
+  if (scope !== sessionScope()) {
+    throw new DOMException("Session changed", "AbortError");
+  }
+
   return data;
 }

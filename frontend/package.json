@@ -10,6 +10,7 @@
     "test:homepage": "node scripts/test-homepage-catalog.mjs",
     "test:profile": "node --test tests/profile.test.mjs",
     "test:about": "node scripts/test-about.mjs",
+    "test:returns": "node scripts/test-returns.mjs",
     "test:notifications": "node scripts/test-notifications.mjs",
     "test:admin-verification": "node --test tests/adminVerification.test.mjs",
     "test:admin-route": "node scripts/test-admin-route.mjs",
