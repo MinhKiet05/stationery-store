@@ -96,7 +96,7 @@ test('a late 401 cannot log out a newly established session even if its token st
     token=null;cache.sessionScope();token='session-A';cache.sessionScope();
     return Response.json({}, {status:401});
   };
-  await assert.rejects(profiles.getMyProfile(),error=>error.status===401);
+  await assert.rejects(profiles.getMyProfile(),error=>error.name==='AbortError');
   assert.equal(token,'session-A');
 });
 

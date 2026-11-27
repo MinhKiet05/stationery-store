@@ -1,5 +1,6 @@
 import { API_BASE } from "./api";
 import { userMessage } from "../utils/notifications";
+import { errorCode, errorDetail, httpMessages } from './apiError';
 
 export class PasswordResetError extends Error {
   readonly status: number;
@@ -30,9 +31,9 @@ export async function passwordResetRequest(
         ? "Bạn gửi hơi nhanh. Hãy thử lại sau một phút."
         : action === "reset-password" && response.status === 400
           ? "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn."
-          : "Không thể xử lý yêu cầu lúc này. Vui lòng thử lại sau.";
+          : httpMessages[response.status] ?? "Không thể xử lý yêu cầu lúc này. Vui lòng thử lại sau.";
     throw new PasswordResetError(
-      userMessage(data, fallback),
+      userMessage({ code: errorCode(data), detail: errorDetail(data) }, fallback),
       response.status,
       Number.isFinite(seconds) && seconds > 0 ? Math.ceil(seconds) : 60,
     );

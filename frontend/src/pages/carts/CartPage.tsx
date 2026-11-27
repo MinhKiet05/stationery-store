@@ -27,9 +27,9 @@ import {
   isFavoriteProduct,
   toggleFavoriteProduct,
 } from "../../utils/favoriteStorage";
-import { userMessage } from "../../utils/notifications";
+import { notify, userMessage } from "../../utils/notifications";
 import type { Cart } from "../../services/cartService";
-import { useCheckout } from '../../hooks/useCheckout';
+import { useCouponCheckout } from '../../hooks/useCouponCheckout';
 import { money } from './checkoutUtils';
 import GuestCartPage from '../cart/CartPage';
 
@@ -205,19 +205,17 @@ function CustomerCart() {
   const mutation = useCartMutation();
   const navigate = useNavigate();
   const [excluded, setExcluded] = useState<number[]>([]);
-  const [coupon, setCoupon] = useState("");
-  const [couponCode, setCouponCode] = useState("");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
   const writeLock = useRef(false);
   const items = query.data?.items ?? [];
   const subtotal = query.data?.subtotal ?? 0;
-  const { options, quote } = useCheckout({ items, couponCode });
+  const busy = mutation.isPending || deleting;
+  const { options, quote, data: quoteData, coupon, setCoupon, couponCode, couponError, checking, hasCoupon, applyCoupon, removeCoupon, ready } = useCouponCheckout(items, 'STANDARD', '', !busy);
   const selected = items.filter((item) => !excluded.includes(item.cartItemID));
   const allSelected = !!items.length && selected.length === items.length;
-  const busy = mutation.isPending || deleting;
   const freeThreshold = options.data?.freeShippingThreshold ?? 200000;
-  const merchandise = subtotal - (quote.data?.discountAmount ?? 0);
+  const merchandise = subtotal - (quoteData?.discountAmount ?? 0);
   const remaining = Math.max(0, freeThreshold - merchandise);
   const progress = freeThreshold > 0 ? Math.min(100, Math.round(merchandise / freeThreshold * 100)) : 100;
   const suggestions = useQuery({
@@ -246,10 +244,12 @@ function CustomerCart() {
           : { kind: "quantity", itemID, quantity },
       );
       if (current === sessionScope())
-        window.dispatchEvent(new Event("cart-changed"));
+        { window.dispatchEvent(new Event("cart-changed")); notify.success(quantity === undefined ? 'Đã xóa sản phẩm khỏi giỏ hàng.' : 'Đã cập nhật số lượng sản phẩm.'); }
     } catch (reason) {
-      if (current === sessionScope())
-        setError(userMessage(reason, "Không thể cập nhật giỏ hàng."));
+      if (current === sessionScope()) {
+        const message = userMessage(reason, "Không thể cập nhật giỏ hàng.");
+        setError(message); notify.error(reason, message);
+      }
     } finally {
       writeLock.current = false;
     }
@@ -265,11 +265,15 @@ function CustomerCart() {
         if (current !== sessionScope()) break;
         await mutation.mutateAsync({ kind: "remove", itemID: item.cartItemID });
       }
-      if (current === sessionScope())
+      if (current === sessionScope()) {
         window.dispatchEvent(new Event("cart-changed"));
+        notify.success('Đã xóa các sản phẩm đã chọn khỏi giỏ hàng.');
+      }
     } catch (reason) {
-      if (current === sessionScope())
-        setError(userMessage(reason, "Chưa xóa được các sản phẩm đã chọn."));
+      if (current === sessionScope()) {
+        const message = userMessage(reason, "Chưa xóa được các sản phẩm đã chọn.");
+        setError(message); notify.error(reason, message);
+      }
     } finally {
       writeLock.current = false;
       setDeleting(false);
@@ -554,22 +558,21 @@ function CustomerCart() {
                 </div>
                 <button
                   type="button"
-                  disabled={!coupon.trim()}
-                  onClick={() => setCouponCode(coupon.trim().toUpperCase())}
+                  disabled={!coupon.trim() || checking || busy}
+                  onClick={() => void applyCoupon()}
                   className="shrink-0 rounded-md bg-[#111c30] px-4 text-xs font-medium text-white"
                 >
-                  Áp dụng
+                  {checking ? 'Đang kiểm tra…' : 'Áp dụng'}
                 </button>
               </div>
-              {couponCode && (
+              {hasCoupon && (
                 <div className="mt-3">
                   <span className="inline-flex items-center gap-1 rounded-full bg-[#fff0e4] px-2 py-1 text-[10px] font-semibold text-orange-500">
                     <Tag size={10} />
-                    {couponCode}
+                    {couponCode || 'Mã chưa được áp dụng'}
                     <button
                       onClick={() => {
-                        setCoupon("");
-                        setCouponCode("");
+                        removeCoupon();
                       }}
                       aria-label="Bỏ mã giảm giá"
                       className="ml-1"
@@ -578,10 +581,12 @@ function CustomerCart() {
                     </button>
                   </span>
                   <p className="mt-2 text-[11px] text-[#969aa7]">
-                    {quote.isFetching ? 'Đang kiểm tra mã…' : quote.isError ? userMessage(quote.error, 'Mã không áp dụng được.') : 'Giảm giá đã được tính vào tổng đơn.'}
+                    {quote.isFetching ? 'Đang kiểm tra mã…' : quote.isError ? userMessage(quote.error, 'Mã không áp dụng được.') : couponCode ? 'Giảm giá đã được tính vào tổng đơn.' : 'Bạn có thể tiếp tục không dùng mã giảm giá.'}
                   </p>
                 </div>
               )}
+              {couponError && <p role="alert" className="mt-2 text-xs text-red-600">{couponError}</p>}
+              {quote.isError && <p role="alert" className="mt-2 text-xs text-red-600">{userMessage(quote.error, 'Chưa tính được tổng đơn.')} <button type="button" className="underline" onClick={() => void quote.refetch()}>Thử lại</button></p>}
               <dl className="mt-7 grid gap-3 text-sm">
                 <div className="flex justify-between gap-4">
                   <dt className="text-[#8d929e]">
@@ -591,7 +596,7 @@ function CustomerCart() {
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-[#8d929e]">Phí vận chuyển dự kiến</dt>
-                  <dd className="text-xs text-[#8d929e]">{quote.data ? quote.data.shippingFee === 0 ? 'Miễn phí' : money(quote.data.shippingFee) : 'Đang tính…'}</dd>
+                    <dd className="text-xs text-[#8d929e]">{quoteData ? quoteData.shippingFee === 0 ? 'Miễn phí' : money(quoteData.shippingFee) : quote.isFetching ? 'Đang tính…' : quote.isError ? 'Chưa tính được' : 'Chưa có ước tính'}</dd>
                 </div>
                 <div className="flex justify-between gap-4">
                   <dt className="text-[#8d929e]">Đóng gói hộp quà</dt>
@@ -602,12 +607,12 @@ function CustomerCart() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <h3 className="text-base font-bold">Tổng thanh toán</h3>
                   <strong className="text-[32px] leading-tight font-bold tracking-tight text-[#ff791c]">
-                    {quote.data ? money(quote.data.totalAmount) : money(subtotal)}
+                      {quoteData ? money(quoteData.totalAmount) : quote.isFetching ? 'Đang tính…' : quote.isError ? 'Chưa tính được' : 'Chưa có ước tính'}
                   </strong>
                 </div>
                 <p className="mt-1 text-[10px] text-[#a0a4af]">
-                  {couponCode
-                    ? `Giảm giá: ${money(quote.data?.discountAmount ?? 0)}`
+                  {!quoteData ? 'Cần ước tính hợp lệ trước khi thanh toán.' : couponCode
+                    ? `Giảm giá: ${money(quoteData?.discountAmount ?? 0)}`
                     : "Đã gồm vận chuyển tiêu chuẩn. Có thể đổi ở checkout."}
                 </p>
               </div>
@@ -628,7 +633,7 @@ function CustomerCart() {
                 type="button"
                 disabled={
                   busy ||
-                  quote.isFetching || quote.isError || !quote.data || options.isError ||
+                  !ready || options.isError ||
                   !allSelected ||
                   items.some(
                     (item) =>

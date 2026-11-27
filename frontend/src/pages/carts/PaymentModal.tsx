@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { completeDemoPayment } from "../../services/checkoutService";
 import { sessionScope } from "../../services/queryCache";
-import { userMessage } from "../../utils/notifications";
+import { notify, userMessage } from "../../utils/notifications";
 import type { Order, PaymentMethod } from "../../services/orderService";
 import { money, paymentLabels } from "./checkoutUtils";
 
@@ -87,6 +87,7 @@ export default function PaymentModal({
         setReceipt(result);
         onPaidRef.current(result);
         setStep("success");
+        notify.success('Đã xác nhận thanh toán cho đơn hàng.');
       } catch (reason) {
         if (!active || scope !== sessionScope()) return;
         setError(
@@ -96,6 +97,7 @@ export default function PaymentModal({
           ),
         );
         setStep("error");
+        notify.error(reason, 'Chưa xác định được kết quả thanh toán. Vui lòng kiểm tra lại cùng đơn hàng.');
       }
     }, 2100);
 

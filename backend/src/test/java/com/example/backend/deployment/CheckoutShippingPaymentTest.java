@@ -71,6 +71,38 @@ class CheckoutShippingPaymentTest {
         assertThat(policy.shippingFee(ShippingMethod.STANDARD,new BigDecimal("199999"))).isEqualByComparingTo("25000");
         assertThat(policy.shippingFee(ShippingMethod.EXPRESS,new BigDecimal("999999"))).isEqualByComparingTo("40000");
     }
+    @Test void smallCartRejectsCouponWithSpecificSafeReason() throws Exception {
+        variant.setPrice(new BigDecimal("7400"));
+        coupon.setMinOrderValue(new BigDecimal("200000")); em.flush();
+        mvc.perform(post("/api/checkout/preview").contentType("application/json").content("{\"shippingMethod\":\"STANDARD\",\"couponCode\":\"SAVE20\"}"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("COUPON_MINIMUM_NOT_MET"))
+            .andExpect(jsonPath("$.detail").value("Đơn hàng chưa đạt giá trị tối thiểu để sử dụng mã này."));
+        em.refresh(coupon); assertThat(coupon.getUsedCount()).isZero();
+        mvc.perform(post("/api/checkout/preview").contentType("application/json").content("{\"shippingMethod\":\"STANDARD\",\"couponCode\":null}"))
+            .andExpect(status().isOk()).andExpect(jsonPath("$.totalAmount").value(39800));
+    }
+    @Test void couponExpiryStartActivationAndUsageHaveDistinctCodes() throws Exception {
+        String request="{\"shippingMethod\":\"STANDARD\",\"couponCode\":\"SAVE20\"}";
+        coupon.setEndDate(java.time.LocalDate.now().minusDays(1)); em.flush();
+        mvc.perform(post("/api/checkout/preview").contentType("application/json").content(request))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("COUPON_EXPIRED"));
+        coupon.setEndDate(null); coupon.setStartDate(java.time.LocalDate.now().plusDays(1)); em.flush();
+        mvc.perform(post("/api/checkout/preview").contentType("application/json").content(request))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("COUPON_NOT_STARTED"));
+        coupon.setStartDate(null); coupon.setIsActive(false); em.flush();
+        mvc.perform(post("/api/checkout/preview").contentType("application/json").content(request))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("COUPON_INACTIVE"));
+        coupon.setIsActive(true); coupon.setUsedCount(10); em.flush();
+        mvc.perform(post("/api/checkout/preview").contentType("application/json").content(request))
+            .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("COUPON_EXHAUSTED"));
+    }
+    @Test void missingCouponAndMalformedShippingNeverExposeParserDiagnostics() throws Exception {
+        mvc.perform(post("/api/checkout/preview").contentType("application/json").content("{\"shippingMethod\":\"STANDARD\",\"couponCode\":\"MISSING\"}"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("COUPON_NOT_FOUND"));
+        mvc.perform(post("/api/checkout/preview").contentType("application/json").content("{\"shippingMethod\":\"SQL secret\"}"))
+            .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("CHECKOUT_INVALID_INPUT"))
+            .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("SQL secret"))));
+    }
     @Test void expressFeeIsPersistedAndOrderTotalIncludesDiscountAndShipping() throws Exception {
         long id=create("COD","EXPRESS");
         mvc.perform(get("/api/orders/"+id)).andExpect(status().isOk()).andExpect(jsonPath("$.shippingFee").value(40000))

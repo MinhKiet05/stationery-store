@@ -39,7 +39,7 @@ export default function OrderDetailModal({ orderID, onClose, onChanged, onAccess
       const message = adminErrorMessage(failure);
       setError(message); setConfirm(null);
       setStale(true); // Require a fresh read after conflicts or uncertain network outcomes.
-      notify.error(message, message);
+      notify.error(message, message, failure);
     } finally {
       detail.mutation.current = false;
       if (detail.alive.current) setBusy(false);

@@ -122,7 +122,7 @@ test("product-type API failure is surfaced rather than using hardcoded types", a
     path === "/api/product-types"
       ? new Response(null, { status: 503 })
       : Response.json({ content: [], totalPages: 0, totalElements: 0 });
-  await assert.rejects(getCatalog(), /Không thể kết nối cửa hàng/);
+  await assert.rejects(getCatalog(), error => error.status === 503 && error.message.includes('Dịch vụ tạm thời gián đoạn'));
 });
 
 test("a failed requested page rejects without presenting another page as its result", async () => {

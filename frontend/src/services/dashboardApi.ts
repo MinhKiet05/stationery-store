@@ -4,6 +4,7 @@ import type { StatisticsResponses, StatisticsPath, DashboardResponses, Dashboard
 import type { Order, OrderStatus } from './orderService';
 import { errorStatus } from './apiError';
 import { api } from './api';
+import { userMessage } from '../utils/notifications';
 
 export const dashboardIdentity = (signal?: AbortSignal) => api<AdminIdentity>('/api/auth/me', { signal });
 export function dashboardRequest<R extends keyof StatisticsResponses>(path: StatisticsPath<R>, signal?: AbortSignal): Promise<StatisticsResponses[R]>;
@@ -30,7 +31,7 @@ export const adminErrorMessage = (error: unknown): string => {
   if (status === 404) return 'Dữ liệu không còn tồn tại hoặc đã bị xóa.';
   if (status === 409) return 'Dữ liệu đã thay đổi hoặc thao tác không còn hợp lệ. Hãy tải lại chi tiết trước khi tiếp tục.';
   if (status === 400) return 'Dữ liệu gửi lên không hợp lệ. Vui lòng kiểm tra lại.';
-  return 'Không thể hoàn tất yêu cầu. Vui lòng kiểm tra kết nối và thử lại.';
+  return userMessage(error, 'Không thể hoàn tất yêu cầu. Vui lòng thử lại sau.');
 };
 export const storedDateTime = (value: string | null | undefined) => {
   if (!value) return '—';

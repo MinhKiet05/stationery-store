@@ -51,14 +51,14 @@ export default function ImportExcelModal({ kind, onClose, onChanged, onAccessDen
       }
     } catch (failure) {
       if (!alive.current || controller.signal.aborted) return;
-      if (failure.status === 401 || failure.status === 403) onAccessDenied();
+      if (failure.status === 401 || failure.status === 403) { onAccessDenied(); return; }
       const message = failure.status === 413 ? 'File vượt quá giới hạn dung lượng hoặc số dòng. Hãy chia nhỏ file.'
         : failure.status === 409 ? 'File, dữ liệu hoặc phiên kiểm tra đã thay đổi. Hãy kiểm tra dữ liệu lại; dữ liệu cũ sẽ không bị ghi đè.'
           : failure.status === 400 ? 'File không hợp lệ. Kiểm tra định dạng, sheet và header theo template; không dùng macro hoặc liên kết ngoài.'
             : failure.status === 403 ? 'Bạn không có quyền import dữ liệu.'
               : operation === 'confirm' ? 'Chưa xác định được kết quả import. Hãy tải lại danh sách và kiểm tra file trước khi thực hiện tiếp; không gửi lại yêu cầu xác nhận.'
                 : 'Không thể xử lý file. Vui lòng thử lại.';
-      setError(message); notify.error(message, message);
+      setError(message); notify.error(message, message, failure);
       if (operation === 'confirm') { setUncertain(true); setConfirm(false); }
     } finally { if (pending.current === controller) pending.current = null; if (alive.current) setJob(''); }
   }

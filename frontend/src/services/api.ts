@@ -1,7 +1,7 @@
 
 import { notify, userMessage } from "../utils/notifications";
 import { invalidateBusiness, sessionScope } from "./queryCache";
-import { errorDetail } from './apiError';
+import { errorDetail, errorCode, httpMessages } from './apiError';
 
 export const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "")
   .trim()
@@ -11,18 +11,21 @@ export class ApiError extends Error {
   readonly status: number;
   readonly detail?: string;
   readonly notificationHandled: boolean;
+  readonly code?: string;
 
   constructor(
     message: string,
     status: number,
     detail?: string,
     notificationHandled = false,
+    code?: string,
   ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
     this.notificationHandled = notificationHandled;
+    this.code = code;
   }
 }
 
@@ -59,6 +62,8 @@ export async function apiResponse(
   });
 
   if (!response.ok) {
+    if (scope !== sessionScope() || localStorage.getItem('accessToken') !== token)
+      throw new DOMException('Session changed', 'AbortError');
     if (
       response.status === 401 &&
       !isPublicAuth &&
@@ -89,18 +94,19 @@ export async function apiResponse(
                   : path.startsWith("/api/orders/") &&
                       response.status === 409
                     ? "Trạng thái đơn hàng đã thay đổi. Vui lòng tải lại."
-                    : "Không thể kết nối cửa hàng. Vui lòng thử lại.";
+                    : httpMessages[response.status] ?? "Không thể xử lý yêu cầu lúc này. Vui lòng thử lại sau.";
 
     const body: unknown = await response.json().catch(() => null);
     const detail = errorDetail(body);
 
     throw new ApiError(
-      userMessage(body, fallback),
+      userMessage({ detail, code: errorCode(body) }, fallback),
       response.status,
       detail,
       response.status === 401 &&
         !isPublicAuth &&
         Boolean(token),
+      errorCode(body),
     );
   }
 

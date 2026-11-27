@@ -22,9 +22,9 @@ export default function UserDetailModal({ userID, admin, onClose, onChanged, onA
       onChanged();
     } catch (failure) {
       if (!detail.alive.current) return;
-      if (failure.status === 401 || failure.status === 403) onAccessDenied();
+      if (failure.status === 401 || failure.status === 403) { onAccessDenied(); return; }
       const message = adminErrorMessage(failure);
-      setError(message); setStale(true); setConfirm(null); notify.error(message, message);
+      setError(message); setStale(true); setConfirm(null); notify.error(message, message, failure);
     } finally { detail.mutation.current = false; if (detail.alive.current) setBusy(false); }
   }
   const disabled = busy || stale || self;

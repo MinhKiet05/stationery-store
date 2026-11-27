@@ -1,8 +1,15 @@
 import { toast, type TypeOptions } from "react-toastify";
+import { businessMessages, errorCode, errorName, errorStatus, httpMessages } from '../services/apiError';
 
 // Only approved public messages may cross the API/UI boundary. Unknown backend
 // diagnostics (even when written in Vietnamese) must never reach a toast.
 const publicMessages = [
+  ...Object.values(businessMessages), ...Object.values(httpMessages),
+  'Yêu cầu vượt quá thời gian chờ. Vui lòng kiểm tra lại.',
+  'Mã giảm giá không hợp lệ.', 'Mã giảm giá không áp dụng được.',
+  'Đơn hàng chưa đạt giá trị tối thiểu.', 'Mã giảm giá đã hết lượt.',
+  'Không thể tải ảnh. Vui lòng thử lại.',
+  'Chưa cấu hình dịch vụ tải ảnh. Vui lòng liên hệ cửa hàng.',
   "Bạn gửi hơi nhanh. Hãy thử lại sau một phút.",
   "Tên đăng nhập hoặc mật khẩu không đúng.",
   "Vui lòng đăng nhập lại.",
@@ -28,6 +35,10 @@ const approved = new Map(publicMessages.map(message => [normalize(message), mess
 // Some existing endpoints still return these exact unaccented business reasons.
 // Translate recognized reasons without allowing arbitrary response data through.
 const translations = new Map([
+  ['Ma giam gia khong hop le', 'Mã giảm giá không tồn tại.'],
+  ['Ma giam gia chua co hieu luc hoac da het han', 'Mã giảm giá chưa có hiệu lực hoặc đã hết hạn.'],
+  ['Don hang chua dat gia tri toi thieu', businessMessages.COUPON_MINIMUM_NOT_MET],
+  ['Ma giam gia da het luot', businessMessages.COUPON_EXHAUSTED],
   ["Mat khau cu khong dung", "Mật khẩu hiện tại không chính xác."],
   ["Email da ton tai", "Email này đã được sử dụng bởi tài khoản khác."],
   ["Mat khau moi vuot qua 72 byte UTF-8", "Mật khẩu mới không được vượt quá 72 byte."],
@@ -41,9 +52,11 @@ const translations = new Map([
 for (const message of translations.values()) approved.set(normalize(message), message);
 
 export function userMessage(error: unknown, fallback: string): string {
+  const code = errorCode(error);
+  if (code && Object.hasOwn(businessMessages, code)) return businessMessages[code];
   const values = typeof error === "string" ? [error]
     : error && typeof error === "object"
-      ? ["message" in error ? error.message : null, "detail" in error ? error.detail : null]
+      ? ["detail" in error ? error.detail : null, "message" in error ? error.message : null]
       : [];
   for (const value of values) {
     if (typeof value === "string") {
@@ -54,6 +67,10 @@ export function userMessage(error: unknown, fallback: string): string {
         return "Số lượng trong giỏ vượt quá tồn kho. Vui lòng giảm số lượng.";
     }
   }
+  const status = errorStatus(error);
+  if (status) return httpMessages[status] ?? 'Không thể xử lý yêu cầu lúc này. Vui lòng thử lại sau.';
+  if (errorName(error) === 'TimeoutError') return 'Yêu cầu vượt quá thời gian chờ. Vui lòng kiểm tra lại.';
+  if (error instanceof TypeError) return 'Không thể kết nối cửa hàng. Vui lòng thử lại.';
   return fallback;
 }
 
@@ -67,8 +84,9 @@ export const notify = {
   success: (message: string) => show("success", message),
   warning: (message: string) => show("warning", message),
   info: (message: string) => show("info", message),
-  error(error: unknown, fallback: string) {
-    if (error && typeof error === "object" && "notificationHandled" in error && error.notificationHandled === true) return;
+  error(error: unknown, fallback: string, cause: unknown = error) {
+    if (errorName(cause) === 'AbortError') return;
+    if (cause && typeof cause === "object" && "notificationHandled" in cause && cause.notificationHandled === true) return;
     return show("error", userMessage(error, fallback));
   },
   sessionExpired() {

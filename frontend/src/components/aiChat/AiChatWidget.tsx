@@ -3,6 +3,7 @@ import { MessageCircle, Send, Sparkles, X, LoaderCircle } from "lucide-react";
 import type { Product } from "../productCard/ProductCard";
 import { sendChat } from "../../services/aiService";
 import { notify, userMessage as getUserMessage } from "../../utils/notifications";
+import { errorName } from '../../services/apiError';
 import styles from "./AiChatWidget.module.css";
 import { Link } from 'react-router-dom';
 type Message = { id: number; role: "user" | "assistant"; text: string; products?: Product[] };
@@ -29,17 +30,16 @@ export default function AiChatWidget() {
     const userMessage: Message = { id: ++sequence.current, role: "user", text };
     setMessages(old => [...old, userMessage].slice(-60));
     const controller = new AbortController(); request.current = controller;
-    const timeout = window.setTimeout(() => controller.abort(), 65000);
     try {
       const data = await sendChat(text, controller.signal);
       const answer: Message = { id: ++sequence.current, role: "assistant", text: data.reply, products: data.products };
       setMessages(old => [...old, answer].slice(-60));
     } catch (err) {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || errorName(err) === 'AbortError') return;
       const answer: Message = { id: ++sequence.current, role: "assistant", text: getUserMessage(err, "Trợ lý đang bận. Bạn thử lại sau nhé.") };
       setMessages(old => [...old, answer].slice(-60));
       notify.error(err, "Trợ lý đang bận. Bạn thử lại sau nhé.");
-    } finally { window.clearTimeout(timeout); request.current = null; setBusy(false); }
+    } finally { request.current = null; setBusy(false); }
   }
   return <div className={styles.widget}>
     {open && <section id="shopping-chat" role="dialog" aria-label="Trợ lý mua sắm" className={styles.panel}

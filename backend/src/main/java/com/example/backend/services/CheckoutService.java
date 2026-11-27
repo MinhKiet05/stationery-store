@@ -34,10 +34,10 @@ public class CheckoutService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
         if (!Boolean.TRUE.equals(user.getIsActive()))
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
-        Cart cart = carts.findByUser_UserID(user.getUserID()).orElseThrow(() -> bad("Giỏ hàng trống"));
+        Cart cart = carts.findByUser_UserID(user.getUserID()).orElseThrow(() -> new CheckoutFailure(HttpStatus.BAD_REQUEST, "CART_EMPTY", "Giỏ hàng đang trống."));
         var rows = items.findByCart_CartID(cart.getCartID());
         if (rows.isEmpty())
-            throw bad("Giỏ hàng trống");
+            throw new CheckoutFailure(HttpStatus.BAD_REQUEST, "CART_EMPTY", "Giỏ hàng đang trống.");
         BigDecimal subtotal = BigDecimal.ZERO;
         for (CartItem row : rows) {
             var variant = row.getVariant();
@@ -48,14 +48,14 @@ public class CheckoutService {
                     || !Boolean.TRUE.equals(variant.getProduct().getAvailable())
                     || !Boolean.TRUE.equals(variant.getProduct().getIsActive()) || variant.getStockQuantity() == null
                     || variant.getStockQuantity() < row.getQuantity())
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Sản phẩm ngừng bán hoặc không đủ tồn kho");
+                throw new CheckoutFailure(HttpStatus.CONFLICT, "CHECKOUT_STOCK_UNAVAILABLE", "Sản phẩm ngừng bán hoặc không đủ tồn kho. Vui lòng kiểm tra giỏ hàng.");
             subtotal = subtotal.add(variant.getPrice().multiply(BigDecimal.valueOf(row.getQuantity())));
         }
         String code = request.couponCode() == null || request.couponCode().isBlank() ? null
                 : request.couponCode().trim().toUpperCase(Locale.ROOT);
         BigDecimal discount = code == null ? BigDecimal.ZERO
                 : policy.discount(
-                        coupons.findByCode(code).orElseThrow(() -> bad("Mã giảm giá không hợp lệ")), subtotal);
+                        coupons.findByCode(code).orElseThrow(() -> new CheckoutFailure(HttpStatus.BAD_REQUEST, "COUPON_NOT_FOUND", "Mã giảm giá không tồn tại.")), subtotal);
         ShippingMethod method = policy.shippingMethod(request.shippingMethod());
         BigDecimal fee = policy.shippingFee(method, subtotal.subtract(discount));
         return new Quote(subtotal, discount, fee, subtotal.subtract(discount).add(fee), method, code);

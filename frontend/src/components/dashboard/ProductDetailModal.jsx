@@ -25,7 +25,7 @@ export default function ProductDetailModal({ productID, options, onClose, onChan
     } catch (failure) {
       if (!detail.alive.current) return;
       if (failure.status === 401 || failure.status === 403) { onAccessDenied(); return; }
-      const message = adminErrorMessage(failure); setError(message); setStale(true); setConfirm(null); notify.error(message, message);
+      const message = adminErrorMessage(failure); setError(message); setStale(true); setConfirm(null); notify.error(message, message, failure);
     } finally { detail.mutation.current = false; if (detail.alive.current) setBusy(false); }
   }
   function saved(updated) {

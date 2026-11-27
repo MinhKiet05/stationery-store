@@ -57,7 +57,7 @@ export default function ReviewsPage() {
       if (error.status === 401 || error.status === 403) { onAccessDenied(); return; }
       const message = error.status === 404 ? 'Không có đánh giá phù hợp với bộ lọc để xuất.' : error.status === 413
         ? 'Có quá nhiều đánh giá. Hãy thu hẹp bộ lọc trước khi xuất Excel.' : 'Không thể xuất Excel. Vui lòng thử lại.';
-      notify.error(message, message);
+      notify.error(message, message, error);
     } finally { if (!controller.signal.aborted) setExporting(false); exportRef.current = null; }
   }
   const summary = stats.data;

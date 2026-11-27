@@ -45,7 +45,7 @@ export default function OrdersPage() {
       if (controller.signal.aborted) return;
       if (failure.status === 401 || failure.status === 403) { onAccessDenied(); return; }
       const message = failure.status === 404 ? 'Không có đơn hàng phù hợp để xuất.' : failure.status === 413 ? 'Có quá nhiều đơn hàng. Hãy thu hẹp bộ lọc trước khi xuất.' : 'Không thể xuất Excel. Vui lòng thử lại.';
-      notify.error(message, message);
+      notify.error(message, message, failure);
     } finally { if (!controller.signal.aborted) setExporting(false); exportRef.current = null; }
   }
   const summary = stats.data;

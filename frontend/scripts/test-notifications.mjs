@@ -175,7 +175,7 @@ try {
   await test("Login failure preserves request payload and never exposes backend diagnostics", async () => {
     await type("input[autocomplete=username]", "testuser"); await type("input[autocomplete='current-password']", "test-password");
     await evaluate("window.__failure = {route:'/api/auth/login',status:500}");
-    await clickText("Đăng nhập ngay"); await notice("Không thể kết nối cửa hàng", "error");
+    await clickText("Đăng nhập ngay"); await notice("Máy chủ gặp lỗi xử lý", "error");
     assert.equal(await evaluate("document.body.textContent.includes('private-test-value')"), false);
     assert.deepEqual(await evaluate("JSON.parse(window.__requests.find(r=>r.route==='/api/auth/login').body)"), { username: "testuser", password: "test-password" });
     await clear(); await evaluate("window.__failure=null");
@@ -231,9 +231,10 @@ try {
     await evaluate("window.__failure={route:'/api/orders',status:400}; document.querySelector('#checkout-form').requestSubmit()");
     await until(() => evaluate("!!document.querySelector('#checkout-form [role=alert]') && window.__requests.some(r=>r.route==='/api/orders')"), 'checkout inline error');
     assert.equal(await evaluate("document.querySelector('#checkout-form [role=alert]').textContent.includes('private-test-value')"), false);
-    assert.equal(await count(), 0);
+    await notice('Thông tin hoặc điều kiện thực hiện chưa hợp lệ', 'error'); await clear();
     await evaluate("window.__failure=null; document.querySelector('#checkout-form').requestSubmit()");
     await until(() => evaluate("document.querySelector('main').textContent.includes('Đặt hàng thành công!')"), 'checkout confirmation');
+    await notice('Đặt hàng thành công', 'success');
     const payload = await evaluate("JSON.parse(window.__requests.find(r=>r.route==='/api/orders').body)");
     assert.ok(payload.shippingAddress.includes("Địa chỉ kiểm thử, Phường kiểm thử"));
     assert.deepEqual({ ...payload, shippingAddress: undefined }, { shippingAddress: undefined, contactPhone: "0900000000", paymentMethod: "COD", shippingMethod: "STANDARD", expectedTotalAmount: 45000 });
@@ -291,8 +292,8 @@ try {
     await evaluate("window.__failure={route:'/api/ai/chat',status:503}; document.querySelector('[aria-label=\"Mở trợ lý mua sắm\"]').click()");
     await type("#chat-message", "Tìm sổ tay");
     await evaluate("document.querySelector('#shopping-chat form').requestSubmit()");
-    await notice("Không thể kết nối cửa hàng", "error");
-    assert.equal(await evaluate("document.querySelector('[role=log]').textContent.includes('Không thể kết nối cửa hàng')"), true);
+    await notice("Dịch vụ tạm thời gián đoạn", "error");
+    assert.equal(await evaluate("document.querySelector('[role=log]').textContent.includes('Dịch vụ tạm thời gián đoạn')"), true);
     await clear(); await evaluate("window.__failure=null;document.querySelector('[aria-label=\"Đóng trò chuyện\"]').click()");
   });
   await test("Forgot/reset password: neutral email notice and one success after following the email link", async () => {
