@@ -18,6 +18,8 @@ const ResetPassword = lazy(() => import('./pages/forgotPassword/ResetPassword'))
 const AboutUs = lazy(() => import('./pages/aboutUs/AboutUs'));
 const Policy = lazy(() => import('./pages/policy/Policy'));
 const SearchPage = lazy(() => import('./pages/searchPage/SearchPage'));
+const CartPage = lazy(() => import('./pages/carts/CartPage'));
+const CheckoutPage = lazy(() => import('./pages/carts/CheckoutPage'));
 
 const MyProfile = lazy(() => import('./pages/myProfile/MyProfile'));
 const AccountInfoTab = lazy(() => import('./pages/myProfile/tabs/AccountInfoTab'));
@@ -35,7 +37,6 @@ const UsersPage = lazy(() => import('./pages/dashboard/UsersPage.jsx'));
 const OrdersPage = lazy(() => import('./pages/dashboard/OrdersPage.jsx'));
 const ReturnsPage = lazy(() => import('./pages/dashboard/ReturnsPage.jsx'));
 const NotFound = lazy(() => import('./pages/notFound/NotFound'));
-const CartPage = lazy(() => import('./pages/cart/CartPage'));
 
 const ReturnRequest = lazy(() => import('./pages/returnRequest/ReturnRequest'));
 
@@ -114,6 +115,8 @@ function App() {
 
           {/* Nhóm trang có Header & Footer */}
           <Route element={<MainLayout />}>
+            <Route path="/cart" element={<CartPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/" element={<HomePage />} />
 
             {['/about-us', '/about', '/gioi-thieu', '/contact', '/lien-he'].map(path => (
@@ -125,7 +128,6 @@ function App() {
             <Route path="/products" element={<AliasRedirect to="/search" />} />
             <Route path="/promotions" element={<Navigate to="/search?onSale=true" replace />} />
             <Route path="/products/:handle" element={<ProductDetailWrapper />} />
-            <Route path="/cart" element={<CartPage />} />
 
             {/* Trang tài khoản */}
             <Route path="/my-profile" element={<MyProfile />}>

@@ -51,6 +51,14 @@ function installApi() {
       await new Promise(resolve => setTimeout(resolve, 150)); options.signal?.throwIfAborted();
       return Response.json({ reply: 'Câu trả lời riêng của phiên hiện tại', products: [product] });
     }
+    if (path === '/api/checkout/options') return Response.json({
+      shipping: [{ code: 'STANDARD', label: 'Tiêu chuẩn', description: '3–5 ngày', fee: 25000 }],
+      payments: [{ code: 'COD', label: 'COD', description: 'Khi nhận hàng', enabled: true, demo: false }], freeShippingThreshold: 200000,
+    });
+    if (path === '/api/checkout/preview') return Response.json({
+      subTotal: cart().subtotal, discountAmount: 0, shippingFee: 25000, totalAmount: cart().subtotal + 25000,
+      shippingMethod: 'STANDARD', couponCode: null,
+    });
     if (path === '/api/cart/merge') return Response.json(cart());
     if (path === '/api/cart') {
       if (mode === 'cart-error') return Response.json({}, { status: 503 });
@@ -188,7 +196,7 @@ try {
     await click('main button[aria-label="Xóa sản phẩm"]'); await ready('document.querySelector("main").textContent.includes("Giỏ hàng đang trống")');
   });
   await test('Customer cart serializes double clicks, updates totals and removes items', async () => {
-    await navigate('/cart', 'customer'); await ready('document.querySelector("main li")');
+    await navigate('/cart', 'customer'); await ready(`document.querySelector('main button[aria-label^="Tăng số lượng"]')`);
     await evaluate(`const button=document.querySelector('main button[aria-label^="Tăng số lượng"]'); button.click(); button.click()`);
     await ready(`document.querySelector('main [aria-label="Số lượng"]').textContent === "3" && !document.querySelector('main button[aria-label^="Tăng"]').disabled`);
     assert.equal(await evaluate('window.__audit.requests.filter(r=>r.path === "/api/cart/items/100" && r.method === "PUT").length'), 1);
@@ -198,27 +206,31 @@ try {
   await test('Cart failure keeps an error/retry state and optimistic writes roll back on conflict', async () => {
     await navigate('/cart', 'cart-error'); await ready('document.querySelector("main [role=alert]")');
     assert.equal((await text()).includes('Giỏ hàng đang trống'), false);
-    await navigate('/cart', 'cart-write-error'); await ready('document.querySelector("main li")');
+    await navigate('/cart', 'cart-write-error'); await ready(`document.querySelector('main button[aria-label^="Tăng số lượng"]')`);
     await click('main button[aria-label^="Tăng số lượng"]');
     await ready('document.querySelector("main [role=alert]")');
     assert.equal(await evaluate(`document.querySelector('main [aria-label="Số lượng"]').textContent`), '2');
   });
   async function checkout() {
-    await ready('document.querySelector("main textarea[name=address]")');
-    await type('main textarea[name=address]', '123 Đường kiểm thử'); await type('main input[name=phone]', '0901234567');
-    await evaluate('const form=document.querySelector("main form"); form.requestSubmit(); form.requestSubmit()');
+    await ready('document.querySelector("#checkout-form")');
+    for (const [field, value] of [['name', 'Khách kiểm thử'], ['tel', '0901234567'], ['address-level1', 'TP. Hồ Chí Minh'], ['address-level3', 'Phường Bến Nghé'], ['street-address', '123 Đường kiểm thử']]) {
+      await type(`#checkout-form input[autocomplete="${field}"]`, value);
+    }
+    await ready('!document.querySelector("#checkout-form button[type=submit]").disabled');
+    await evaluate('const form=document.querySelector("#checkout-form"); form.requestSubmit(); form.requestSubmit()');
   }
   await test('Checkout validates required fields, blocks duplicate submit and links to order history', async () => {
-    await navigate('/cart', 'customer'); await ready('document.querySelector("main form")');
-    await click('main button[type=submit]'); assert.equal(await evaluate('window.__audit.orders'), 0);
+    await navigate('/checkout', 'customer'); await ready('document.querySelector("#checkout-form")');
+    await ready('!document.querySelector("#checkout-form button[type=submit]").disabled');
+    await click('#checkout-form button[type=submit]'); assert.equal(await evaluate('window.__audit.orders'), 0);
     await checkout(); await ready('document.querySelector("main").textContent.includes("Đặt hàng thành công")');
     assert.equal(await evaluate('window.__audit.orders'), 1);
     await click('main a[href="/my-profile/orders"]'); await ready('location.pathname === "/my-profile/orders"');
   });
   await test('Unknown checkout result locks resubmission and directs the customer to history', async () => {
-    await navigate('/cart', 'checkout-error'); await checkout();
+    await navigate('/checkout', 'checkout-error'); await checkout();
     await ready('document.querySelector("main [role=alert]")');
-    assert.equal(await evaluate('document.querySelector("main button[type=submit]").disabled'), true);
+    assert.equal(await evaluate('document.querySelector("#checkout-form button[type=submit]").disabled'), true);
     assert.equal(await evaluate('window.__audit.orders'), 1);
     assert.match(await text(), /kiểm tra lịch sử đơn hàng/);
   });

@@ -58,6 +58,28 @@ public class Order {
     @Column(name = "payment_method", length = 50)
     private String paymentMethod;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "shipping_method", length = 20)
+    @Builder.Default
+    private ShippingMethod shippingMethod = ShippingMethod.STANDARD;
+
+    @Column(name = "shipping_fee", precision = 12, scale = 2, nullable = false)
+    @Builder.Default
+    private BigDecimal shippingFee = BigDecimal.ZERO;
+
+    @Column(name = "payment_mode", length = 20, nullable = false)
+    @Builder.Default
+    private String paymentMode = "LIVE";
+
+    @Column(name = "paid_at")
+    private LocalDateTime paidAt;
+
+    @Column(name = "payment_reference", length = 100)
+    private String paymentReference;
+
+    @Column(name = "payment_confirmed_by", length = 100)
+    private String paymentConfirmedBy;
+
     // Trạng thái thanh toán
     @Builder.Default
     @Column(name = "is_paid")
@@ -72,11 +94,7 @@ public class Order {
     private LocalDateTime deliveredAt;
 
     // Chi tiết đơn hàng
-    @OneToMany(
-            mappedBy = "order",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true
-    )
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderDetail> orderDetails = new ArrayList<>();
 

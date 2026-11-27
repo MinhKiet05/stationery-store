@@ -41,13 +41,17 @@ try {
     await click('main a[href="/login"]'); await ready('document.querySelector("input[autocomplete=username]")');
     await type('input[autocomplete=username]', 'e2e-customer'); await type('input[autocomplete=current-password]', password);
     await click('main form button[class*=submitBtn]');
-    await ready('location.pathname === "/cart" && document.querySelector("main textarea[name=address]")');
+    await ready(`location.pathname === "/cart" && document.querySelector('main button[aria-label^="Tăng số lượng"]')`);
     assert.equal(await evaluate('localStorage.getItem("stationery_guest_cart")'), null);
   });
   let customerToken;
   await test('Real authenticated checkout creates a local order and clears the cart', async () => {
-    await type('main textarea[name=address]', '123 Đường kiểm thử cục bộ'); await type('main input[name=phone]', '0901234567');
-    await click('main button[type=submit]'); await ready('document.querySelector("main").textContent.includes("Đặt hàng thành công")');
+    await button('Tiến hành thanh toán'); await ready('document.querySelector("#checkout-form")');
+    for (const [field, value] of [['name', 'Khách E2E'], ['tel', '0901234567'], ['address-level1', 'TP. Hồ Chí Minh'], ['address-level3', 'Phường Bến Nghé'], ['street-address', '123 Đường kiểm thử cục bộ']]) {
+      await type(`#checkout-form input[autocomplete="${field}"]`, value);
+    }
+    await ready('!document.querySelector("#checkout-form button[type=submit]").disabled');
+    await click('#checkout-form button[type=submit]'); await ready('document.querySelector("main").textContent.includes("Đặt hàng thành công")');
     customerToken = await evaluate('localStorage.getItem("accessToken")');
     const cart = await request('/api/cart', customerToken); assert.equal(cart.response.status, 200); assert.equal(cart.data.items.length, 0);
     await click('main a[href="/my-profile/orders"]'); await ready('document.querySelectorAll("article").length === 2');

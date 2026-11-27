@@ -29,7 +29,8 @@
     "preview": "vite preview",
     "test:query": "node --test tests/queryCache.test.mjs",
     "test:query-navigation": "node scripts/test-query-navigation.mjs",
-    "test:query-storefront": "node scripts/test-query-storefront.mjs"
+    "test:query-storefront": "node scripts/test-query-storefront.mjs",
+    "test:cart": "node scripts/test-cart-checkout.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.108.4",

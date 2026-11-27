@@ -66,7 +66,8 @@ class CatalogInventoryCachingTest {
         });
         assertThat(variants.getVariantById(variantID).price()).isEqualByComparingTo("10");
         var order = orders.placeOrder("buyer", new PlaceOrderRequest("Test address", "0900000000", "COD", null));
-        assertThat(order.totalAmount()).isEqualByComparingTo("40");
+        assertThat(order.subTotal()).isEqualByComparingTo("40");
+        assertThat(order.totalAmount()).isEqualByComparingTo(order.subTotal().add(order.shippingFee()));
         assertThat(variants.getVariantById(variantID).stockQuantity()).isEqualTo(1);
         assertThat(variants.getVariantById(variantID).price()).isEqualByComparingTo("20");
         orders.cancelOrder("buyer", order.orderID());
