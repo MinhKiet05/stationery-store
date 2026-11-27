@@ -27,6 +27,37 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
     private final OrderDetailRepository orderDetails;
     private final UserRepository users;
     private final EntityManager em;
+    private final com.example.backend.services.RefundCalculator refunds;
+    private final com.example.backend.services.ReviewImageCleanup imageCleanup;
+
+    @Override
+    @Transactional(readOnly = true)
+    public RefundPreview preview(String username, RefundPreviewRequest request) {
+        User user = currentUser(username);
+        Order order = em.find(Order.class, request.orderID());
+        eligible(order, user);
+        return refunds.quote(order, request.items(), previous(order));
+    }
+
+    @Override
+    @Transactional
+    public ReturnResponse createUploaded(String username, CreateReturnRequest request, List<String> publicIds) {
+        publicIds.forEach(imageCleanup::onRollback);
+        ReturnResponse response = create(username, request);
+        find(response.returnID()).setEvidencePublicIds(String.join("\n", publicIds));
+        em.flush();
+        return response;
+    }
+
+    private List<ReturnRequestItem> previous(Order order) {
+        return order.getOrderDetails().stream().flatMap(d -> returnItems.findByOrderDetail_OrderDetailID(d.getOrderDetailID()).stream()).toList();
+    }
+
+    private void eligible(Order order, User user) {
+        if (order == null || !Objects.equals(order.getUser().getUserID(), user.getUserID())) throw notFound("Don hang khong ton tai");
+        if (order.getStatus() != OrderStatus.DELIVERED && order.getStatus() != OrderStatus.RETURN_PENDING) throw conflict("Don hang chua duoc giao");
+        if (order.getDeliveredAt() == null || now().isAfter(order.getDeliveredAt().plusDays(RETURN_DAYS))) throw conflict("Don hang da qua thoi han tra hang");
+    }
 
     @Override
     @Transactional
@@ -35,15 +66,9 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
         User user = currentUser(username);
         Order order = orderLocks.lockById(request.orderID())
                 .orElseThrow(() -> notFound("Don hang khong ton tai"));
-        if (!Objects.equals(order.getUser().getUserID(), user.getUserID())) {
-            throw notFound("Don hang khong ton tai");
-        }
-        if (order.getStatus() != OrderStatus.DELIVERED && order.getStatus() != OrderStatus.RETURN_PENDING) {
-            throw conflict("Don hang chua duoc giao");
-        }
-        if (order.getDeliveredAt() == null || now().isAfter(order.getDeliveredAt().plusDays(RETURN_DAYS))) {
-            throw conflict("Don hang da qua thoi han tra hang");
-        }
+        em.refresh(order);
+        eligible(order, user);
+        RefundPreview pricing = refunds.quote(order, request.items(), previous(order));
 
         ReturnRequest result = new ReturnRequest();
         result.setOrder(order);
@@ -73,6 +98,10 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
             entity.setReturnRequest(result);
             entity.setOrderDetail(detail);
             entity.setQuantity(item.quantity());
+            var price = pricing.items().stream().filter(p -> p.orderDetailID().equals(item.orderDetailID())).findFirst().orElseThrow();
+            entity.setGrossAmount(price.grossAmount());
+            entity.setDiscountAmount(price.discountAmount());
+            entity.setNetAmount(price.netAmount());
             result.getItems().add(entity);
         }
         ReturnRequest saved = returns.saveAndFlush(result);
@@ -178,7 +207,7 @@ public class ReturnRequestServiceImpl implements ReturnRequestService {
                 request.getStatus(), request.getCreatedAt(), request.getProcessedAt(), request.getAdminNote(),
                 request.getItems().stream().map(item -> new ReturnItemResponse(item.getReturnItemID(),
                         item.getOrderDetail().getOrderDetailID(), item.getOrderDetail().getVariant().getVariantID(),
-                        item.getQuantity())).toList());
+                        item.getQuantity())).toList(), refunds.stored(request));
     }
 
     LocalDateTime now() { return LocalDateTime.now(); }

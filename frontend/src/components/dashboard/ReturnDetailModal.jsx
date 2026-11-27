@@ -1,3 +1,4 @@
+import RefundSummary from '../returns/RefundSummary';
 import { useState } from 'react';
 import AdminModal, { ConfirmAdminAction } from './AdminModal';
 import ReturnEvidenceGallery from './ReturnEvidenceGallery';
@@ -46,6 +47,7 @@ export default function ReturnDetailModal({ returnID, onClose, onChanged, onAcce
       {detail.status === 'error' && <div className="admin-modal-error" role="alert"><p>{detail.error}</p><button className="dashboard-button" onClick={reload}>Thử lại</button></div>}
       {error && <p className="admin-modal-error" role="alert">{error}</p>}
       {row && <>
+        <RefundSummary pricing={detail.data.pricing} />
         <section className="admin-detail-section"><h3>Thông tin yêu cầu</h3><dl className="admin-detail-grid"><div><dt>Mã yêu cầu</dt><dd>RET-{row.returnID}</dd></div>
           <div><dt>Trạng thái yêu cầu</dt><dd><span className={`dashboard-badge tone-${status?.tone || 'muted'}`}>{status?.label || 'Không xác định'}</span></dd></div>
           <div><dt>Ngày yêu cầu</dt><dd>{storedDateTime(row.createdAt)}</dd></div>{row.processedAt && <div><dt>Ngày xử lý</dt><dd>{storedDateTime(row.processedAt)}</dd></div>}

@@ -59,7 +59,7 @@ class AdminReturnsApiTest {
         order=Order.builder().user(customer).status(OrderStatus.RETURN_PENDING).isPaid(true).paymentMethod("COD")
             .totalAmount(BigDecimal.valueOf(450000)).discountAmount(BigDecimal.valueOf(50000)).shippingAddress("Test address").contactPhone("0900000000")
             .deliveredAt(LocalDateTime.now().minusDays(2)).build(); em.persist(order);
-        line=OrderDetail.builder().order(order).variant(variant).quantity(5).unitPrice(BigDecimal.valueOf(100000)).subTotal(BigDecimal.valueOf(500000)).build(); em.persist(line);
+        line=OrderDetail.builder().order(order).variant(variant).quantity(5).unitPrice(BigDecimal.valueOf(100000)).subTotal(BigDecimal.valueOf(500000)).build(); em.persist(line); order.getOrderDetails().add(line);
     }
     @Test void anonymousCannotAccessAdminQueriesOrActions() throws Exception {
         for(String path:List.of("?page=0","/statistics","/export","/1","")) mvc.perform(get("/api/admin/returns"+path)).andExpect(status().isUnauthorized());
@@ -145,12 +145,14 @@ class AdminReturnsApiTest {
     }
     @Test @WithMockUser(username="customer",roles="CUSTOMER") void customerCreateMineAndOwnershipContinueToWorkWithSevenDayAndQuantityRules() throws Exception {
         order.setStatus(OrderStatus.DELIVERED); em.flush();
+        org.mockito.Mockito.when(storage.newPublicId("stationery-store/returns")).thenAnswer(call -> "stationery-store/returns/"+java.util.UUID.randomUUID());
+        org.mockito.Mockito.when(storage.upload(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyString())).thenAnswer(call -> new ReviewImage("https://example.test/photo.png",call.getArgument(1)));
         String create="{\"orderID\":"+order.getOrderID()+",\"reason\":\"Partial return\",\"evidenceUrls\":[\"https://example.test/photo.png\"],\"items\":[{\"orderDetailID\":"+line.getOrderDetailID()+",\"quantity\":2}]}";
-        mvc.perform(post("/api/returns").contentType("application/json").content(create)).andExpect(status().isCreated()).andExpect(jsonPath("$.items[0].quantity").value(2));
+        mvc.perform(createWithImage(create)).andExpect(status().isCreated()).andExpect(jsonPath("$.items[0].quantity").value(2));
         mvc.perform(get("/api/returns/my-requests")).andExpect(status().isOk()).andExpect(jsonPath("$[0].reason").value("Partial return"));
-        mvc.perform(post("/api/returns").contentType("application/json").content(create.replace("\"quantity\":2","\"quantity\":4"))).andExpect(status().isConflict());
+        mvc.perform(createWithImage(create.replace("\"quantity\":2","\"quantity\":4"))).andExpect(status().isConflict());
         order.setDeliveredAt(LocalDateTime.now().minusDays(8)); em.flush();
-        mvc.perform(post("/api/returns").contentType("application/json").content(create)).andExpect(status().isConflict());
+        mvc.perform(createWithImage(create)).andExpect(status().isConflict());
         var foreign=request(ReturnStatus.PENDING,"Private",LocalDateTime.now()); foreign.setUser(other); em.flush();
         mvc.perform(get("/api/returns/"+foreign.getReturnID())).andExpect(status().isNotFound());
     }
@@ -190,4 +192,12 @@ class AdminReturnsApiTest {
             .content("{\"status\":\""+status+"\",\"adminNote\":"+(note==null?"null":"\""+note+"\"")+"}"))
             .andExpect(status().is(expected)).andExpect(jsonPath("$.trace").doesNotExist());
     }
+    private org.springframework.test.web.servlet.request.MockMultipartHttpServletRequestBuilder createWithImage(String json) throws Exception {
+        var bytes=new java.io.ByteArrayOutputStream();
+        javax.imageio.ImageIO.write(new java.awt.image.BufferedImage(2,2,java.awt.image.BufferedImage.TYPE_INT_RGB),"png",bytes);
+        return multipart("/api/returns")
+            .file(new org.springframework.mock.web.MockMultipartFile("returnRequest","","application/json",json.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+            .file(new org.springframework.mock.web.MockMultipartFile("images","test.png","image/png",bytes.toByteArray()));
+    }
+
 }

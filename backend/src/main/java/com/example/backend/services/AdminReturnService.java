@@ -18,6 +18,7 @@ import java.util.*;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminReturnService {
     private final AdminReturnRepository repository;
+    private final RefundCalculator refunds;
     public Page<AdminReturnRow> list(AdminReturnFilter request, int page, int size) {
         if (page < 0 || size < 1 || size > 50 || (long) page * size > Integer.MAX_VALUE) throw bad();
         var f = filter(request); long count = repository.count(f);
@@ -29,7 +30,9 @@ public class AdminReturnService {
         String evidence = repository.evidence(id);
         List<String> urls = evidence == null ? List.of() : Arrays.stream(evidence.split("\\R")).map(String::strip)
                 .filter(this::safeEvidence).toList();
-        return new AdminReturnDetailResponse(row, repository.order(id), repository.items(id), urls, repository.receipt(id));
+        var order = repository.order(id);
+        var items = repository.items(id);
+        return new AdminReturnDetailResponse(row, order, items, urls, repository.receipt(id), refunds.stored(items, order.isPaid()));
     }
     private boolean safeEvidence(String value) {
         try { URI uri = URI.create(value); return uri.getHost() != null && uri.getUserInfo() == null

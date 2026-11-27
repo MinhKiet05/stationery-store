@@ -9,8 +9,15 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
-@RestControllerAdvice(assignableTypes = {ReviewController.class, ProductReviewController.class})
+@RestControllerAdvice(assignableTypes = {ReviewController.class, ProductReviewController.class, ReturnRequestController.class})
 public class ReviewExceptionHandler {
+    @ExceptionHandler({org.springframework.web.bind.MethodArgumentNotValidException.class,
+            org.springframework.web.multipart.support.MissingServletRequestPartException.class,
+            org.springframework.http.converter.HttpMessageNotReadableException.class})
+    ResponseEntity<Map<String, String>> invalid() { return ResponseEntity.badRequest().body(Map.of("message", "Thông tin hoặc ảnh chưa hợp lệ.")); }
+
+    @ExceptionHandler(org.springframework.dao.DataAccessException.class)
+    ResponseEntity<Map<String, String>> unavailable() { return ResponseEntity.status(503).body(Map.of("message", "Không thể lưu yêu cầu. Vui lòng thử lại.")); }
     @ExceptionHandler(ResponseStatusException.class)
     ResponseEntity<Map<String, String>> handle(ResponseStatusException error) {
         return ResponseEntity.status(error.getStatusCode()).body(Map.of("message",

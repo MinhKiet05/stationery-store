@@ -21,17 +21,24 @@ public class ReviewImageStorage {
     private final Cloudinary cloudinary;
 
     public String newPublicId() {
-        return FOLDER + "/" + UUID.randomUUID();
+        return newPublicId(FOLDER);
+    }
+
+    public String newPublicId(String folder) {
+        if (!List.of(FOLDER, "stationery-store/returns").contains(folder)) throw new IllegalArgumentException("Unmanaged image folder");
+        return folder + "/" + UUID.randomUUID();
     }
 
     public ReviewImage upload(byte[] bytes, String publicId) {
+        if (!publicId.matches("stationery-store/(reviews|returns)/[0-9a-f-]{36}")) throw new IllegalArgumentException("Unmanaged image ID");
+        String folder = publicId.substring(0, publicId.lastIndexOf('/'));
         if (!configured()) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Chua cau hinh dich vu upload anh danh gia");
+                    "Chưa cấu hình dịch vụ tải ảnh. Vui lòng liên hệ cửa hàng.");
         }
         try {
             Map<?, ?> result = cloudinary.uploader().upload(bytes, Map.of(
-                    "public_id", publicId, "asset_folder", FOLDER, "overwrite", false,
+                    "public_id", publicId, "asset_folder", folder, "overwrite", false,
                     "resource_type", "image", "type", "upload",
                     "allowed_formats", List.of("jpg", "jpeg", "png", "webp")));
             String url = result.get("secure_url") instanceof String value ? value : "";
@@ -47,7 +54,7 @@ public class ReviewImageStorage {
             log.warn("Review image upload failed: public_id={}, error_type={}", publicId,
                     error.getClass().getSimpleName());
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
-                    "Khong the upload anh danh gia. Vui long thu lai");
+                    "Không thể tải ảnh. Vui lòng thử lại.");
         }
     }
 
@@ -57,7 +64,7 @@ public class ReviewImageStorage {
             log.warn("Review image has no public_id; manual Cloudinary reconciliation required");
             return;
         }
-        if (!publicId.matches("stationery-store/reviews/[0-9a-f-]{36}")) {
+        if (!publicId.matches("stationery-store/(reviews|returns)/[0-9a-f-]{36}")) {
             log.warn("Review image cleanup refused an unmanaged public_id");
             return;
         }

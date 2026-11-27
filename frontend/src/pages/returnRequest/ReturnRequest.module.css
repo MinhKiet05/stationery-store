@@ -1,4 +1,4 @@
-.page { --navy: #101c30; --orange: #ff7515; --muted: #747b89; --line: #e6ecfb; --blue: #e7efff; background: #f7f8ff; color: var(--navy); font: 1rem/1.6 Arial, Helvetica, sans-serif; padding-bottom: 45px; }
+.page { --navy: #101c30; --orange: #FD761A; --muted: #747b89; --line: #e6ecfb; --blue: #e7efff; background: #f7f8ff; color: var(--navy); font: 1rem/1.6 Arial, Helvetica, sans-serif; padding-bottom: 45px; }
 .page *, .page *::before, .page *::after { box-sizing: border-box; }
 .container { width: min(1200px, calc(100% - 64px)); margin: 0 auto; }
 .page a { color: inherit; text-decoration: none; }
@@ -78,22 +78,12 @@
 .textareaLabel { display: flex; align-items: center; gap: 4px; font-size: .88rem; font-weight: 500; margin: 22px 0 8px; }
 .textareaLabel > small { margin-left: auto; color: #7c8492; font-size: .75rem; font-weight: 400; white-space: nowrap; }
 .page textarea { background: #f8faff; border: 1px solid transparent; border-radius: 7px; padding: 14px; width: 100%; min-height: 130px; resize: vertical; font-size: .9rem; color: #354359; line-height: 1.65; }
-.page textarea::placeholder, .evidenceRow input::placeholder { color: #939bad; }
+.page textarea::placeholder { color: #939bad; }
 .fieldHelp { display: flex; align-items: flex-start; gap: 5px; font-size: .75rem; color: #7b8391; line-height: 1.6; margin-top: 10px; }
 .fieldHelp svg { flex-shrink: 0; margin-top: 3px; }
 .fieldError { color: #c3402f; font-size: .85rem; margin-top: 8px; }
 .page [aria-invalid=true] { border-color: #d88176; }
 .requiredBadge { padding: 3px 8px; border-radius: 8px; font-size: .7rem; font-weight: 600; white-space: nowrap; background: #fff0e5; color: #c56621; }
-.evidenceIntro { background: #f7f9ff; border: 1px dashed #dde6f9; border-radius: 10px; padding: 24px; text-align: center; margin-bottom: 17px; }
-.evidenceIntro > span { display: grid; place-items: center; margin: 0 auto 12px; height: 47px; width: 47px; border-radius: 50%; background: #e1ebff; color: #2d4362; }
-.evidenceIntro > h3 { font-size: .95rem; font-weight: 600; }
-.evidenceIntro p { font-size: .8rem; color: #7d8491; max-width: 450px; margin: 7px auto 0; }
-.evidenceRow { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; border: 1px solid #e5ebf6; background: #fbfcff; border-radius: 7px; padding: 3px 10px; }
-.linkNumber { display: grid; place-items: center; color: #7d8da8; flex-shrink: 0; }
-.evidenceRow > input { background: transparent; border: 0; width: 100%; min-width: 0; padding: 10px 0; font-size: .85rem; color: #3a4960; }
-.evidenceRow > button { background: #fff0ed; color: #c85546; border: 0; border-radius: 50%; width: 26px; height: 26px; display: grid; place-items: center; flex-shrink: 0; }
-.addEvidence { display: flex; align-items: center; gap: 6px; border: 1px solid #dce6f9; border-radius: 6px; background: #f1f5ff; color: #4b6081; padding: 9px 14px; font-size: .85rem; }
-.addEvidence > span { color: #8995aa; }
 .refundMethod { display: flex; align-items: flex-start; gap: 12px; background: #f9faff; padding: 17px; border: 1px solid #e8edf8; border-radius: 9px; }
 .refundMethod > span { color: #5e7598; }
 .refundMethod h3 { font-size: .88rem; font-weight: 600; line-height: 1.45; }
@@ -115,7 +105,7 @@
 .summary dd { white-space: nowrap; font-weight: 500; }
 .total { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 19px; }
 .total > strong { font-size: .85rem; font-weight: 650; }
-.total > span { font-size: 1.45rem; font-weight: 750; color: #d66b19; white-space: nowrap; }
+.total > span { font-size: 1.45rem; font-weight: 750; color: var(--orange); white-space: nowrap; }
 .estimateNote { font-size: .75rem; color: #858b97; line-height: 1.6; margin-top: 7px; }
 .confirmation { display: flex; align-items: flex-start; gap: 9px; margin-top: 25px; font-size: .78rem; line-height: 1.65; color: #7b818d; cursor: pointer; }
 .confirmation input { margin-top: 4px; }
@@ -220,10 +210,7 @@
   .productAmount strong { font-size: .9rem; }
   .conditions button { padding: 7px 10px; }
   .textareaLabel { flex-wrap: wrap; font-size: .85rem; }
-  .evidenceIntro { padding: 20px 12px; }
-  .evidenceRow { gap: 7px; padding: 3px 8px; }
-  .evidenceRow input { font-size: .8rem; }
-  .evidenceRow input, .page textarea, .selectWrap select { font-size: 1rem; }
+  .page textarea, .selectWrap select { font-size: 1rem; }
   .refundMethod { padding: 13px; gap: 9px; }
   .refundMethod > svg { display: none; }
   .addressHeading { flex-wrap: wrap; gap: 8px; }
@@ -240,3 +227,9 @@
   .bottomNote svg { flex-shrink: 0; margin-top: 2px; }
 }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+.imagePicker { display:flex; flex-wrap:wrap; justify-content:flex-start; align-items:flex-start; gap:12px; margin-top:18px; }
+.uploadImage { width:108px; height:108px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; border:1px dashed #cbd5e1; background:#fffaf5; border-radius:9px; color:#b84c08; cursor:pointer; }
+.uploadImage:hover { border-color:#FD761A; background:#fff1e5; }
+.discount { color:#15803d; }
+@media(max-width:480px) { .uploadImage { width:88px; height:88px; } }

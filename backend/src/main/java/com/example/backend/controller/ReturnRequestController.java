@@ -16,12 +16,18 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ReturnRequestController {
     private final ReturnRequestService service;
+    private final com.example.backend.services.ReturnEvidenceService evidence;
 
-    @PostMapping
-    public ResponseEntity<ReturnResponse> create(@Valid @RequestBody CreateReturnRequest request,
-                                                 Authentication authentication) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(service.create(authentication.getName(), request));
+    @PostMapping(consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ReturnResponse> create(@Valid @RequestPart("returnRequest") CreateReturnRequest request,
+            @RequestPart(value = "images", required = false) List<org.springframework.web.multipart.MultipartFile> images,
+            Authentication authentication) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(evidence.create(authentication.getName(), request, images));
     }
+
+    @PostMapping("/preview")
+    public com.example.backend.dto.returns.RefundPreview preview(@Valid @RequestBody com.example.backend.dto.returns.RefundPreviewRequest request,
+            Authentication authentication) { return service.preview(authentication.getName(), request); }
 
     @GetMapping("/my-requests")
     public List<ReturnResponse> mine(Authentication authentication) {

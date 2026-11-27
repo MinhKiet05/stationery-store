@@ -19,10 +19,10 @@ class ReviewImageValidatorTest {
     static MockMultipartFile image(String format) throws Exception {
         var output = new ByteArrayOutputStream();
         ImageIO.write(new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB), format, output);
-        return new MockMultipartFile("images", "untrusted.txt", "application/octet-stream", output.toByteArray());
+        return new MockMultipartFile("images", "untrusted.txt", "image/" + format, output.toByteArray());
     }
 
-    @Test void acceptsRealJpegAndPngRegardlessOfNameOrMime() throws Exception {
+    @Test void acceptsRealJpegAndPngWithMatchingMimeAndUntrustedNames() throws Exception {
         assertThat(validator.validate(List.of(image("png"), image("jpeg")), 0)).hasSize(2);
     }
 
@@ -35,6 +35,11 @@ class ReviewImageValidatorTest {
     @Test void rejectsFakeImageWithImageMimeAndExtension() {
         var file = new MockMultipartFile("images", "x.png", "image/png", "<script>bad</script>".getBytes());
         assertStatus(() -> validator.validate(List.of(file), 0), 400);
+    }
+
+    @Test void rejectsRealImageWithFalseMime() throws Exception {
+        var png = image("png");
+        assertStatus(() -> validator.validate(List.of(new MockMultipartFile("images", "x.jpg", "image/jpeg", png.getBytes())), 0), 400);
     }
 
     @Test void rejectsGifAndTruncatedPng() throws Exception {

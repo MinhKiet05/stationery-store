@@ -35,8 +35,12 @@ class FullstackBrowserIntegrationTest {
     @Autowired EntityManager em;
     @Autowired PlatformTransactionManager transactions;
     @Autowired PasswordEncoder passwords;
+    @org.springframework.test.context.bean.override.mockito.MockitoBean com.example.backend.services.ReviewImageStorage storage;
 
     @Test void realCustomerAndAdminFlows() throws Exception {
+        org.mockito.Mockito.when(storage.newPublicId("stationery-store/returns")).thenAnswer(call -> "stationery-store/returns/"+java.util.UUID.randomUUID());
+        org.mockito.Mockito.when(storage.upload(org.mockito.ArgumentMatchers.any(),org.mockito.ArgumentMatchers.anyString()))
+            .thenAnswer(call -> new ReviewImage("http://127.0.0.1:5199/src/assets/butcaocap.webp",call.getArgument(1)));
         Long deliveredID = new TransactionTemplate(transactions).execute(status -> {
             String hash = passwords.encode("Audit-only-Password123!");
             var customer = User.builder().username("e2e-customer").email("customer@example.test").passwordHash(hash).fullName("E2E Customer").build();

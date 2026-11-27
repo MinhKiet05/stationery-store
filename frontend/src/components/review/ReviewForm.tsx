@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Check, ImagePlus, Package, Send, Star, X } from 'lucide-react';
 import type { OrderItem } from '../../services/orderService';
 import { createProductReview, updateProductReview, purchasedReviewsOptions, validateReviewInput, type Review } from '../../services/reviewService';
@@ -10,7 +10,7 @@ import styles from './ReviewModal.module.css';
 const baseSuggestions = ['Chất lượng tuyệt vời', 'Dễ sử dụng', 'Đóng gói cẩn thận', 'Giao hàng nhanh chóng', 'Đúng như mô tả'];
 const ratingLabels = ['Rất tệ', 'Chưa hài lòng', 'Bình thường', 'Hài lòng', 'Tuyệt vời'];
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
-type Attachment = { id: string; url: string; name: string; file: File };
+import { useImageAttachments } from '../../hooks/useImageAttachments';
 
 export default function ReviewForm({ item, review, onClose, onBusyChange }: {
   item: OrderItem; review?: Review; onClose: () => void; onBusyChange: (busy: boolean) => void;
@@ -24,54 +24,22 @@ export default function ReviewForm({ item, review, onClose, onBusyChange }: {
   const [comment, setComment] = useState(review?.comment ?? '');
   const [removedPositions, setRemovedPositions] = useState<number[]>([]);
   const keptImages = (review?.images ?? []).filter(image => !removedPositions.includes(image.imagePosition));
-  const [media, setMedia] = useState<Attachment[]>([]);
+  const { media, mediaError, setMediaError, fileInput, addMedia, removeMedia } = useImageAttachments(keptImages.length);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [mediaError, setMediaError] = useState('');
   const [imageFailed, setImageFailed] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
   const errorBox = useRef<HTMLDivElement>(null);
-  const urls = useRef(new Set<string>());
   const request = useRef<AbortController | null>(null);
   const commentCount = Array.from(comment).length;
 
 
   useEffect(() => {
-    const ownedUrls = urls.current;
-    return () => { ownedUrls.forEach(url => URL.revokeObjectURL(url)); request.current?.abort(); };
+    return () => { request.current?.abort(); };
   }, []);
   useEffect(() => { if (error) errorBox.current?.focus(); }, [error]);
 
   function toggleSuggestion(text: string) {
     setSelected(current => current.includes(text) ? current.filter(value => value !== text) : [...current, text]);
-  }
-  function addMedia(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = '';
-    const added: Attachment[] = [];
-    const issues: string[] = [];
-    for (const file of files) {
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        issues.push('Chỉ nhận ảnh JPG, PNG hoặc WebP.'); continue;
-      }
-      if (keptImages.length + media.length + added.length >= 5) { issues.push('Mỗi đánh giá được thêm tối đa 5 ảnh.'); continue; }
-      if (file.size === 0 || file.size > 5 * 1024 * 1024) {
-        issues.push('Mỗi ảnh phải có dung lượng từ 1 byte đến 5 MB.'); continue;
-      }
-      const url = URL.createObjectURL(file);
-      urls.current.add(url);
-      added.push({ id: crypto.randomUUID(), url, name: file.name, file });
-    }
-    setMedia(current => [...current, ...added]);
-    const message = [...new Set(issues)].join(' ');
-    setMediaError(message);
-    if (message) notify.warning(message);
-  }
-  function removeMedia(attachment: Attachment) {
-    if (urls.current.delete(attachment.url)) URL.revokeObjectURL(attachment.url);
-    setMedia(current => current.filter(value => value.id !== attachment.id));
-    setMediaError('');
-    setError('');
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -165,7 +133,7 @@ export default function ReviewForm({ item, review, onClose, onBusyChange }: {
             </div>)}
             {media.map(attachment => <div className={styles.preview} key={attachment.id}>
               <img src={attachment.url} alt={attachment.name} />
-              <button type="button" className={styles.removeMedia} aria-label={`Xóa ${attachment.name}`} onClick={() => removeMedia(attachment)}><X size={14} aria-hidden="true" /></button>
+              <button type="button" className={styles.removeMedia} aria-label={`Xóa ${attachment.name}`} onClick={() => { removeMedia(attachment); setError(''); }}><X size={14} aria-hidden="true" /></button>
             </div>)}
             {keptImages.length + media.length < 5 && <button className={styles.upload} type="button" onClick={() => fileInput.current?.click()}><ImagePlus size={26} aria-hidden="true" /><span>Thêm ảnh</span></button>}
           </div>
