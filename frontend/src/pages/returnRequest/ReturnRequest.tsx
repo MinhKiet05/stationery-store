@@ -1,19 +1,27 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   ArrowLeft, CalendarDays, Check, CheckCheck, ChevronDown,
-  CircleAlert, CircleCheck, Headphones, Info, Link2, LoaderCircle,
+  CircleAlert, CircleCheck, Headphones, Info, LoaderCircle,
   Mail, MapPin, Minus, Package, PackageCheck, Plus, RotateCcw, Send,
-  ShieldCheck, Truck, Wallet, X,
+  ShieldCheck, Truck, Wallet,
 } from "lucide-react";
 import { getMyOrders, getOrder, type Order } from "../../services/orderService";
 import {
-  createReturn, eligibilityMessage, getMyReturns, getReturnItemPresentations,
-  isEvidenceUrl, remainingQuantity, returnDeadline, returnErrorMessage,
+  createReturn, previewReturn, eligibilityMessage, getMyReturns, getReturnItemPresentations,
+  remainingQuantity, returnDeadline, returnErrorMessage,
   returnStatusLabels, shopDate, type ItemPresentation, type ReturnRequest as ReturnRecord,
 } from "../../services/returnService";
 import { ApiError } from "../../services/api";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import useSessionScope from "../../services/useSessionScope";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '../../services/queryCache';
+import { useImageAttachments } from '../../hooks/useImageAttachments';
+import EvidenceGallery from '../../components/returns/EvidenceGallery';
+import ReturnEvidencePicker from '../../components/returns/ReturnEvidencePicker';
+import RefundEstimate from '../../components/returns/RefundEstimate';
+import RefundSummary from '../../components/returns/RefundSummary';
+import { notify } from '../../utils/notifications';
 import styles from "./ReturnRequest.module.css";
 
 const money = (amount: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND", maximumFractionDigits: 0 }).format(amount);
@@ -46,6 +54,7 @@ export default function ReturnRequest() {
 }
 
 function ReturnRequestForm() {
+  const scope = useSessionScope(), client = useQueryClient();
   const navigate = useNavigate();
   const token = localStorage.getItem("accessToken");
   const [orderID, setOrderID] = useState<number | null>(initialOrderID);
@@ -62,7 +71,7 @@ function ReturnRequestForm() {
   const [reason, setReason] = useState("");
   const [conditions, setConditions] = useState<string[]>([]);
   const [description, setDescription] = useState("");
-  const [evidence, setEvidence] = useState([""]);
+  const { media, mediaError, fileInput, addMedia, removeMedia, clear } = useImageAttachments();
   const [confirmed, setConfirmed] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState("");
@@ -113,9 +122,16 @@ function ReturnRequestForm() {
   const deadline = order ? returnDeadline(order) : null;
   const daysLeft = deadline === null ? 0 : Math.max(0, Math.ceil((deadline - now) / 86400000));
   const selectedItems = order?.items.filter(item => quantities[item.orderDetailID] > 0) ?? [];
-  const itemValue = selectedItems.reduce((sum, item) => sum + item.unitPrice * quantities[item.orderDetailID], 0);
+  const selection = JSON.stringify(selectedItems.map(item => ({ orderDetailID: item.orderDetailID, quantity: quantities[item.orderDetailID] })));
+  const [debouncedSelection, setDebouncedSelection] = useState(selection);
+  useEffect(() => { const timer = window.setTimeout(() => setDebouncedSelection(selection), 180); return () => window.clearTimeout(timer); }, [selection]);
   const availableItems = order?.items.filter(item => remainingQuantity(item, orderRequests) > 0) ?? [];
   const canRequest = Boolean(order && !blocked && availableItems.length > 0);
+  const preview = useQuery({ queryKey: queryKeys.private('returnPreview', { orderID, refresh, selection: debouncedSelection }, scope),
+    queryFn: ({ signal }) => previewReturn(orderID!, JSON.parse(debouncedSelection) as { orderDetailID: number; quantity: number }[], signal),
+    enabled: !!orderID && canRequest && debouncedSelection !== '[]', staleTime: 15000, retry: false });
+  const previewReady = selection === debouncedSelection && !preview.isFetching && !preview.isError && !!preview.data && Number.isFinite(preview.data.netAmount);
+  const price = selectedItems.length && previewReady ? preview.data : null;
   const reviewApproved = created?.status === "APPROVED" || created?.status === "COMPLETED";
   const completed = created?.status === "COMPLETED";
   const loginHref = `/login?redirect=${encodeURIComponent(window.location.pathname + window.location.search)}`;
@@ -128,7 +144,7 @@ function ReturnRequestForm() {
   function selectOrder(value: string) {
     setOrderID(value ? Number(value) : null); setOrder(null); setQuantities({});
     setCreated(null); setReason(""); setDescription(""); setConditions([]);
-    setEvidence([""]); setConfirmed(false); setErrors({}); setSubmitError("");
+    clear(); setConfirmed(false); setErrors({}); setSubmitError("");
     navigate(value ? `/returns/new?orderId=${value}` : '/returns/new', { replace: true });
   }
 
@@ -151,7 +167,8 @@ function ReturnRequestForm() {
     if (selectedItems.some(item => quantities[item.orderDetailID] > remainingQuantity(item, orderRequests))) invalid.items = "Số lượng trả vượt quá số lượng còn lại.";
     if (!reason) invalid.reason = "Vui lòng chọn lý do trả hàng.";
     if (description.trim().length < 10) invalid.description = "Vui lòng mô tả ít nhất 10 ký tự nội dung.";
-    if (evidence.length < 1 || evidence.length > 5 || evidence.some(url => !isEvidenceUrl(url))) invalid.evidence = "Vui lòng nhập 1–5 liên kết http:// hoặc https:// hợp lệ, tối đa 500 ký tự mỗi liên kết.";
+    if (!media.length) invalid.evidence = "Vui lòng tải lên ít nhất 1 ảnh minh chứng.";
+    if (selectedItems.length && !previewReady) invalid.items = "Vui lòng chờ kiểm tra tiền hoàn hoặc tải lại thông tin đơn hàng.";
     if (!confirmed) invalid.confirmed = "Vui lòng xác nhận thông tin trước khi gửi yêu cầu.";
     setErrors(invalid); setSubmitError("");
     if (Object.keys(invalid).length) {
@@ -164,13 +181,14 @@ function ReturnRequestForm() {
     try {
       const response = await createReturn({
         orderID: order.orderID, reason: combinedReason,
-        evidenceUrls: evidence.map(url => url.trim()),
+        images: media.map(image => image.file),
         items: selectedItems.map(item => ({ orderDetailID: item.orderDetailID, quantity: quantities[item.orderDetailID] })),
       }, submitController.current.signal);
       if (localStorage.getItem("accessToken") !== token) return;
       setCreated(response); setRequests(previous => [response, ...previous]);
       setOrder(previous => previous ? { ...previous, status: "RETURN_PENDING" } : null);
-      setQuantities({}); window.scrollTo({ top: 0 });
+      setQuantities({}); clear(); notify.success('Yêu cầu trả hàng đã được gửi.'); window.scrollTo({ top: 0 });
+      void client.invalidateQueries({ predicate: query => query.queryKey[0] === 'session' && query.queryKey[1] === scope && ['orders', 'returns', 'returnPreview'].includes(String(query.queryKey[2])), refetchType: 'none' });
     } catch (error) {
       if (submitController.current.signal.aborted) return;
       setSubmitError(error instanceof ApiError ? returnErrorMessage(error)
@@ -195,7 +213,7 @@ function ReturnRequestForm() {
         : loading ? <div className={styles.loading} role="status"><LoaderCircle className={styles.spinner} size={26} /> Đang tải đơn hàng và kiểm tra điều kiện trả hàng…</div>
         : loadError ? <section className={styles.emptyState}><CircleAlert size={32} /><h2>Chưa tải được thông tin đơn hàng</h2><p role="alert">{loadError}</p><button className={styles.primaryButton} onClick={() => setRefresh(value => value + 1)}>Thử lại</button><Link to="/returns/new">Chọn đơn hàng khác</Link></section>
         : <>
-          {created ? <section className={styles.success} role="status"><CircleCheck size={42} /><div><span className={styles.processTag}>ĐÃ TIẾP NHẬN</span><h2>Yêu cầu #{created.returnID} đã được gửi thành công</h2><p>Trạng thái: <strong>{returnStatusLabels[created.status]}</strong>. Cửa hàng sẽ kiểm tra minh chứng và phản hồi tại lịch sử bên dưới.</p><p>Việc gửi yêu cầu chưa thực hiện hoàn tiền. Vui lòng giữ sản phẩm và bao bì để phối hợp thu hồi.</p></div><button type="button" className={styles.secondaryButton} onClick={() => { setCreated(null); setRefresh(value => value + 1); setReason(""); setDescription(""); setConditions([]); setEvidence([""]); setConfirmed(false); }}>Quay lại đơn hàng</button></section>
+          {created ? <section className={styles.success} role="status"><CircleCheck size={42} /><div><span className={styles.processTag}>ĐÃ TIẾP NHẬN</span><h2>Yêu cầu #{created.returnID} đã được gửi thành công</h2><p>Trạng thái: <strong>{returnStatusLabels[created.status]}</strong>. Cửa hàng sẽ kiểm tra minh chứng và phản hồi tại lịch sử bên dưới.</p><p>Việc gửi yêu cầu chưa thực hiện hoàn tiền. Vui lòng giữ sản phẩm và bao bì để phối hợp thu hồi.</p></div><button type="button" className={styles.secondaryButton} onClick={() => { setCreated(null); setRefresh(value => value + 1); setReason(""); setDescription(""); setConditions([]); clear(); setConfirmed(false); }}>Quay lại đơn hàng</button></section>
             : <section className={styles.orderPicker}><label htmlFor="return-order">Chọn đơn hàng cần hỗ trợ</label><div className={styles.selectWrap}><select id="return-order" value={orderID ?? ""} onChange={event => selectOrder(event.target.value)}><option value="">— Chọn đơn hàng của bạn —</option>{orders.map(candidate => <option key={candidate.orderID} value={candidate.orderID}>#ST-{String(candidate.orderID).padStart(6, "0")} · {dateLabel(candidate.orderDate)} · {money(candidate.totalAmount)}</option>)}</select><ChevronDown size={16} /></div>{orders.length === 0 && <p>Bạn chưa có đơn hàng nào. <Link to="/">Khám phá sản phẩm tại cửa hàng</Link>.</p>}</section>}
 
           {order && !created && <>
@@ -233,12 +251,9 @@ function ReturnRequestForm() {
                 </section>
 
                 <section className={styles.card}>
-                  <SectionTitle number={3} title="Hình ảnh & Video minh chứng"><span className={styles.requiredBadge}>Bắt buộc · Tối đa 5 liên kết</span></SectionTitle>
-                  <div className={styles.evidenceIntro}><span><Link2 size={23} /></span><h3>Thêm liên kết ảnh hoặc video minh chứng</h3><p>Dán liên kết công khai đến ảnh sản phẩm lỗi, bao bì hoặc video mở hộp. Hãy bật quyền xem để cửa hàng có thể kiểm tra.</p></div>
-                  <div id="return-evidence" tabIndex={-1}>{evidence.map((url, index) => <div className={styles.evidenceRow} key={index}><span className={styles.linkNumber}><Link2 size={16} /></span><label className={styles.srOnly} htmlFor={`evidence-${index}`}>Liên kết minh chứng {index + 1}</label><input id={`evidence-${index}`} type="url" inputMode="url" maxLength={500} value={url} placeholder={`Liên kết minh chứng ${index + 1} · https://…`} aria-invalid={Boolean(errors.evidence)} onChange={event => { setEvidence(previous => previous.map((value, itemIndex) => itemIndex === index ? event.target.value : value)); clearError("evidence"); }} /><button type="button" aria-label={`Xóa minh chứng ${index + 1}`} disabled={evidence.length === 1 && !url} onClick={() => { setEvidence(previous => previous.length === 1 ? [""] : previous.filter((_, itemIndex) => itemIndex !== index)); clearError("evidence"); }}><X size={17} /></button></div>)}</div>
-                  {errors.evidence && <p className={styles.fieldError} role="alert">{errors.evidence}</p>}
-                  <button className={styles.addEvidence} type="button" disabled={evidence.length >= 5} onClick={() => setEvidence(previous => [...previous, ""])}><Plus size={16} />Thêm minh chứng <span>({evidence.length}/5)</span></button>
-                  <p className={styles.fieldHelp}>Hỗ trợ liên kết http:// hoặc https://, tối đa 500 ký tự mỗi liên kết.</p>
+                  <ReturnEvidencePicker media={media} error={errors.evidence || mediaError} fileInput={fileInput}
+                    onChange={event => { addMedia(event); clearError('evidence'); }}
+                    onRemove={index => { removeMedia(media[index]); clearError('evidence'); }} />
                 </section>
 
                 <section className={styles.card}>
@@ -251,7 +266,8 @@ function ReturnRequestForm() {
 
               <aside className={styles.sidebar}>
                 <section className={`${styles.card} ${styles.summary}`}>
-                  <h2>Tóm tắt hoàn tiền</h2><dl><div><dt>Sản phẩm chọn trả ({selectedItems.length} món):</dt><dd data-testid="return-subtotal">{money(itemValue)}</dd></div><div><dt>Hoàn phí vận chuyển:</dt><dd>CSKH xác nhận</dd></div><div><dt>Phí thu hồi hàng:</dt><dd>CSKH xác nhận</dd></div></dl><div className={styles.total}><strong>Giá trị sản phẩm dự kiến:</strong><span data-testid="return-total">{money(itemValue)}</span></div><p className={styles.estimateNote}>Tạm tính theo giá sản phẩm đã mua. Số tiền hoàn cuối cùng được cửa hàng xác nhận sau khi xét duyệt, có tính đến ưu đãi của đơn hàng.</p>
+                  <RefundEstimate pricing={price} quantity={selectedItems.reduce((sum, item) => sum + quantities[item.orderDetailID], 0)}
+                    error={preview.isError ? returnErrorMessage(preview.error) : ''} onRetry={() => void preview.refetch()} />
                   <label className={styles.confirmation}><input id="return-confirmed" type="checkbox" checked={confirmed} disabled={busy || !canRequest} onChange={event => { setConfirmed(event.target.checked); clearError("confirmed"); }} aria-invalid={Boolean(errors.confirmed)} /><span>Tôi xác nhận thông tin cung cấp và hình ảnh minh chứng là hoàn toàn trung thực; sản phẩm được giữ nguyên để phục vụ việc kiểm tra theo <Link to="/policy#returns">chính sách đổi trả 7 ngày</Link> của StationeryStore.</span></label>{errors.confirmed && <p className={styles.fieldError}>{errors.confirmed}</p>}
                   {submitError && <div className={styles.submitError} role="alert"><CircleAlert size={18} /><span>{submitError}<button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>Tải lại đơn hàng & lịch sử</button></span></div>}
                   <button className={styles.submitButton} type="submit" disabled={busy || !canRequest}>{busy ? <LoaderCircle className={styles.spinner} size={18} /> : <Send size={17} />}{busy ? "Đang gửi yêu cầu…" : "Gửi yêu cầu trả hàng"}</button><button className={styles.cancelButton} type="button" disabled={busy} onClick={() => selectOrder("")}><ArrowLeft size={14} />Hủy bỏ & Chọn đơn hàng khác</button><div className={styles.support}><span>Cần xử lý khiếu nại gấp?</span><a href="tel:19006868"><Headphones size={14} />Hotline 1900 6868 (8:00 – 21:00)</a></div>
@@ -261,7 +277,7 @@ function ReturnRequestForm() {
             </form>
           </>}
 
-          {(orderID ? orderRequests : requests).length > 0 && <section className={`${styles.card} ${styles.history}`}><div className={styles.historyHeading}><h2><RotateCcw size={20} />Lịch sử yêu cầu {orderID ? "của đơn hàng" : "của bạn"}</h2><button type="button" disabled={busy || loading} onClick={() => setRefresh(value => value + 1)}>Cập nhật trạng thái</button></div>{(orderID ? orderRequests : requests).map(request => <details key={request.returnID}><summary><span>Yêu cầu #{request.returnID}<small>Đơn #{request.orderID} · {dateLabel(request.createdAt)}</small></span><span className={`${styles.statusBadge} ${styles[`status${request.status}`]}`}>{returnStatusLabels[request.status]}</span><ChevronDown size={15} /></summary><div className={styles.historyDetails}><p>{request.reason}</p><p><strong>Số lượng đã yêu cầu:</strong> {request.items.reduce((sum, item) => sum + item.quantity, 0)} sản phẩm</p>{request.adminNote && <p><strong>Phản hồi của cửa hàng:</strong> {request.adminNote}</p>}<ul>{request.evidenceUrls.filter(isEvidenceUrl).map((url, index) => <li key={`${index}-${url}`}><a href={url} target="_blank" rel="noreferrer">Xem minh chứng {index + 1}</a></li>)}</ul></div></details>)}</section>}
+          {(orderID ? orderRequests : requests).length > 0 && <section className={`${styles.card} ${styles.history}`}><div className={styles.historyHeading}><h2><RotateCcw size={20} />Lịch sử yêu cầu {orderID ? "của đơn hàng" : "của bạn"}</h2><button type="button" disabled={busy || loading} onClick={() => setRefresh(value => value + 1)}>Cập nhật trạng thái</button></div>{(orderID ? orderRequests : requests).map(request => <details key={request.returnID}><summary><span>Yêu cầu #{request.returnID}<small>Đơn #{request.orderID} · {dateLabel(request.createdAt)}</small></span><span className={`${styles.statusBadge} ${styles[`status${request.status}`]}`}>{returnStatusLabels[request.status]}</span><ChevronDown size={15} /></summary><div className={styles.historyDetails}><p>{request.reason}</p><p><strong>Số lượng đã yêu cầu:</strong> {request.items.reduce((sum, item) => sum + item.quantity, 0)} sản phẩm</p>{request.adminNote && <p><strong>Phản hồi của cửa hàng:</strong> {request.adminNote}</p>}<RefundSummary pricing={request.pricing} /><EvidenceGallery urls={request.evidenceUrls} /></div></details>)}</section>}
           {!order && !orders.length && !loadError && <div className={styles.emptyState}><Package size={35} /><h2>Chưa có đơn hàng để tạo yêu cầu</h2><p>Các đơn hàng của bạn sẽ xuất hiện tại đây sau khi mua hàng.</p></div>}
         </>}
       <div className={styles.bottomNote}><ShieldCheck size={16} />Chúng tôi luôn ở đây để lắng nghe và hỗ trợ bạn.</div>

@@ -41,6 +41,10 @@ export function installReturnMocks(fixture) {
   if (mode === 'pending') existing.status = 'PENDING';
   if (mode === 'allReserved') existing.items = order.items.map(item => ({ ...item, returnItemID: item.orderDetailID, quantity: item.quantity }));
   const state = window.__returnsTest = { order, returns: [existing], calls: [], payload: null, postCount: 0, mode, delay: 0 };
+  state.createdUrls = []; state.revokedUrls = [];
+  const createUrl = URL.createObjectURL.bind(URL), revokeUrl = URL.revokeObjectURL.bind(URL);
+  URL.createObjectURL = file => { const url = createUrl(file); state.createdUrls.push(url); return url; };
+  URL.revokeObjectURL = url => { state.revokedUrls.push(url); revokeUrl(url); };
   const realFetch = window.fetch.bind(window);
   const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
   window.fetch = async (input, options = {}) => {
@@ -58,14 +62,26 @@ export function installReturnMocks(fixture) {
     if (url.pathname === '/api/orders/my-orders') return state.mode === 'loadError' ? json({}, 503) : json(state.mode === 'noOrders' ? [] : [order]);
     if (url.pathname.startsWith('/api/orders/')) return state.mode === 'notFound' ? json({}, 404) : json(order);
     if (url.pathname === '/api/returns/my-requests') return state.mode === 'historyError' ? json({}, 503) : json(state.mode === 'noOrders' ? [] : state.returns);
+    const price = items => {
+      const net = { 11: 90353, 12: 35765, 13: 33882 };
+      const lines = items.map(item => {
+        const purchased = order.items.find(d => d.orderDetailID === item.orderDetailID);
+        const grossAmount = purchased.unitPrice * item.quantity;
+        const netAmount = Math.floor(net[item.orderDetailID] * item.quantity / purchased.quantity);
+        return { ...item, unitPrice: purchased.unitPrice, grossAmount, discountAmount: grossAmount - netAmount, netAmount };
+      });
+      return { items: lines, grossAmount: lines.reduce((n,i)=>n+i.grossAmount,0), discountAmount: lines.reduce((n,i)=>n+i.discountAmount,0), netAmount: lines.reduce((n,i)=>n+i.netAmount,0), paymentConfirmed:true, shippingRefund:null, collectionFee:null, finalRefund:null };
+    };
+    if (url.pathname === '/api/returns/preview') return json(price(JSON.parse(options.body).items));
     if (url.pathname === '/api/returns' && method === 'POST') {
-      state.postCount++; state.payload = JSON.parse(options.body);
+      state.postCount++; state.payload = JSON.parse(await options.body.get('returnRequest').text());
+      state.uploads = options.body.getAll('images').map(file => ({ name: file.name, size: file.size, type: file.type }));
       if (state.delay) await new Promise(resolve => setTimeout(resolve, state.delay));
       if (state.mode === 'conflict') return json({ detail: 'So luong tra vuot qua so luong con lai' }, 409);
       if (state.mode === 'badRequest') return json({}, 400);
       if (state.mode === 'submitError') return json({}, 503);
       const created = { returnID: 502, orderID: order.orderID, userID: 24, reason: state.payload.reason,
-        evidenceUrls: state.payload.evidenceUrls, status: 'PENDING', createdAt: new Date().toISOString(),
+        evidenceUrls: [location.origin + '/src/assets/butcaocap.webp'], pricing: price(state.payload.items), status: 'PENDING', createdAt: new Date().toISOString(),
         processedAt: null, adminNote: null, items: state.payload.items.map((item, index) => ({
           ...item, returnItemID: 602 + index, variantID: order.items.find(product => product.orderDetailID === item.orderDetailID).variantID,
         })) };

@@ -41,7 +41,8 @@ public class AdminReturnRepository {
     public List<AdminReturnDetailResponse.Item> items(Long id) {
         return em.createQuery("""
             select new com.example.backend.dto.returns.AdminReturnDetailResponse$Item(
-                i.returnItemID, d.orderDetailID, v.variantID, p.title, photo, v.sku, v.title, d.quantity, i.quantity, d.unitPrice)
+                i.returnItemID, d.orderDetailID, v.variantID, p.title, photo, v.sku, v.title, d.quantity, i.quantity, d.unitPrice,
+                i.grossAmount, i.discountAmount, i.netAmount)
             from ReturnRequestItem i join i.orderDetail d join d.variant v join v.product p
             left join p.images photo on index(photo) = 0 where i.returnRequest.returnID = :id order by i.returnItemID
             """, AdminReturnDetailResponse.Item.class).setParameter("id", id).getResultList();

@@ -7,4 +7,4 @@ import java.util.List;
 public record ReturnResponse(Long returnID, Long orderID, Long userID, String reason,
                              List<String> evidenceUrls, ReturnStatus status,
                              LocalDateTime createdAt, LocalDateTime processedAt,
-                             String adminNote, List<ReturnItemResponse> items) {}
+                             String adminNote, List<ReturnItemResponse> items, RefundPreview pricing) {}

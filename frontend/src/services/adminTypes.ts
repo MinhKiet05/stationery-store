@@ -60,6 +60,7 @@ export type ReturnReceipt = {
     goodQuantity: number | null; damagedQuantity: number | null; stockBefore: number | null; stockAfter: number | null }[];
 };
 export type AdminReturnDetail = {
+  pricing?: import('./returnService').RefundPreview | null;
   request: AdminReturnRow;
   order: Pick<Order, 'orderDate' | 'status' | 'isPaid' | 'paymentMethod' | 'totalAmount' | 'contactPhone' | 'shippingAddress' | 'deliveredAt'>;
   items: { returnItemID: number; orderDetailID: number; variantID: number; productTitle: string;

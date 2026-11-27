@@ -39,6 +39,9 @@ public class ReturnRequest {
     @Column(name = "evidence_images", columnDefinition = "text")
     private String evidenceImages;
 
+    @Column(name = "evidence_public_ids", columnDefinition = "text")
+    private String evidencePublicIds;
+
     // Trạng thái yêu cầu
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

@@ -10,6 +10,6 @@ import java.util.List;
 public record CreateReturnRequest(
         @NotNull Long orderID,
         @NotBlank @Size(max = 1000) String reason,
-        @NotEmpty @Size(max = 5) List<@NotBlank String> evidenceUrls,
+        @Size(max = 5) List<@NotBlank String> evidenceUrls,
         @NotEmpty List<@Valid ReturnItemRequest> items
 ) {}

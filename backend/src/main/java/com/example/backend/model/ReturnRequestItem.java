@@ -12,6 +12,13 @@ import lombok.*;
 @Builder
 public class ReturnRequestItem {
 
+    @Column(name = "gross_amount", precision = 12, scale = 2)
+    private java.math.BigDecimal grossAmount;
+    @Column(name = "discount_amount", precision = 12, scale = 2)
+    private java.math.BigDecimal discountAmount;
+    @Column(name = "net_amount", precision = 12, scale = 2)
+    private java.math.BigDecimal netAmount;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "return_item_id")

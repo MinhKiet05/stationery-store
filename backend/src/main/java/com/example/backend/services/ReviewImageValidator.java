@@ -25,16 +25,18 @@ public class ReviewImageValidator {
     public List<byte[]> validate(List<MultipartFile> files, int retainedCount) {
         List<MultipartFile> uploads = files == null ? List.of() : files;
         if (retainedCount + uploads.size() > MAX_IMAGES) {
-            throw badRequest("Moi danh gia chi duoc toi da 5 anh");
+            throw badRequest("Bạn chỉ được tải lên tối đa 5 ảnh.");
         }
         List<byte[]> validated = new ArrayList<>();
         for (MultipartFile file : uploads) {
             if (file == null || file.isEmpty()) throw badRequest("File anh khong duoc rong");
             if (file.getSize() > MAX_BYTES) throw tooLarge();
+            if (!Set.of("image/jpeg", "image/png", "image/webp").contains(file.getContentType() == null ? "" : file.getContentType()))
+                throw badRequest("Định dạng ảnh không được hỗ trợ.");
             try (var stream = file.getInputStream()) {
                 byte[] bytes = stream.readNBytes(MAX_BYTES + 1);
                 if (bytes.length > MAX_BYTES) throw tooLarge();
-                validateContent(bytes);
+                validateContent(bytes, file.getContentType());
                 validated.add(bytes);
             } catch (IOException error) {
                 throw badRequest("Khong the doc file anh");
@@ -43,13 +45,15 @@ public class ReviewImageValidator {
         return validated;
     }
 
-    private void validateContent(byte[] bytes) {
+    private void validateContent(byte[] bytes, String mime) {
         try (var input = new MemoryCacheImageInputStream(new ByteArrayInputStream(bytes))) {
             var readers = ImageIO.getImageReaders(input);
             if (!readers.hasNext()) throw badRequest("Chi chap nhan anh JPEG, PNG, WebP hop le");
             ImageReader reader = readers.next();
             try {
                 String format = reader.getFormatName().toLowerCase(Locale.ROOT);
+                String actualMime = switch (format) { case "jpeg", "jpg" -> "image/jpeg"; case "png" -> "image/png"; case "webp" -> "image/webp"; default -> ""; };
+                if (!actualMime.equals(mime)) throw badRequest("Nội dung ảnh không khớp định dạng khai báo.");
                 if (!Set.of("jpeg", "jpg", "png", "webp").contains(format)) {
                     throw badRequest("Chi chap nhan anh JPEG, PNG, WebP hop le");
                 }

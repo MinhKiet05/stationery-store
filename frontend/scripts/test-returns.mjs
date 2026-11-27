@@ -26,7 +26,10 @@ const submit = 'main button[type="submit"]';
 
 async function test(name, run) {
   try { await run(); results.push({ name, passed: true }); console.log(`PASS ${name}`); }
-  catch (error) { results.push({ name, passed: false, error: error.message }); console.log(`FAIL ${name}: ${error.message}`); }
+  catch (error) {
+    results.push({ name, passed: false, error: error.message }); console.log(`FAIL ${name}: ${error.message}`);
+    if (name.startsWith('Returning to order')) console.log('Return state:', await evaluate('JSON.stringify({body:document.querySelector("main").innerText.slice(0,1500),requests:window.__returnsTest.calls.slice(-8)})'));
+  }
 }
 
 async function navigate(mode = 'normal', route = '/returns/new?orderId=9842') {
@@ -49,8 +52,19 @@ async function fillForm() {
   if (!await evaluate(`document.querySelector(${JSON.stringify(second)}).checked`)) await click(second);
   await chooseReason();
   await type('#return-description', 'Hộp bút bị móp, có 1 cây bút chảy mực & không viết được.\nMong cửa hàng hỗ trợ.');
-  await type('#evidence-0', 'https://example.com/evidence.jpg?item=pen&color=blue');
+  if (!await evaluate('document.querySelectorAll("#return-evidence img").length')) await chooseImages(1);
+  await until(() => evaluate('!document.querySelector("[data-testid=return-total]").textContent.includes("Ch")'), 'refund quote');
   if (!await evaluate('document.querySelector("#return-confirmed").checked')) await click('#return-confirmed');
+}
+
+async function chooseImages(count, mime = 'image/png', size = 0) {
+  await evaluate(`(() => {
+    const canvas=document.createElement('canvas');canvas.width=2;canvas.height=2;canvas.getContext('2d').fillRect(0,0,2,2);
+    const bytes=Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0));
+    const transfer=new DataTransfer();
+    for(let i=0;i<${count};i++) transfer.items.add(new File([${size} ? new Uint8Array(${size}) : bytes], 'evidence-'+i+'.png', {type:${JSON.stringify(mime)}}));
+    const input=document.querySelector('input[type=file]');input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));
+  })()`);
 }
 
 async function expectNoPost() {
@@ -89,11 +103,12 @@ try {
   });
   await test('Item selection recalculates 48,000 + 38,000 VND', async () => {
     await click(first); await click(second);
-    assert.ok((await evaluate('document.querySelector("[data-testid=return-total]").textContent')).includes('86.000'));
+    await until(() => evaluate('document.querySelector("[data-testid=return-subtotal]").textContent.includes("86.000")'), 'gross quote');
+    assert.ok((await evaluate('document.querySelector("[data-testid=return-total]").textContent')).includes('80.941'));
   });
   await test('Quantity controls enforce purchased quantity and minimum one', async () => {
     await click('button[aria-label^="Tăng số lượng Mực"]');
-    assert.ok((await evaluate('document.querySelector("[data-testid=return-total]").textContent')).includes('134.000'));
+    await until(() => evaluate('document.querySelector("[data-testid=return-subtotal]").textContent.includes("134.000")'), 'quantity quote');
     assert.equal(await evaluate(`document.querySelector('button[aria-label^="Tăng số lượng Mực"]').disabled`), true);
     await click('button[aria-label^="Giảm số lượng Mực"]');
     assert.equal(await evaluate(`document.querySelector('button[aria-label^="Giảm số lượng Mực"]').disabled`), true);
@@ -123,22 +138,29 @@ try {
     await type('#return-description', 'a'.repeat(550));
     assert.equal(await evaluate('document.querySelector("#return-description").value.length'), 500);
   });
-  await test('FTP and missing-host evidence URLs are rejected', async () => {
-    await type('#evidence-0', 'ftp://example.com/file.jpg'); await click(submit); await expectNoPost();
-    assert.equal(await evaluate('document.querySelector("#evidence-0").getAttribute("aria-invalid")'), 'true');
-    await type('#evidence-0', 'https://'); await click(submit); await expectNoPost();
+  await test('Invalid file type and oversized image are rejected locally', async () => {
+    await navigate(); await fillForm();
+    await click('[aria-label="Xóa ảnh minh chứng 1"]');
+    await chooseImages(1, 'text/plain'); await click(submit); await expectNoPost();
+    assert.equal(await evaluate('document.querySelectorAll("#return-evidence img").length'),0);
+    await chooseImages(1, 'image/png', 5*1024*1024+1); await expectNoPost();
+    assert.equal(await evaluate('document.querySelectorAll("#return-evidence img").length'),0);
   });
-  await test('Evidence is capped at five entries; entries can be removed', async () => {
-    for (let index = 0; index < 4; index++) await click('button[class*=addEvidence]');
-    assert.equal(await evaluate('document.querySelectorAll("input[id^=evidence-]").length'), 5);
-    assert.equal(await evaluate('document.querySelector("button[class*=addEvidence]").disabled'), true);
-    for (let index = 5; index >= 2; index--) await click(`button[aria-label="Xóa minh chứng ${index}"]`);
-    assert.equal(await evaluate('document.querySelectorAll("input[id^=evidence-]").length'), 1);
+  await test('Images are capped at five; previews open inline and can be removed', async () => {
+    await chooseImages(6);
+    assert.equal(await evaluate('document.querySelectorAll("#return-evidence img").length'),5);
+    assert.equal(await evaluate('!!document.querySelector("button[class*=uploadImage]")'),false);
+    await click('[aria-label="Xem bằng chứng 1"]');
+    assert.equal(await evaluate('document.querySelectorAll("dialog[open]").length'),1);
+    await click('[aria-label="Đóng ảnh minh chứng"]');
+    for(let i=5;i>=2;i--) await click('[aria-label="Xóa ảnh minh chứng '+i+'"]');
+    assert.equal(await evaluate('document.querySelectorAll("#return-evidence img").length'),1);
+    assert.equal(await evaluate('window.__returnsTest.revokedUrls.length >= 5'),true);
   });
-  await test('An added but empty evidence row blocks submission', async () => {
-    await fillForm(); await click('button[class*=addEvidence]'); await click(submit);
-    await expectNoPost();
-    await click('button[aria-label="Xóa minh chứng 2"]');
+  await test('Missing images block submission; the same image can be selected again', async () => {
+    await click('[aria-label="Xóa ảnh minh chứng 1"]'); await click(submit); await expectNoPost();
+    assert.ok(await evaluate('!!document.querySelector("#return-evidence + input + [role=alert]")'));
+    await chooseImages(1);
   });
   await test('Confirmation checkbox is required', async () => {
     await click('#return-confirmed'); await click(submit); await expectNoPost();
@@ -150,6 +172,8 @@ try {
     assert.equal(await evaluate('document.querySelector("[class*=conditions] button").getAttribute("aria-pressed")'), 'true');
   });
   await test('Desktop view loads real UI assets and is captured', async () => {
+    await evaluate('document.querySelectorAll(".store-notice-close").forEach(button => button.click())');
+    await until(() => evaluate('!document.querySelector(".Toastify__toast")'), 'validation notices dismissed');
     await evaluate('document.querySelectorAll("main img").forEach(image => image.loading = "eager")');
     await until(() => evaluate('Array.from(document.querySelectorAll("main img")).every(img => img.complete && img.naturalWidth > 0)'), 'product images');
     await evaluate('scrollTo(0,0)');
@@ -163,13 +187,14 @@ try {
     await click(submit);
     await until(() => evaluate('Boolean(document.querySelector("main [class*=success]"))'), 'created request');
     const payload = await evaluate('window.__returnsTest.payload');
-    assert.deepEqual(Object.keys(payload).sort(), ['evidenceUrls', 'items', 'orderID', 'reason']);
+    assert.deepEqual(Object.keys(payload).sort(), ['items', 'orderID', 'reason']);
     assert.equal(payload.orderID, 9842);
     assert.deepEqual(payload.items, [{ orderDetailID: 11, quantity: 1 }, { orderDetailID: 12, quantity: 1 }]);
     assert.ok(payload.reason.includes('chảy mực & không viết được.\nMong cửa hàng'));
     assert.ok(payload.reason.includes('Tình trạng:'));
     assert.ok(payload.reason.length <= 1000);
-    assert.deepEqual(payload.evidenceUrls, ['https://example.com/evidence.jpg?item=pen&color=blue']);
+    assert.equal(await evaluate('window.__returnsTest.uploads.length'),1);
+    assert.equal(await evaluate('window.__returnsTest.uploads[0].type'),'image/png');
     assert.ok((await evaluate('document.querySelector("main [class*=success]").textContent')).includes('Chờ xét duyệt'));
     assert.ok((await evaluate('document.querySelector("main [class*=success]").textContent')).includes('chưa thực hiện hoàn tiền'));
   });
@@ -178,6 +203,8 @@ try {
     assert.ok((await evaluate('document.querySelector("[class*=history]").textContent')).includes('Chờ xét duyệt'));
   });
   await test('Returning to order recomputes remaining quantities', async () => {
+    await evaluate('document.querySelectorAll(".store-notice-close").forEach(button => button.click())');
+    await until(() => evaluate('!document.querySelector(".Toastify__toast")'), 'notices dismissed');
     await click('main [class*=success] button');
     await until(() => evaluate('Boolean(document.querySelector("#return-order")) && !document.querySelector("main [class*=loading]")'), 'order refresh');
     assert.equal(await evaluate(`document.querySelector('main input[aria-label^="Trả Bộ"]').disabled`), true);
@@ -197,7 +224,7 @@ try {
     assert.ok((await evaluate('document.querySelector("main [class*=success]").textContent')).includes('Đã chấp thuận'));
     assert.ok((await evaluate('document.querySelector("ol li[aria-current=step]").textContent')).includes('Thu hồi hàng'));
   });
-  for (const [mode, expected] of [['conflict', 'Số lượng có thể trả đã thay đổi'], ['badRequest', 'Thông tin chưa hợp lệ'], ['submitError', 'Không thể kết nối']]) {
+  for (const [mode, expected] of [['conflict', 'Số lượng có thể trả đã thay đổi'], ['badRequest', 'Thông tin chưa hợp lệ'], ['submitError', 'Nội dung và ảnh vẫn được giữ lại']]) {
     await test(`${mode}: error is shown and entered data is preserved`, async () => {
       await navigate(mode); await fillForm(); await click(submit);
       await until(() => evaluate('Boolean(document.querySelector("[class*=submitError]"))'), 'submit error');
@@ -290,9 +317,12 @@ try {
     });
   }
   await test('Cancel returns to order picker without creating a request', async () => {
+    await chooseImages(1);
+    const localUrl = await evaluate('window.__returnsTest.createdUrls.at(-1)');
     await click('button[class*=cancelButton]');
     await until(() => evaluate('Boolean(document.querySelector("#return-order")) && !document.querySelector("main [class*=loading]")'), 'cancel');
     assert.equal(await evaluate('document.querySelector("#return-order").value'), '');
+    assert.equal(await evaluate(`window.__returnsTest.revokedUrls.includes(${JSON.stringify(localUrl)})`),true);
     await expectNoPost();
   });
   await test('No uncaught JavaScript errors', async () => assert.equal(browser.exceptions.length, 0, JSON.stringify(browser.exceptions)));

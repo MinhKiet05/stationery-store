@@ -14,13 +14,14 @@ export type ReturnRequest = {
   createdAt: string;
   processedAt: string | null;
   adminNote: string | null;
+  pricing?: RefundPreview | null;
   items: { returnItemID: number; orderDetailID: number; variantID: number; quantity: number }[];
 };
 
 export type CreateReturnRequest = {
   orderID: number;
   reason: string;
-  evidenceUrls: string[];
+  images: File[];
   items: { orderDetailID: number; quantity: number }[];
 };
 
@@ -32,8 +33,20 @@ export function getMyReturns(signal?: AbortSignal) {
   return api<ReturnRequest[]>("/api/returns/my-requests", { signal });
 }
 
+export type RefundPreview = {
+  items: { orderDetailID: number; quantity: number; unitPrice: number; grossAmount: number; discountAmount: number; netAmount: number }[];
+  grossAmount: number; discountAmount: number; netAmount: number; paymentConfirmed: boolean;
+  shippingRefund: number | null; collectionFee: number | null; finalRefund: number | null;
+};
+export function previewReturn(orderID: number, items: CreateReturnRequest['items'], signal?: AbortSignal) {
+  return api<RefundPreview>("/api/returns/preview", { method: 'POST', body: JSON.stringify({ orderID, items }), signal });
+}
 export function createReturn(request: CreateReturnRequest, signal?: AbortSignal) {
-  return api<ReturnRequest>("/api/returns", { method: "POST", body: JSON.stringify(request), signal });
+  const { images, ...payload } = request;
+  const body = new FormData();
+  body.append('returnRequest', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+  images.forEach(image => body.append('images', image));
+  return api<ReturnRequest>("/api/returns", { method: "POST", body, signal });
 }
 
 // LocalDateTime from the shop is displayed in Vietnam time. The server always
@@ -85,8 +98,10 @@ export function returnErrorMessage(error: unknown): string {
     if (error.status === 401) return "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
     if (error.status === 403) return "Tài khoản hiện không được phép thực hiện yêu cầu này.";
     if (error.status === 404) return "Không tìm thấy đơn hàng hoặc yêu cầu của bạn.";
-    if (error.status === 409) return "Đơn hàng hoặc số lượng có thể trả đã thay đổi. Vui lòng tải lại để kiểm tra.";
-    if (error.status === 400) return "Thông tin chưa hợp lệ. Vui lòng kiểm tra sản phẩm, số lượng, lý do và liên kết minh chứng.";
+    if (error.status === 409) return error.detail?.includes('đối soát') ? error.detail : "Đơn hàng hoặc số lượng có thể trả đã thay đổi. Vui lòng tải lại để kiểm tra.";
+    if (error.status === 400) return "Thông tin chưa hợp lệ. Vui lòng kiểm tra sản phẩm, số lượng, lý do và ảnh minh chứng.";
+    if (error.status === 413) return "Mỗi ảnh tối đa 5 MB; tổng yêu cầu tối đa 26 MB.";
+    if (error.status === 502 || error.status === 503) return "Chưa tải được ảnh hoặc lưu yêu cầu. Nội dung và ảnh vẫn được giữ lại; vui lòng thử lại.";
     if (error.status === 429) return error.message;
   }
   return "Không thể kết nối cửa hàng. Nội dung bạn đã nhập vẫn được giữ lại; vui lòng thử lại.";

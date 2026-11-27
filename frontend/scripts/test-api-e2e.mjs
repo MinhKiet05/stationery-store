@@ -84,9 +84,15 @@ try {
     await click('main input[aria-label^="Trả "]');
     await evaluate(`const select=document.querySelector('#return-reason');select.value=select.options[1].value;select.dispatchEvent(new Event('change',{bubbles:true}))`);
     await type('#return-description', 'Sản phẩm kiểm thử cần được hỗ trợ đổi trả.');
-    await type('#evidence-0', 'https://example.test/synthetic-evidence.jpg'); await click('#return-confirmed');
+    await evaluate(`(() => { const canvas=document.createElement('canvas');canvas.width=2;canvas.height=2;canvas.getContext('2d').fillRect(0,0,2,2);
+      const bytes=Uint8Array.from(atob(canvas.toDataURL('image/png').split(',')[1]),c=>c.charCodeAt(0));const transfer=new DataTransfer();
+      transfer.items.add(new File([bytes],'evidence.png',{type:'image/png'})); const input=document.querySelector('input[type=file]');input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true})); })()`);
+    await ready('document.querySelector("#return-evidence img")');
+    await ready('document.querySelector("[data-testid=return-total]").textContent.includes("10.000")');
+    await click('#return-confirmed');
     await click('main button[type=submit]'); await ready('document.querySelector("main section[role=status] h2")?.textContent.includes("đã được gửi thành công")');
     const result = await request('/api/returns/my-requests', customerToken); assert.equal(result.response.status, 200); assert.equal(result.data.length, 1);
+    assert.equal(result.data[0].pricing.netAmount, 10000); assert.equal(result.data[0].evidenceUrls.length, 1);
   });
   await test('Real customer/admin JWTs enforce permissions and admin 404 stays inside dashboard', async () => {
     assert.equal((await request('/api/admin/users', customerToken)).response.status, 403);
@@ -96,6 +102,15 @@ try {
     await evaluate(`localStorage.setItem('accessToken', ${JSON.stringify(admin.accessToken)});window.dispatchEvent(new Event('auth-changed'))`);
     await send('Page.navigate', { url: base + '/dashboard/unknown-e2e' }); await ready('document.querySelector("#not-found-title") && document.querySelector(".dashboard-sidebar")');
     assert.match(await evaluate('document.title'), /404/);
+  });
+  await test('Admin sees the same stored return estimate and opens evidence inside the dashboard', async () => {
+    await send('Page.navigate', { url: base + '/dashboard/returns' });
+    await ready('document.querySelector("table tbody button")'); await button('Xem chi tiết');
+    await ready(`document.querySelector('dialog[open] [aria-label="Tiền hàng hoàn dự kiến"]')`);
+    assert.match(await evaluate('document.querySelector("dialog[open]").textContent'), /10[.,]000/);
+    await click('[aria-label="Xem bằng chứng 1"]'); await ready('document.querySelectorAll("dialog[open]").length === 2');
+    await ready('document.querySelector(\'dialog[aria-label="Xem ảnh minh chứng"] img\')?.naturalWidth > 0');
+    await click('[aria-label="Đóng ảnh minh chứng"]');
   });
   assert.deepEqual(browser.exceptions, [], 'No real E2E runtime exceptions');
   assert.deepEqual(browser.consoleErrors, [], 'No real E2E console errors');

@@ -1,0 +1,14 @@
+.grid { display:flex; flex-wrap:wrap; justify-content:flex-start; gap:12px; }
+.thumbnail { width:108px; height:108px; position:relative; flex:0 0 auto; }
+.thumbnail > button:first-child { width:100%; height:100%; display:grid; place-items:center; border:1px solid #e2e8f0; border-radius:9px; padding:0; overflow:hidden; background:#f8fafc; cursor:pointer; }
+.thumbnail img { width:100%; height:100%; object-fit:cover; }
+.remove { position:absolute; right:4px; top:4px; border:1px solid #e2e8f0; background:white; color:#b42318; border-radius:50%; padding:5px; display:grid; cursor:pointer; }
+.fallback { display:grid; place-items:center; gap:5px; color:#64748b; font-size:12px; }
+.dialog { position:fixed; inset:0; margin:auto; padding:16px; width:min(900px,calc(100% - 24px)); max-height:92dvh; border:0; border-radius:14px; background:white; color:#172033; overflow:auto; }
+.dialog::backdrop { background:rgb(15 23 42 / 75%); }
+.dialog header,.dialog footer { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.dialog button { display:inline-flex; align-items:center; gap:5px; border:1px solid #e2e8f0; border-radius:7px; padding:9px; background:#fff7ed; color:#943d05; cursor:pointer; }
+.dialog button:disabled { opacity:.4; cursor:default; }
+.stage { display:grid; place-items:center; min-height:180px; margin:14px 0; background:#f8fafc; }
+.large,.stage video { display:block; max-width:100%; max-height:65dvh; object-fit:contain; }
+@media(max-width:480px) { .thumbnail { width:88px; height:88px; } }
