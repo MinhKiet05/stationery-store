@@ -17,7 +17,15 @@ if (!baseUrl) {
 const workspace = fileURLToPath(new URL('../../', import.meta.url));
 assert.equal((await fetch(`${baseUrl}/returns/new`)).status, 200, 'Start Vite first');
 const browser = await openTestBrowser();
-const { send, evaluate, click, type } = browser;
+const { send, evaluate, click: browserClick, type } = browser;
+async function click(selector) {
+  // Dismiss notices through their real close controls before clicking behind the overlay.
+  if (await evaluate('Boolean(document.querySelector(".Toastify__toast"))')) {
+    await evaluate('document.querySelectorAll(".store-notice-close").forEach(button => button.click())');
+    await until(() => evaluate('!document.querySelector(".Toastify__toast")'), 'notices dismissed');
+  }
+  await browserClick(selector);
+}
 const results = [];
 const first = 'main input[aria-label^="Trả Hộp"]';
 const second = 'main input[aria-label^="Trả Bộ"]';
@@ -207,8 +215,10 @@ try {
     await until(() => evaluate('!document.querySelector(".Toastify__toast")'), 'notices dismissed');
     await click('main [class*=success] button');
     await until(() => evaluate('Boolean(document.querySelector("#return-order")) && !document.querySelector("main [class*=loading]")'), 'order refresh');
+    await until(() => evaluate(`!!document.querySelector('main input[aria-label^="Trả Bộ"]') && !!document.querySelector(${JSON.stringify(first)})`), 'refreshed product names');
     assert.equal(await evaluate(`document.querySelector('main input[aria-label^="Trả Bộ"]').disabled`), true);
     await click(first);
+    await until(() => evaluate(`!!document.querySelector('button[aria-label^="Tăng số lượng Mực"]')`), 'remaining quantity controls');
     assert.equal(await evaluate(`document.querySelector('button[aria-label^="Tăng số lượng Mực"]').disabled`), true);
   });
   await test('Concurrent submit clicks create only one request', async () => {
@@ -224,7 +234,7 @@ try {
     assert.ok((await evaluate('document.querySelector("main [class*=success]").textContent')).includes('Đã chấp thuận'));
     assert.ok((await evaluate('document.querySelector("ol li[aria-current=step]").textContent')).includes('Thu hồi hàng'));
   });
-  for (const [mode, expected] of [['conflict', 'Số lượng có thể trả đã thay đổi'], ['badRequest', 'Thông tin chưa hợp lệ'], ['submitError', 'Nội dung và ảnh vẫn được giữ lại']]) {
+  for (const [mode, expected] of [['conflict', 'Số lượng có thể trả đã thay đổi'], ['badRequest', 'Thông tin chưa hợp lệ'], ['uploadError', 'Nội dung và ảnh vẫn được giữ lại']]) {
     await test(`${mode}: error is shown and entered data is preserved`, async () => {
       await navigate(mode); await fillForm(); await click(submit);
       await until(() => evaluate('Boolean(document.querySelector("[class*=submitError]"))'), 'submit error');
@@ -232,6 +242,28 @@ try {
       assert.ok((await evaluate('document.querySelector("#return-description").value')).includes('chảy mực'));
       assert.equal(await evaluate('Boolean(document.querySelector("main [class*=success]"))'), false);
       assert.equal(await evaluate('document.querySelector("main button[type=submit]").disabled'), false);
+    });
+  }
+  for (const mode of ['submitError', 'emptyGateway', 'networkError', 'timeout', 'lostResponse']) {
+    await test(`${mode}: uncertain outcome locks POST, retains draft and reconciles by GET`, async () => {
+      await navigate(mode); await fillForm(); await click(submit);
+      await until(() => evaluate('Boolean(document.querySelector("[class*=submitError]"))'), 'uncertain result');
+      assert.equal(await evaluate('document.querySelector("main button[type=submit]").disabled'), true);
+      assert.equal(await evaluate('document.querySelectorAll("#return-evidence img").length'), 1);
+      assert.ok((await evaluate('document.querySelector("#return-description").value')).includes('chảy mực'));
+      assert.equal(await evaluate('document.querySelectorAll(".Toastify__toast--warning").length'), 1);
+      await evaluate('document.querySelector("main form").requestSubmit()');
+      assert.equal(await evaluate('window.__returnsTest.postCount'), 1);
+      await click('[class*=submitError] button');
+      if (mode === 'lostResponse') {
+        await until(() => evaluate('Boolean(document.querySelector("main [class*=success]"))'), 'committed request found');
+        assert.equal(await evaluate('document.querySelectorAll("#return-evidence img").length'), 0);
+      } else {
+        await until(() => evaluate('document.querySelector("[class*=submitError]").textContent.includes("Chưa xác định")'), 'history remains inconclusive');
+        assert.equal(await evaluate('document.querySelector("main button[type=submit]").disabled'), true);
+        assert.equal(await evaluate('document.querySelectorAll("#return-evidence img").length'), 1);
+      }
+      assert.equal(await evaluate('window.__returnsTest.postCount'), 1);
     });
   }
   for (const [mode, text] of [['expired', 'quá thời hạn'], ['undelivered', 'chưa được giao'], ['missingDate', 'chưa có thời gian'], ['allReserved', 'Tất cả số lượng']]) {

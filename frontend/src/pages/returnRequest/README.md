@@ -155,3 +155,7 @@ Chấp thuận vẫn chỉ duyệt trả hàng. Không có API nhập tiền ho�
 - `test(returns): cover pricing uploads rollback concurrency and browser flows`
 
 Không có commit nào được tạo tự động.
+
+## 16. Sự cố 502 và Metaspace ngày 27/11/2026
+
+Xem [báo cáo chẩn đoán, bản sửa, phép đo local và cấu hình Render](../../../../docs/RETURN_SUBMISSION_INCIDENT.md). Bản sửa này không đổi migration V1–V6 hoặc công thức hoàn tiền.
