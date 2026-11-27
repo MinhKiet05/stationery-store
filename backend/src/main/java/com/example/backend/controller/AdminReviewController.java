@@ -4,7 +4,7 @@ import com.example.backend.dto.review.*;
 import com.example.backend.services.*;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+import com.example.backend.dto.PageResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,9 +22,9 @@ public class AdminReviewController {
     private final ReviewExcelExporter exporter;
 
     @GetMapping
-    public Page<AdminReviewResponse> list(@ModelAttribute AdminReviewFilter filter,
+    public PageResponse<AdminReviewResponse> list(@ModelAttribute AdminReviewFilter filter,
             @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) {
-        return service.list(filter, page, size);
+        return PageResponse.from(service.list(filter, page, size));
     }
 
     @GetMapping("/statistics")

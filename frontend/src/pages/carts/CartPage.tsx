@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -31,6 +31,7 @@ import { userMessage } from "../../utils/notifications";
 import type { Cart } from "../../services/cartService";
 import { useCheckout } from '../../hooks/useCheckout';
 import { money } from './checkoutUtils';
+import GuestCartPage from '../cart/CartPage';
 
 type Item = Cart["items"][number];
 const shell =
@@ -163,13 +164,13 @@ function CartRow({
           >
             <Minus size={13} />
           </button>
-          <span className="min-w-6 text-center text-xs font-bold">
+          <span aria-label="Số lượng" className="min-w-6 text-center text-xs font-bold">
             {item.quantity}
           </span>
           <button
             type="button"
             disabled={
-              busy ||
+              busy || item.available === false ||
               (item.stockQuantity !== undefined &&
                 item.quantity >= item.stockQuantity)
             }
@@ -190,6 +191,16 @@ function CartRow({
 
 export default function CartPage() {
   const scope = useSessionScope();
+  useEffect(() => {
+    const previous = document.title;
+    document.title = 'Giỏ hàng | StationeryStore';
+    return () => { document.title = previous; };
+  }, []);
+  return localStorage.getItem('accessToken') ? <CustomerCart key={scope} /> : <GuestCartPage key={scope} />;
+}
+
+function CustomerCart() {
+  const scope = useSessionScope();
   const query = useCart();
   const mutation = useCartMutation();
   const navigate = useNavigate();
@@ -198,6 +209,7 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState("");
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const writeLock = useRef(false);
   const items = query.data?.items ?? [];
   const subtotal = query.data?.subtotal ?? 0;
   const { options, quote } = useCheckout({ items, couponCode });
@@ -222,14 +234,9 @@ export default function CartPage() {
           !items.some((item) => item.productID === product.productID),
       )
       .slice(0, 4) ?? [];
-  useEffect(() => {
-    setExcluded([]);
-    setCoupon("");
-    setCouponCode("");
-    setError("");
-  }, [scope]);
-
   async function change(itemID: number, quantity?: number) {
+    if (busy || writeLock.current) return;
+    writeLock.current = true;
     setError("");
     const current = scope;
     try {
@@ -243,10 +250,13 @@ export default function CartPage() {
     } catch (reason) {
       if (current === sessionScope())
         setError(userMessage(reason, "Không thể cập nhật giỏ hàng."));
+    } finally {
+      writeLock.current = false;
     }
   }
   async function removeSelected() {
-    if (busy) return;
+    if (busy || writeLock.current) return;
+    writeLock.current = true;
     const current = scope;
     setDeleting(true);
     setError("");
@@ -261,6 +271,7 @@ export default function CartPage() {
       if (current === sessionScope())
         setError(userMessage(reason, "Chưa xóa được các sản phẩm đã chọn."));
     } finally {
+      writeLock.current = false;
       setDeleting(false);
     }
   }

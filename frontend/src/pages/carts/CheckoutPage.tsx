@@ -1,5 +1,4 @@
-﻿import {
-  useEffect,
+import {
   useRef,
   useState,
   type ChangeEvent,
@@ -78,18 +77,23 @@ export default function CheckoutPage() {
       ? location.state.couponCode.slice(0, 50)
       : "";
   const scope = useSessionScope();
+  return <CheckoutContent key={`${scope}:${initialCoupon}`} initialCoupon={initialCoupon} />;
+}
+
+function CheckoutContent({ initialCoupon }: { initialCoupon: string }) {
+  const scope = useSessionScope();
   const signedIn = !!localStorage.getItem("accessToken");
   const cartQuery = useCart();
   const userQuery = useCurrentUser();
   const cartWrite = useCartMutation();
   const client = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [coupon, setCoupon] = useState("");
-  const [couponCode, setCouponCode] = useState("");
+  const [coupon, setCoupon] = useState(initialCoupon);
+  const [couponCode, setCouponCode] = useState(initialCoupon);
   const [error, setError] = useState("");
   const [uncertain, setUncertain] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
-  const [fields, setFields] = useState(emptyFields);
+  const [fields, setFields] = useState(() => ({ ...emptyFields, name: userQuery.data?.fullName || "", phone: userQuery.data?.phoneNumber || "" }));
   const [shippingMethod, setShippingMethod] = useState<ShippingMethod>('STANDARD');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
   const [savedOrder, setSavedOrder] = useState<Order | null>(null);
@@ -100,26 +104,18 @@ export default function CheckoutPage() {
   const orderWrite = useMutation({ mutationFn: createOrder });
   const { options, quote } = useCheckout({ items, couponCode, shippingMethod, enabled: !orderId });
 
-  useEffect(() => {
-    setFields(emptyFields);
-    setOrderId(null);
-    setError("");
-    setUncertain(false);
-    setCoupon(initialCoupon);
-    setCouponCode(initialCoupon);
-    setEditing(false);
-    setShippingMethod('STANDARD'); setPaymentMethod('COD'); setSavedOrder(null); setPaymentOpen(false);
-  }, [scope, initialCoupon]);
-
-  useEffect(() => {
-    if (!userQuery.data) return;
-    const user = userQuery.data;
-    setFields((previous) => ({
-      ...previous,
-      name: previous.name || user.fullName || "",
-      phone: previous.phone || user.phoneNumber || "",
-    }));
-  }, [userQuery.data]);
+  const [profileDefaults, setProfileDefaults] = useState(userQuery.data);
+  if (profileDefaults !== userQuery.data) {
+    setProfileDefaults(userQuery.data);
+    if (userQuery.data) {
+      const user = userQuery.data;
+      setFields(previous => ({
+        ...previous,
+        name: previous.name || user.fullName || "",
+        phone: previous.phone || user.phoneNumber || "",
+      }));
+    }
+  }
 
   function field(name: keyof typeof fields) {
     return {
@@ -727,7 +723,7 @@ export default function CheckoutPage() {
           </form>
         )}
       </div>
-      {paymentOpen && savedOrder && <PaymentModal order={savedOrder} onClose={() => setPaymentOpen(false)} onPaid={updated => { setSavedOrder(updated); void client.invalidateQueries({ queryKey: ['session', scope, 'orders'] }); }} />}
+      {paymentOpen && savedOrder && <PaymentModal key={savedOrder.orderID} order={savedOrder} onClose={() => setPaymentOpen(false)} onPaid={updated => { setSavedOrder(updated); void client.invalidateQueries({ queryKey: ['session', scope, 'orders'] }); }} />}
     </main>
   );
 }

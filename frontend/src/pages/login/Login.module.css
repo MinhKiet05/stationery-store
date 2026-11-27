@@ -362,15 +362,19 @@
   color: #6b7280;
 }
 
-.footerLink span {
+.footerLink button {
+  border: 0;
+  background: transparent;
+  font: inherit;
   color: #f97316;
   font-weight: 600;
   cursor: pointer;
 }
 
-.footerLink span:hover {
+.footerLink button:hover {
   text-decoration: underline;
 }
+.socialBtn:disabled { opacity: .55; cursor: not-allowed; }
 
 /* Responsive: 1 Cột trên điện thoại */
 @media (max-width: 860px) {

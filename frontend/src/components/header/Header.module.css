@@ -278,6 +278,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  overflow-x: auto;
 }
 
 .navLink {
@@ -340,8 +342,10 @@
 
 @media (max-width: 1024px) {
   .topBarItem.divider { display: none; }
-  .profileContainer { display: none; }
-  .nav { display: none; }
+  .guarantee { display: none; }
+  .profileContainer { padding-left: 8px; margin-left: 0; }
+  .navContent { padding-inline: 16px; }
+  .loginBtn { padding: 8px; }
 }
 
 @media (max-width: 640px) {
@@ -357,4 +361,8 @@
   .searchInput { font-size: 12px; padding: 0 8px; }
   .searchBtn { padding: 0 13px; font-size: 12px; }
   .suggestions { font-size: 10px; margin-top: 6px; }
+  .logoText { display: block; font-size: 16px; }
+  .logoImg { display: none; }
+  .logo { flex: 0 0 auto; }
+  .actions { margin-left: auto; }
 }

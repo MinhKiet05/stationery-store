@@ -113,7 +113,7 @@ try {
   const formIsValid = () => evaluate('document.querySelector("main form").checkValidity()');
   await send('Page.enable');
   await send('Runtime.enable');
-  await send('Page.addScriptToEvaluateOnNewDocument',{source:`const originalFetch=window.fetch.bind(window);window.fetch=(input,options)=>new URL(typeof input==='string'?input:input.url,location.href).pathname.startsWith('/api/')?Promise.resolve(Response.json({content:[],products:[],source:'FALLBACK'})):originalFetch(input,options);`});
+  await send('Page.addScriptToEvaluateOnNewDocument',{source:`const originalFetch=window.fetch.bind(window);window.fetch=(input,options)=>new URL(typeof input==='string'?input:input.url,location.href).pathname.startsWith('/api/')?Promise.resolve(Response.json(new URL(typeof input==='string'?input:input.url,location.href).pathname==='/api/product-types'?[]:{content:[],products:[],source:'FALLBACK'})):originalFetch(input,options);`});
   await send('Emulation.setDeviceMetricsOverride', { width: 1296, height: 1000, deviceScaleFactor: 1, mobile: false });
   await navigate('/about');
 
@@ -122,12 +122,12 @@ try {
     assert.equal(await evaluate('document.querySelectorAll("main").length'), 1);
   });
   await test('Hero contact button scrolls to contact', async () => {
-    await click('main a[href="#contact"]');
+    await click('main a[href$="#contact"]');
     assert.equal(await evaluate('location.hash'), '#contact');
     assert.ok(Math.abs(await evaluate('document.querySelector("#contact").getBoundingClientRect().top')) < 40);
   });
   await test('Hero values button scrolls to values', async () => {
-    await click('main a[href="#values"]');
+    await click('main a[href$="#values"]');
     assert.equal(await evaluate('location.hash'), '#values');
     assert.ok(Math.abs(await evaluate('document.querySelector("#values").getBoundingClientRect().top')) < 40);
   });

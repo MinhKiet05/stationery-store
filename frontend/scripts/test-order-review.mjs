@@ -9,6 +9,7 @@ import { createServer } from 'vite';
 // Exercise the real order page and modal; intercept every API request before React loads.
 function installApi() {
   const realFetch = window.fetch.bind(window);
+  window.__orderReviewDocument = Math.random();
   localStorage.setItem('accessToken', 'order-review-test');
   const user = { userID: 9, username: 'buyer', fullName: 'Khách hàng', email: 'buyer@example.test', role: 'CUSTOMER' };
   const item = (productID, orderDetailID, variantTitle) => ({ productID, orderDetailID, variantID: orderDetailID,
@@ -21,7 +22,7 @@ function installApi() {
     order(72, 'SHIPPED', [item(14, 141, 'Chưa nhận hàng')])];
   window.__reviews = [{ reviewID: 80, productID: 12, userID: 9, username: 'buyer', rating: 5, comment: 'Sổ dùng tốt.', images: [] },
     { reviewID: 81, productID: 11, userID: 18, username: 'another-buyer', rating: 4, comment: 'Đánh giá của người khác.', images: [] }];
-  window.__requests = []; window.__posts = []; window.__unexpected = [];
+  window.__requests = []; window.__posts = []; window.__updates = []; window.__unexpected = [];
   window.__failure = 0; window.__orderMode = ''; window.__delay = 0;
   window.fetch = async (input, options = {}) => {
     const url = new URL(typeof input === 'string' ? input : input.url, location.href);
@@ -30,11 +31,28 @@ function installApi() {
     window.__requests.push({ route, method });
     if (route === '/api/auth/me' || route === '/api/users/me') return Response.json(user);
     if (route === '/api/cart') return Response.json({ items: [], subtotal: 0 });
-    if (route === '/api/orders/my-orders') return Response.json({ content: window.__orders, totalElements: 2, totalPages: 1, statusCounts: { DELIVERED: 1, SHIPPED: 1 } });
+    if (route === '/api/product-types') return Response.json([]);
+    if (route === '/api/returns/my-requests') return Response.json([]);
+    if (route === '/api/orders/my-orders') return Response.json(url.search ? { content: window.__orders, totalElements: 2, totalPages: 1, statusCounts: { DELIVERED: 1, SHIPPED: 1 } } : window.__orders);
+    if (/^\/api\/products\/\d+$/.test(route)) return Response.json({ productID: Number(route.split('/').at(-1)), images: [], title: 'Sản phẩm kiểm thử' });
     if (route === '/api/orders/71') {
       if (window.__orderMode === 'forbidden') return Response.json({}, { status: 403 });
       return Response.json({ ...window.__orders[0], ...(window.__orderMode === 'foreign' ? { userID: 99 }
         : window.__orderMode === 'undelivered' ? { status: 'SHIPPED' } : {}) });
+    }
+    const update = route.match(/^\/api\/reviews\/(\d+)$/);
+    if (update && method === 'PUT') {
+      const multipart = options.body instanceof FormData;
+      const body = multipart ? JSON.parse(await options.body.get('review').text()) : JSON.parse(options.body);
+      const removed = multipart && options.body.has('removeImagePositions') ? JSON.parse(await options.body.get('removeImagePositions').text()) : [];
+      const files = multipart ? options.body.getAll('images') : [];
+      window.__updates.push({ reviewID: Number(update[1]), body, removed, images: files.map(file => file.name), multipart, auth: new Headers(options.headers).get('Authorization') });
+      await new Promise(resolve => setTimeout(resolve, window.__delay)); options.signal?.throwIfAborted();
+      if (window.__failure) return Response.json({}, { status: window.__failure });
+      const saved = window.__reviews.find(review => review.reviewID === Number(update[1]));
+      Object.assign(saved, body, { images: [...(saved.images || []).filter(image => !removed.includes(image.imagePosition)),
+        ...files.map(() => ({ imageUrl: '/src/assets/butgel.webp' }))].map((image, imagePosition) => ({ ...image, imagePosition })) });
+      return Response.json(saved);
     }
     const match = route.match(/^\/api\/products\/(\d+)\/reviews$/);
     if (match && method === 'GET') return Response.json(window.__reviews.filter(review => review.productID === Number(match[1])));
@@ -95,14 +113,16 @@ try {
   await send('Page.addScriptToEvaluateOnNewDocument', { source: '(' + installApi.toString() + ')()' });
   await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   const navigate = async () => {
+    const previous = await evaluate('window.__orderReviewDocument').catch(() => null);
     await send('Page.navigate', { url: base + '/my-profile/orders' });
-    await until(() => evaluate('!!document.querySelector("article button")'), 'order history');
+    await until(() => evaluate(`window.__orderReviewDocument !== ${JSON.stringify(previous)} && !!document.querySelector('article button')`), 'order history');
   };
   const activeForm = '[...document.querySelectorAll("dialog[open] form")].find(node=>node.getClientRects().length)';
   const read = expression => evaluate('(()=>{const f=' + activeForm + ';return (' + expression + ')})()');
   const button = async (label, context = 'document') => {
+    await until(() => evaluate(`[...${context}.querySelectorAll('button')].some(n=>n.getClientRects().length && !n.disabled && n.textContent.trim()===${JSON.stringify(label)})`), `button ${label}`);
     await evaluate('(()=>{const n=[...' + context + '.querySelectorAll("button")].find(n=>n.textContent.trim()===' + JSON.stringify(label)
-      + ');if(!n||n.disabled)throw new Error("Unavailable button");n.focus();n.click()})()');
+      + '&&n.getClientRects().length);if(!n||n.disabled)throw new Error("Unavailable button");n.focus();n.click()})()');
   };
   const open = async () => { await button('Đánh giá'); await until(() => read('!!f'), 'review form'); };
   const input = value => evaluate('(()=>{const n=(' + activeForm + ').querySelector("textarea");Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,"value").set.call(n,'
@@ -126,7 +146,10 @@ try {
     assert.equal(await evaluate('[...document.querySelectorAll("article")][1].textContent.includes("Đánh giá")'), false);
     assert.equal(await evaluate('window.__requests.some(r=>r.route.includes("/reviews"))'), false);
     await button('Yêu cầu trả hàng');
-    await until(() => evaluate('document.body.textContent.includes("Chức năng yêu cầu trả hàng")'), 'return notice');
+    await until(() => evaluate('location.pathname === "/returns/new" && new URLSearchParams(location.search).get("orderId") === "71"'), 'return request route');
+    await until(() => evaluate('Boolean(document.querySelector("#return-order"))'), 'return request form');
+    await evaluate('history.back()');
+    await until(() => evaluate('location.pathname === "/my-profile/orders" && Boolean(document.querySelector("article"))'), 'return to orders');
     await button('Xem chi tiết');
     await until(() => evaluate('!!document.querySelector("dialog[open]")'), 'order details');
     assert.equal(await evaluate('document.querySelector("dialog[open]").textContent.includes("Chi tiết đơn hàng #ST-71")'), true);
@@ -180,7 +203,7 @@ try {
     assert.equal(await evaluate('window.__posts.length'), before + 1);
     const saved = await evaluate('window.__posts.at(-1)');
     assert.deepEqual(saved, { productID: 11, body: { rating: 4, comment: 'Bút mực xanh viết êm tay.' }, images: ['review.webp'], multipart: true, auth: 'Bearer order-review-test' });
-    await until(() => evaluate('[...document.querySelector("article").querySelectorAll("button")].some(n=>n.textContent==="Đã đánh giá"&&n.disabled)'), 'reviewed state');
+    await until(() => evaluate('[...document.querySelector("article").querySelectorAll("button")].some(n=>n.textContent==="Xem đánh giá"&&!n.disabled)'), 'reviewed products retain access to view/edit');
     assert.equal(await evaluate('document.body.style.overflow'), '');
     assert.equal(await evaluate('location.pathname+location.search'), '/my-profile/orders');
     assert.ok(await evaluate('window.__requests.filter(r=>r.route==="/api/orders/my-orders").length') > reads);
@@ -211,6 +234,32 @@ try {
     assert.equal(await evaluate('getComputedStyle(document.querySelector("dialog[open] > div")).overflowY'), 'auto');
     await screenshot('mobile.png'); await close();
     assert.equal(await evaluate('document.body.style.overflow'), '');
+  });
+  await test('Review editing counts retained photos, replaces explicitly removed media and preserves drafts on failure', async () => {
+    await navigate();
+    await evaluate(`window.__reviews.find(review=>review.reviewID===80).images=Array.from({length:5},(_,imagePosition)=>({imagePosition,imageUrl:'/src/assets/butgel.webp'}))`);
+    await open(); await select(121); await button('Chỉnh sửa đánh giá');
+    await until(() => read('!!f'), 'edit form');
+    assert.equal(await read('f.querySelector("textarea").value'), 'Sổ dùng tốt.');
+    assert.equal(await read(`f.querySelectorAll('button[aria-label^="Xóa ảnh hiện có"]').length`), 5);
+    const upload = () => evaluate('(async()=>{const blob=await fetch("/src/assets/butgel.webp").then(r=>r.blob());const d=new DataTransfer();d.items.add(new File([blob],"replacement.webp",{type:"image/webp"}));const n=('
+      + activeForm + ').querySelector("input[type=file]");n.files=d.files;n.dispatchEvent(new Event("change",{bubbles:true}))})()');
+    await upload();
+    assert.equal(await read(`!!f.querySelector('button[aria-label="Xóa replacement.webp"]')`), false, 'five retained photos leave no upload slot');
+    await read(`f.querySelector('button[aria-label="Xóa ảnh hiện có 1"]').click()`);
+    await upload(); await until(() => read(`!!f.querySelector('button[aria-label="Xóa replacement.webp"]')`), 'replacement preview');
+    assert.equal(await read(`f.querySelectorAll('button[aria-label^="Xóa ảnh hiện có"]').length`), 4);
+    await input('Đã sửa nội dung và thay một ảnh.');
+    await evaluate('window.__failure=500'); await button('Lưu chỉnh sửa');
+    await until(() => read('f.textContent.includes("Nội dung vẫn được giữ lại")'), 'edit error preserves draft');
+    assert.equal(await read('f.querySelector("textarea").value'), 'Đã sửa nội dung và thay một ảnh.');
+    await evaluate('window.__failure=0;window.__delay=250'); await button('Lưu chỉnh sửa');
+    await evaluate('(' + activeForm + ').dispatchEvent(new Event("submit",{bubbles:true,cancelable:true}))');
+    await until(() => evaluate('!document.querySelector("dialog[open]")'), 'edited review closes');
+    assert.equal(await evaluate('window.__updates.length'), 2, 'one failed attempt and one explicit retry');
+    assert.deepEqual(await evaluate('window.__updates.at(-1)'), { reviewID: 80, body: { rating: 5, comment: 'Đã sửa nội dung và thay một ảnh.' }, removed: [0], images: ['replacement.webp'], multipart: true, auth: 'Bearer order-review-test' });
+    assert.equal(await evaluate('window.__reviews.find(review=>review.reviewID===80).images.length'), 5);
+    assert.equal(await evaluate('window.__posts.length'), 0, 'editing never creates a duplicate review');
   });
   assert.deepEqual(exceptions, [], 'No browser runtime exceptions');
   assert.deepEqual(await evaluate('window.__unexpected'), [], 'No unmocked API calls');

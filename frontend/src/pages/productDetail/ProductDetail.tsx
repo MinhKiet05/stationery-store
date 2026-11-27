@@ -43,6 +43,7 @@ import {
   toggleFavoriteProduct,
 } from "../../utils/favoriteStorage";
 import styles from "./ProductDetail.module.css";
+import { errorStatus } from '../../services/apiError';
 
 type Tab = "specs" | "description" | "reviews";
 const money = (price: number) =>
@@ -100,16 +101,9 @@ function ProductDetailContent({ handle }: { handle: string }) {
   const [imageIndex, setImageIndex] = useState(0);
   const [imageFailed, setImageFailed] = useState(false);
   const [quantity, setQuantity] = useState(1);
-  const loading =
-    productQuery.isPending || (!!product && variantsQuery.isPending);
-  const error =
-    (productQuery.isError && !product) ||
-    (variantsQuery.isError && !variantsQuery.data)
-      ? userMessage(
-          productQuery.error || variantsQuery.error,
-          "Không tải được sản phẩm. Vui lòng thử lại.",
-        )
-      : "";
+  const loading = productQuery.isPending || !!product && variantsQuery.isPending;
+  const error = productQuery.isError && !product || variantsQuery.isError && !variantsQuery.data ? userMessage(productQuery.error || variantsQuery.error, 'Không tải được sản phẩm. Vui lòng thử lại.') : '';
+  const notFound = !product && errorStatus(productQuery.error) === 404;
   const [adding, setAdding] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<Tab>(() =>
@@ -128,6 +122,11 @@ function ProductDetailContent({ handle }: { handle: string }) {
   const busy = useRef(false);
 
   const productID = product?.productID;
+  useEffect(() => {
+    const previous = document.title;
+    document.title = `${notFound ? 'Không tìm thấy sản phẩm' : product?.title || 'Chi tiết sản phẩm'} | StationeryStore`;
+    return () => { document.title = previous; };
+  }, [product?.title, notFound]);
   const [favoriteProductID, setFavoriteProductID] = useState(productID);
   if (favoriteProductID !== productID) {
     setFavoriteProductID(productID);
@@ -256,10 +255,10 @@ function ProductDetailContent({ handle }: { handle: string }) {
     <main className={styles.page}>
       <div className={styles.container}>
         <nav className={styles.breadcrumb} aria-label="Đường dẫn">
-          <a href="/">
+          <Link to="/">
             <Home size={13} />
             Trang chủ
-          </a>
+          </Link>
           <ChevronRight size={12} />
           <span>{product?.productTypeName || "Sản phẩm"}</span>
           <ChevronRight size={12} />
@@ -279,15 +278,15 @@ function ProductDetailContent({ handle }: { handle: string }) {
         ) : error ? (
           <section className={styles.empty} role="alert">
             <ImageOff size={36} />
-            <h1>Chưa thể tải sản phẩm</h1>
-            <p>{error}</p>
-            <button
+            <h1>{notFound ? 'Không tìm thấy sản phẩm' : 'Chưa thể tải sản phẩm'}</h1>
+            <p>{notFound ? 'Sản phẩm này không còn tồn tại hoặc đã ngừng hiển thị.' : error}</p>
+            {!notFound && <button
               className={styles.primary}
-              onClick={() => window.location.reload()}
+              onClick={() => { void productQuery.refetch(); if (product) void variantsQuery.refetch(); }}
             >
               Thử lại
-            </button>
-            <a href="/">Về trang chủ</a>
+            </button>}
+            <Link to="/">Về trang chủ</Link>
           </section>
         ) : (
           product && (
@@ -703,9 +702,9 @@ function ProductDetailContent({ handle }: { handle: string }) {
                         của bạn.
                       </p>
                     </div>
-                    <a href="/">
+                    <Link to="/">
                       Khám phá thêm <ArrowRight size={15} />
-                    </a>
+                    </Link>
                   </div>
                   <div className={styles.products}>
                     {related.map((item) => (

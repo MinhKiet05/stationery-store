@@ -20,15 +20,20 @@ export default function AppNotifications() {
       const dialogs = document.querySelectorAll("dialog[open]");
       const target = dialogs.item(dialogs.length - 1) ?? document.body;
       if (host.parentNode !== target) target.appendChild(host);
+      const header = document.querySelector('[data-store-header], .dashboard-header');
+      const bottom = header?.getBoundingClientRect().bottom ?? 0;
+      host.style.setProperty('--store-notice-top', `${dialogs.length ? 16 : Math.max(16, bottom + 12)}px`);
     };
     placeHost();
     const observer = new MutationObserver(placeHost);
     observer.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ["open"] });
+    window.addEventListener('resize', placeHost);
+    window.addEventListener('scroll', placeHost, { passive: true });
     let active = true;
     // Let StrictMode finish its subscription cleanup/remount before consuming
     // the flash notice; otherwise the first container can discard that toast.
     queueMicrotask(() => { if (active) showPendingNotice(); });
-    return () => { active = false; observer.disconnect(); host.remove(); };
+    return () => { active = false; observer.disconnect(); window.removeEventListener('resize', placeHost); window.removeEventListener('scroll', placeHost); host.remove(); };
   }, [host]);
 
   return createPortal(<ToastContainer

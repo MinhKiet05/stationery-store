@@ -99,3 +99,35 @@ test('a late 401 cannot log out a newly established session even if its token st
   await assert.rejects(profiles.getMyProfile(),error=>error.status===401);
   assert.equal(token,'session-A');
 });
+
+test('password changes use the authenticated API contract, accept 204 and clear expired sessions', async()=>{
+  let call;
+  globalThis.fetch=async(path,options)=>{call={path,options};return new Response(null,{status:204});};
+  await profiles.changeMyPassword('fixture-old-password','fixture-new-password');
+  assert.equal(call.path,'/api/users/me/password');assert.equal(call.options.method,'PUT');
+  assert.deepEqual(JSON.parse(call.options.body),{oldPassword:'fixture-old-password',newPassword:'fixture-new-password'});
+  assert.equal(new Headers(call.options.headers).get('Authorization'),'Bearer session-A');
+  assert.ok(call.options.signal instanceof AbortSignal);
+  globalThis.fetch=async()=>Response.json({}, {status:401});
+  await assert.rejects(profiles.changeMyPassword('fixture-old','fixture-new'),error=>error.status===401);
+  assert.equal(token,null);
+});
+
+test('transient identity failures reject without clearing the current login or caching anonymous success', async()=>{
+  globalThis.fetch=async()=>Response.json({detail:'private database diagnostic'}, {status:503});
+  await assert.rejects(auth.getCurrentUser('http://test'),error=>error.status===503&&!error.message.includes('database'));
+  assert.equal(token,'session-A');
+});
+
+test('review editing preserves images with JSON and sends explicit removals and additions as multipart', async()=>{
+  const calls=[];globalThis.fetch=async(path,options)=>{calls.push({path,options});return Response.json({reviewID:8,rating:4,comment:'Updated'});};
+  await reviews.updateProductReview(8,{rating:4,comment:'Updated',images:[]},[]);
+  assert.equal(calls[0].path,'/api/reviews/8');assert.equal(calls[0].options.method,'PUT');
+  assert.deepEqual(JSON.parse(calls[0].options.body),{rating:4,comment:'Updated'});
+  await reviews.updateProductReview(8,{rating:5,comment:'With replacement',images:[new File(['fixture'],'replacement.png',{type:'image/png'})]},[0,2]);
+  const body=calls[1].options.body;
+  assert.ok(body instanceof FormData);assert.deepEqual(JSON.parse(await body.get('removeImagePositions').text()),[0,2]);
+  assert.equal(body.getAll('images')[0].name,'replacement.png');
+  assert.equal(new Headers(calls[1].options.headers).has('Content-Type'),false);
+  assert.equal(new Headers(calls[1].options.headers).get('Authorization'),'Bearer session-A');
+});

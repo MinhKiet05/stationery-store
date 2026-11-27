@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import styles from "./AboutUs.module.css";
 import { notify } from "../../utils/notifications";
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const values = [
   { icon: ShieldCheck, title: "Tinh Tuyển Chất Lượng", description: "100% sản phẩm có chứng nhận xuất xứ rõ ràng từ các xưởng sản xuất danh tiếng tại Nhật Bản, Đức và Thụy Sĩ. Đảm bảo độ bền ngòi bút và độ chuẩn màu mực vượt trội.", promise: "Cam kết hoàn tiền 200% nếu hàng giả", promiseIcon: PackageCheck },
@@ -31,6 +32,7 @@ const faqs = [
 const mapsUrl = "https://www.google.com/maps/search/?api=1&query=123+Nguyen+Hue+District+1+Ho+Chi+Minh+City";
 
 export default function AboutUs() {
+  const location = useLocation(), navigate = useNavigate();
   const [messageLength, setMessageLength] = useState(0);
   const [emailPrepared, setEmailPrepared] = useState(false);
   const [faqOpen, setFaqOpen] = useState(window.location.hash === "#faq");
@@ -38,24 +40,21 @@ export default function AboutUs() {
   useEffect(() => {
     const previousTitle = document.title;
     document.title = "Giới thiệu & Liên hệ | StationeryStore";
-    const followHash = () => {
-      const section = window.location.hash.slice(1) || (/^\/(contact|lien-he)\/?$/.test(window.location.pathname) ? "contact" : "");
-      setFaqOpen(section === "faq");
-      if (section) document.getElementById(section)?.scrollIntoView();
-    };
-    followHash();
-    window.addEventListener("hashchange", followHash);
+    const section = location.hash.slice(1) || (/^\/(contact|lien-he)\/?$/.test(location.pathname) ? 'contact' : '');
+    if (section) document.getElementById(section)?.scrollIntoView();
     return () => {
       document.title = previousTitle;
-      window.removeEventListener("hashchange", followHash);
     };
-  }, []);
+  }, [location.hash, location.pathname]);
+
+  const [previousHash, setPreviousHash] = useState(location.hash);
+  if (previousHash !== location.hash) { setPreviousHash(location.hash); setFaqOpen(location.hash === '#faq'); }
 
   function toggleFaq() {
     const open = !faqOpen;
     setFaqOpen(open);
     const hash = open ? "#faq" : window.location.hash === "#faq" ? "" : window.location.hash;
-    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash}`);
+    navigate({ pathname: location.pathname, search: location.search, hash }, { replace: true });
   }
 
   function submitContact(event: FormEvent<HTMLFormElement>) {
@@ -83,8 +82,8 @@ export default function AboutUs() {
             <h1 id="about-title">Nuôi dưỡng cảm hứng & nghệ thuật ghi chép cùng StationeryStore</h1>
             <p>Chúng tôi tin rằng từng trang giấy mộc, từng vệt mực êm ái đều ẩn chứa năng lượng chữa lành và khai mở tư duy sáng tạo vô tận. StationeryStore ra đời như một không gian tinh tại dành cho những ai tôn sùng vẻ đẹp thủ công và giá trị sống lắng đọng.</p>
             <div className={styles.heroActions}>
-              <a href="#contact" className={styles.primaryButton}>Liên hệ & Hợp tác ngay <ArrowRight size={16} /></a>
-              <a href="#values" className={styles.secondaryButton}><HelpCircle size={16} /> Khám phá giá trị cốt lõi</a>
+              <Link to="#contact" className={styles.primaryButton}>Liên hệ & Hợp tác ngay <ArrowRight size={16} /></Link>
+              <Link to="#values" className={styles.secondaryButton}><HelpCircle size={16} /> Khám phá giá trị cốt lõi</Link>
             </div>
           </div>
           <div className={styles.heroPhoto}>

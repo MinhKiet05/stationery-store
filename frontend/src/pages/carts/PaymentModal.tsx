@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   AlertCircle,
@@ -61,7 +61,7 @@ export default function PaymentModal({
   const [receipt, setReceipt] = useState<Order | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
-  onPaidRef.current = onPaid;
+  useEffect(() => { onPaidRef.current = onPaid; }, [onPaid]);
 
   useEffect(() => {
     const element = dialog.current;
@@ -72,8 +72,6 @@ export default function PaymentModal({
   useEffect(() => {
     let active = true;
     const scope = sessionScope();
-    setStep("processing");
-    setReceipt(null);
 
     // Delay only drives the animation. Success requires a persisted response from the server.
     // Retrying uses the same order ID, and the backend makes confirmation idempotent.
@@ -197,7 +195,7 @@ export default function PaymentModal({
           <>
             <button
               className="w-full rounded-xl bg-orange-500 py-3.5 font-semibold text-white"
-              onClick={() => setAttempt((value) => value + 1)}
+              onClick={() => { setStep("processing"); setReceipt(null); setAttempt(value => value + 1); }}
             >
               Kiểm tra / thử lại thanh toán
             </button>

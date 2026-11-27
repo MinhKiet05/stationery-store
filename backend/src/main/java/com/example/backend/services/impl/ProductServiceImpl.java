@@ -54,8 +54,8 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository
                 .findByHandleAndIsActiveTrue(handle)
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Không tìm thấy sản phẩm: " + handle
+                        new org.springframework.web.server.ResponseStatusException(
+                                org.springframework.http.HttpStatus.NOT_FOUND, "Không tìm thấy sản phẩm"
                         )
                 );
 
@@ -298,8 +298,8 @@ public class ProductServiceImpl implements ProductService {
         return productRepository.findById(id)
                 .filter(p -> Boolean.TRUE.equals(p.getIsActive()))
                 .orElseThrow(() ->
-                        new IllegalArgumentException(
-                                "Không tìm thấy sản phẩm ID: " + id
+                        new org.springframework.web.server.ResponseStatusException(
+                                org.springframework.http.HttpStatus.NOT_FOUND, "Không tìm thấy sản phẩm"
                         )
                 );
     }

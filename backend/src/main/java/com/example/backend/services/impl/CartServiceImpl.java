@@ -38,12 +38,22 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public CartResponse addItem(String username, AddCartItemRequest request) {
+        return mergeItems(username, List.of(request));
+    }
+
+    @Override
+    @Transactional
+    public CartResponse mergeItems(String username, List<AddCartItemRequest> requests) {
+        User user = findUser(username);
+        Cart cart = lockedCart(user);
+        for (AddCartItemRequest request : requests) addToCart(user, cart, request);
+        return toResponse(cart);
+    }
+
+    private void addToCart(User user, Cart cart, AddCartItemRequest request) {
         if (request.variantID() == null || request.variantID() <= 0) {
             throw bad("variantID khong hop le");
         }
-        User user = findUser(username);
-        Cart cart = lockedCart(user);
-
         ProductVariant variant = variants.findById(request.variantID())
                 .orElseThrow(() -> notFound("Khong tim thay bien the san pham"));
         checkAvailable(variant);
@@ -66,7 +76,6 @@ public class CartServiceImpl implements CartService {
         item.setQuantity(desired);
         cartItems.saveAndFlush(item);
         tracking.recordCartAddition(user, variant.getProduct());
-        return toResponse(cart);
     }
 
     @Override

@@ -12,7 +12,7 @@ import {
   returnStatusLabels, shopDate, type ItemPresentation, type ReturnRequest as ReturnRecord,
 } from "../../services/returnService";
 import { ApiError } from "../../services/api";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import useSessionScope from "../../services/useSessionScope";
 import styles from "./ReturnRequest.module.css";
 
@@ -46,6 +46,7 @@ export default function ReturnRequest() {
 }
 
 function ReturnRequestForm() {
+  const navigate = useNavigate();
   const token = localStorage.getItem("accessToken");
   const [orderID, setOrderID] = useState<number | null>(initialOrderID);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -128,7 +129,7 @@ function ReturnRequestForm() {
     setOrderID(value ? Number(value) : null); setOrder(null); setQuantities({});
     setCreated(null); setReason(""); setDescription(""); setConditions([]);
     setEvidence([""]); setConfirmed(false); setErrors({}); setSubmitError("");
-    window.history.replaceState(null, "", value ? `/returns/new?orderId=${value}` : "/returns/new");
+    navigate(value ? `/returns/new?orderId=${value}` : '/returns/new', { replace: true });
   }
 
   function toggleItem(id: number) {
@@ -190,12 +191,12 @@ function ReturnRequestForm() {
         <li className={completed ? styles.doneStep : reviewApproved ? styles.currentStep : ""} aria-current={reviewApproved && !completed ? "step" : undefined}><span>{completed ? <Check size={18} /> : "3"}</span><div><strong>Thu hồi hàng & Hoàn tiền</strong><p>{completed ? "Cửa hàng đánh dấu yêu cầu hoàn tất" : "CSKH xác nhận sau khi xét duyệt"}</p></div></li>
       </ol>
 
-      {!token ? <section className={styles.emptyState}><span className={styles.emptyIcon}><ShieldCheck size={34} /></span><h2>Đăng nhập để gửi yêu cầu trả hàng</h2><p>Chúng tôi cần xác nhận đơn hàng thuộc tài khoản của bạn trước khi tiếp nhận.</p><a className={styles.primaryButton} href={loginHref}>Đăng nhập & Tiếp tục</a></section>
+      {!token ? <section className={styles.emptyState}><span className={styles.emptyIcon}><ShieldCheck size={34} /></span><h2>Đăng nhập để gửi yêu cầu trả hàng</h2><p>Chúng tôi cần xác nhận đơn hàng thuộc tài khoản của bạn trước khi tiếp nhận.</p><Link className={styles.primaryButton} to={loginHref}>Đăng nhập & Tiếp tục</Link></section>
         : loading ? <div className={styles.loading} role="status"><LoaderCircle className={styles.spinner} size={26} /> Đang tải đơn hàng và kiểm tra điều kiện trả hàng…</div>
-        : loadError ? <section className={styles.emptyState}><CircleAlert size={32} /><h2>Chưa tải được thông tin đơn hàng</h2><p role="alert">{loadError}</p><button className={styles.primaryButton} onClick={() => setRefresh(value => value + 1)}>Thử lại</button><a href="/returns/new">Chọn đơn hàng khác</a></section>
+        : loadError ? <section className={styles.emptyState}><CircleAlert size={32} /><h2>Chưa tải được thông tin đơn hàng</h2><p role="alert">{loadError}</p><button className={styles.primaryButton} onClick={() => setRefresh(value => value + 1)}>Thử lại</button><Link to="/returns/new">Chọn đơn hàng khác</Link></section>
         : <>
           {created ? <section className={styles.success} role="status"><CircleCheck size={42} /><div><span className={styles.processTag}>ĐÃ TIẾP NHẬN</span><h2>Yêu cầu #{created.returnID} đã được gửi thành công</h2><p>Trạng thái: <strong>{returnStatusLabels[created.status]}</strong>. Cửa hàng sẽ kiểm tra minh chứng và phản hồi tại lịch sử bên dưới.</p><p>Việc gửi yêu cầu chưa thực hiện hoàn tiền. Vui lòng giữ sản phẩm và bao bì để phối hợp thu hồi.</p></div><button type="button" className={styles.secondaryButton} onClick={() => { setCreated(null); setRefresh(value => value + 1); setReason(""); setDescription(""); setConditions([]); setEvidence([""]); setConfirmed(false); }}>Quay lại đơn hàng</button></section>
-            : <section className={styles.orderPicker}><label htmlFor="return-order">Chọn đơn hàng cần hỗ trợ</label><div className={styles.selectWrap}><select id="return-order" value={orderID ?? ""} onChange={event => selectOrder(event.target.value)}><option value="">— Chọn đơn hàng của bạn —</option>{orders.map(candidate => <option key={candidate.orderID} value={candidate.orderID}>#ST-{String(candidate.orderID).padStart(6, "0")} · {dateLabel(candidate.orderDate)} · {money(candidate.totalAmount)}</option>)}</select><ChevronDown size={16} /></div>{orders.length === 0 && <p>Bạn chưa có đơn hàng nào. <a href="/">Khám phá sản phẩm tại cửa hàng</a>.</p>}</section>}
+            : <section className={styles.orderPicker}><label htmlFor="return-order">Chọn đơn hàng cần hỗ trợ</label><div className={styles.selectWrap}><select id="return-order" value={orderID ?? ""} onChange={event => selectOrder(event.target.value)}><option value="">— Chọn đơn hàng của bạn —</option>{orders.map(candidate => <option key={candidate.orderID} value={candidate.orderID}>#ST-{String(candidate.orderID).padStart(6, "0")} · {dateLabel(candidate.orderDate)} · {money(candidate.totalAmount)}</option>)}</select><ChevronDown size={16} /></div>{orders.length === 0 && <p>Bạn chưa có đơn hàng nào. <Link to="/">Khám phá sản phẩm tại cửa hàng</Link>.</p>}</section>}
 
           {order && !created && <>
             {blocked && <p className={styles.blocked} role="alert"><CircleAlert size={19} />{blocked}</p>}
@@ -243,7 +244,7 @@ function ReturnRequestForm() {
                 <section className={styles.card}>
                   <SectionTitle number={4} title="Hoàn tiền & Thu hồi hàng hóa" />
                   <div className={styles.refundMethod}><span><Wallet size={23} /></span><div><h3>Phương thức hoàn tiền được xác nhận cùng CSKH</h3><p>Cửa hàng sẽ liên hệ sau khi chấp thuận yêu cầu để thống nhất cách thu hồi và hoàn tiền phù hợp với đơn hàng.</p></div><ShieldCheck size={20} /></div>
-                  <div className={styles.addressHeading}><h3><Truck size={18} />Địa chỉ giao hàng của đơn</h3><a href="/about#contact">Liên hệ hỗ trợ địa chỉ</a></div><div className={styles.address}><MapPin size={20} /><div><strong>{order.contactPhone || "Chưa có số điện thoại"}</strong><p>{order.shippingAddress}</p></div></div>
+                  <div className={styles.addressHeading}><h3><Truck size={18} />Địa chỉ giao hàng của đơn</h3><Link to="/about#contact">Liên hệ hỗ trợ địa chỉ</Link></div><div className={styles.address}><MapPin size={20} /><div><strong>{order.contactPhone || "Chưa có số điện thoại"}</strong><p>{order.shippingAddress}</p></div></div>
                   <p className={styles.fieldHelp}><Info size={13} />Vui lòng giữ sản phẩm và bao bì. CSKH sẽ xác nhận địa chỉ lấy hàng, phí vận chuyển và thời gian xử lý.</p>
                 </section>
               </fieldset>
@@ -251,7 +252,7 @@ function ReturnRequestForm() {
               <aside className={styles.sidebar}>
                 <section className={`${styles.card} ${styles.summary}`}>
                   <h2>Tóm tắt hoàn tiền</h2><dl><div><dt>Sản phẩm chọn trả ({selectedItems.length} món):</dt><dd data-testid="return-subtotal">{money(itemValue)}</dd></div><div><dt>Hoàn phí vận chuyển:</dt><dd>CSKH xác nhận</dd></div><div><dt>Phí thu hồi hàng:</dt><dd>CSKH xác nhận</dd></div></dl><div className={styles.total}><strong>Giá trị sản phẩm dự kiến:</strong><span data-testid="return-total">{money(itemValue)}</span></div><p className={styles.estimateNote}>Tạm tính theo giá sản phẩm đã mua. Số tiền hoàn cuối cùng được cửa hàng xác nhận sau khi xét duyệt, có tính đến ưu đãi của đơn hàng.</p>
-                  <label className={styles.confirmation}><input id="return-confirmed" type="checkbox" checked={confirmed} disabled={busy || !canRequest} onChange={event => { setConfirmed(event.target.checked); clearError("confirmed"); }} aria-invalid={Boolean(errors.confirmed)} /><span>Tôi xác nhận thông tin cung cấp và hình ảnh minh chứng là hoàn toàn trung thực; sản phẩm được giữ nguyên để phục vụ việc kiểm tra theo <a href="/about#faq">chính sách đổi trả 7 ngày</a> của StationeryStore.</span></label>{errors.confirmed && <p className={styles.fieldError}>{errors.confirmed}</p>}
+                  <label className={styles.confirmation}><input id="return-confirmed" type="checkbox" checked={confirmed} disabled={busy || !canRequest} onChange={event => { setConfirmed(event.target.checked); clearError("confirmed"); }} aria-invalid={Boolean(errors.confirmed)} /><span>Tôi xác nhận thông tin cung cấp và hình ảnh minh chứng là hoàn toàn trung thực; sản phẩm được giữ nguyên để phục vụ việc kiểm tra theo <Link to="/policy#returns">chính sách đổi trả 7 ngày</Link> của StationeryStore.</span></label>{errors.confirmed && <p className={styles.fieldError}>{errors.confirmed}</p>}
                   {submitError && <div className={styles.submitError} role="alert"><CircleAlert size={18} /><span>{submitError}<button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>Tải lại đơn hàng & lịch sử</button></span></div>}
                   <button className={styles.submitButton} type="submit" disabled={busy || !canRequest}>{busy ? <LoaderCircle className={styles.spinner} size={18} /> : <Send size={17} />}{busy ? "Đang gửi yêu cầu…" : "Gửi yêu cầu trả hàng"}</button><button className={styles.cancelButton} type="button" disabled={busy} onClick={() => selectOrder("")}><ArrowLeft size={14} />Hủy bỏ & Chọn đơn hàng khác</button><div className={styles.support}><span>Cần xử lý khiếu nại gấp?</span><a href="tel:19006868"><Headphones size={14} />Hotline 1900 6868 (8:00 – 21:00)</a></div>
                 </section>

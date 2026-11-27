@@ -4,7 +4,7 @@ import com.example.backend.dto.productvariant.ProductVariantResponse;
 import com.example.backend.services.*;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+import com.example.backend.dto.PageResponse;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.io.IOException;
@@ -13,7 +13,7 @@ import java.nio.file.Files;
 public class AdminProductController {
     private final AdminProductService service;
     private final ProductExcelExporter exporter;
-    @GetMapping public Page<AdminProductRow> list(@ModelAttribute AdminProductFilter filter,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return service.list(filter,page,size);}
+    @GetMapping public PageResponse<AdminProductRow> list(@ModelAttribute AdminProductFilter filter,@RequestParam(defaultValue="0")int page,@RequestParam(defaultValue="10")int size){return PageResponse.from(service.list(filter,page,size));}
     @GetMapping("/statistics") public AdminProductDetail.Statistics statistics(@ModelAttribute AdminProductFilter filter){return service.statistics(filter);}
     @GetMapping("/options") public AdminProductDetail.Options options(){return service.options();}
     @GetMapping("/{id}") public AdminProductDetail detail(@PathVariable Long id){return service.detail(id);}

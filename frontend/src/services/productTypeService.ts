@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, ApiError } from "./api";
 
 export type ProductType = {
   productTypeID: number;
@@ -6,6 +6,8 @@ export type ProductType = {
   isActive: boolean;
 };
 
-export function getProductTypes(signal?: AbortSignal) {
-  return api<ProductType[]>("/api/product-types", { signal });
+export async function getProductTypes(signal?: AbortSignal) {
+  const data = await api<ProductType[]>("/api/product-types", { signal });
+  if (!Array.isArray(data)) throw new ApiError('Không tải được danh mục. Vui lòng thử lại.', 502);
+  return data;
 }

@@ -25,7 +25,7 @@ class PostgresMigrationTest {
             jdbc.update("insert into store.review_images values (1,'https://example.test/original.jpg',0,'original-public-id')");
         }
         var latest = Flyway.configure().dataSource(dataSource).schemas("store").defaultSchema("store")
-                .locations("classpath:db/migration").cleanDisabled(true).load();
+                .locations("classpath:db/migration").target("4").cleanDisabled(true).load();
         assertThat(latest.migrate().migrationsExecuted).isEqualTo(1);
         if (manualTable) {
             assertThat(jdbc.queryForObject("select cloudinary_public_id from store.review_images where review_id=1 and image_position=0", String.class))
@@ -51,7 +51,7 @@ class PostgresMigrationTest {
             jdbc.update("insert into store.orders(order_id,user_id,status,is_paid,total_amount) values (2000,1000,'DELIVERED',true,120000)");
             jdbc.update("insert into store.return_requests(return_id,order_id,user_id,reason,status,created_at) values (3000,2000,1000,'Old approved request','APPROVED',CURRENT_TIMESTAMP)");
             var latest = Flyway.configure().dataSource(dataSource).schemas("store").defaultSchema("store").locations("classpath:db/migration").cleanDisabled(true).load();
-            assertThat(latest.migrate().migrationsExecuted).isEqualTo(2);
+            assertThat(latest.migrate().migrationsExecuted).isEqualTo(3);
             assertThat(jdbc.queryForObject("select count(*) from store.return_receipts", Long.class)).isZero();
             assertThat(jdbc.queryForObject("select count(*) from store.return_receipt_items", Long.class)).isZero();
             assertThat(jdbc.queryForObject("select status from store.return_requests where return_id=3000", String.class)).isEqualTo("APPROVED");
@@ -72,7 +72,7 @@ class PostgresMigrationTest {
         jdbc.update("insert into store.products(product_id, title, handle, url) values (42, 'Existing catalog', 'existing', 'old-url')");
         var latest = Flyway.configure().dataSource(dataSource).schemas("store").defaultSchema("store")
                 .locations("classpath:db/migration").cleanDisabled(true).load();
-        assertThat(latest.migrate().migrationsExecuted).isEqualTo(3);
+        assertThat(latest.migrate().migrationsExecuted).isEqualTo(4);
         assertThat(jdbc.queryForMap("select product_id, title, handle, url from store.products where product_id=42"))
                 .containsEntry("product_id", 42L).containsEntry("title", "Existing catalog")
                 .containsEntry("handle", "existing").containsEntry("url", "old-url");

@@ -8,6 +8,8 @@ import HomePage from "./pages/homePage/HomePage";
 import AiChatWidget from "./components/aiChat/AiChatWidget";
 import AppNotifications from "./components/notifications/AppNotifications";
 import { useAdminSessionEvents } from './services/adminSession';
+import useSessionScope from './services/useSessionScope';
+import RouteErrorBoundary from './components/RouteErrorBoundary';
 
 const ProductDetail = lazy(() => import('./pages/productDetail/ProductDetail'));
 const Login = lazy(() => import('./pages/login/Login'));
@@ -34,7 +36,7 @@ const ProductsPage = lazy(() => import('./pages/dashboard/ProductsPage.jsx'));
 const UsersPage = lazy(() => import('./pages/dashboard/UsersPage.jsx'));
 const OrdersPage = lazy(() => import('./pages/dashboard/OrdersPage.jsx'));
 const ReturnsPage = lazy(() => import('./pages/dashboard/ReturnsPage.jsx'));
-const DashboardPlaceholder = lazy(() => import('./pages/dashboard/DashboardPlaceholder.jsx'));
+const NotFound = lazy(() => import('./pages/notFound/NotFound'));
 
 const ReturnRequest = lazy(() => import('./pages/returnRequest/ReturnRequest'));
 
@@ -43,9 +45,9 @@ function MainLayout() {
   return (
     <>
       <Header />
-      <Suspense fallback={<p role="status">Đang tải trang…</p>}>
+      <RouteErrorBoundary><Suspense fallback={<p className="page-loading" role="status">Đang tải trang…</p>}>
         <Outlet />
-      </Suspense>
+      </Suspense></RouteErrorBoundary>
       <Footer />
     </>
   );
@@ -53,25 +55,26 @@ function MainLayout() {
 
 function StoreChat() {
   const { pathname } = useLocation();
+  const scope = useSessionScope();
 
   return pathname === '/dashboard' ||
     pathname.startsWith('/dashboard/')
     ? null
-    : <AiChatWidget />;
+    : <AiChatWidget key={scope} />;
 }
 
 // Wrapper lấy param :handle truyền vào ProductDetail
 function ProductDetailWrapper() {
   const { handle = "" } = useParams();
-  return <ProductDetail handle={decodeURIComponent(handle)} />;
+  return <ProductDetail handle={handle} />;
 }
 
-function ProductSearchRedirect() {
+function AliasRedirect({ to }: { to: string }) {
   const { search, hash } = useLocation();
 
   return (
     <Navigate
-      to={{ pathname: "/search", search, hash }}
+      to={{ pathname: to, search, hash }}
       replace
     />
   );
@@ -84,7 +87,7 @@ function App() {
     <BrowserRouter>
       <ScrollToTop />
 
-      <Suspense fallback={<p role="status">Đang tải trang…</p>}>
+      <RouteErrorBoundary><Suspense fallback={<p className="page-loading" role="status">Đang tải trang…</p>}>
         <Routes>
           {/* Nhóm trang quản trị */}
           <Route
@@ -105,7 +108,7 @@ function App() {
               <Route path="users" element={<UsersPage />} />
               <Route
                 path="*"
-                element={<DashboardPlaceholder title="Trang quản trị" />}
+                element={<NotFound dashboard />}
               />
             </Route>
           </Route>
@@ -122,7 +125,8 @@ function App() {
 
             <Route path="/policy" element={<Policy />} />
             <Route path="/search" element={<SearchPage />} />
-            <Route path="/products" element={<ProductSearchRedirect />} />
+            <Route path="/products" element={<AliasRedirect to="/search" />} />
+            <Route path="/promotions" element={<Navigate to="/search?onSale=true" replace />} />
             <Route path="/products/:handle" element={<ProductDetailWrapper />} />
 
             {/* Trang tài khoản */}
@@ -135,13 +139,14 @@ function App() {
 
             <Route
               path="/profile"
-              element={<Navigate to="/my-profile" replace />}
+              element={<AliasRedirect to="/my-profile" />}
             />
 
             <Route
               path="/orders"
-              element={<Navigate to="/my-profile/orders" replace />}
+              element={<AliasRedirect to="/my-profile/orders" />}
             />
+            <Route path="/review" element={<AliasRedirect to="/my-profile/orders" />} />
 
             {/* Trang yêu cầu trả hàng của khách hàng */}
             <Route path="/returns" element={<ReturnRequest />} />
@@ -150,6 +155,7 @@ function App() {
             <Route path="/orders/:orderId/return/new" element={<ReturnRequest />} />
             <Route path="/orders/:orderId/returns" element={<ReturnRequest />} />
             <Route path="/orders/:orderId/returns/new" element={<ReturnRequest />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
 
           {/* Nhóm trang Auth độc lập */}
@@ -157,7 +163,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
-      </Suspense>
+      </Suspense></RouteErrorBoundary>
 
       <StoreChat />
       <AppNotifications />

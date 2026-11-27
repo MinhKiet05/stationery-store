@@ -180,6 +180,7 @@ try {
     await navigate('/search?category=80&sort=price-asc'); await searchReady();
     await evaluate('window.__searchDelay=600'); await button('Bút gel','document.querySelector("#catalog-filters")');
     await until(()=>evaluate('new URLSearchParams(location.search).get("category")==="81"'),'new category committed');
+    await until(()=>evaluate('document.querySelector("main").getAttribute("aria-busy")==="true"'),'new category rendering');
     assert.equal(await evaluate('document.querySelectorAll("#catalog-results article").length'),0);
     await searchReady();
   });

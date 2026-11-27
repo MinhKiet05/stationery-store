@@ -3,18 +3,19 @@ import { queryClient, queryKeys, sessionScope } from "./queryCache";
 import { api } from "./api";
 
 export type Cart = {
-  items: {
-    cartItemID: number;
-    variantID?: number;
-    productID?: number;
-    stockQuantity?: number;
-    available?: boolean;
-    productTitle: string;
-    variantTitle: string;
-    quantity: number;
-    lineTotal: number;
-  }[];
-  subtotal: number;
+    items: {
+        cartItemID: number;
+        variantID?: number;
+        productID?: number;
+        productTitle: string;
+        variantTitle: string;
+        quantity: number;
+        lineTotal: number;
+        unitPrice?: number;
+        stockQuantity?: number;
+        available?: boolean;
+    }[];
+    subtotal: number;
 };
 
 export type CartResponse = Cart;
