@@ -67,6 +67,17 @@ class ReturnEvidenceIntegrationTest {
         assertThat(returns.get(username,result.returnID()).pricing().netAmount()).isEqualByComparingTo("1000000");
         verify(storage,never()).deleteSafely(any());
     }
+    @Test void fiveImagesNearFileLimitAreUploadedAndSavedWithoutChangingRefund() throws Exception {
+        byte[] png = ReviewImageValidatorTest.image("png").getBytes();
+        byte[] nearLimit = Arrays.copyOf(png, ReviewImageValidator.MAX_BYTES - 1);
+        var file = new MockMultipartFile("images", "near-limit.png", "image/png", nearLimit);
+        var result = evidence.create(username, body(b), Collections.nCopies(5, file));
+        assertThat(result.evidenceUrls()).hasSize(5);
+        assertThat(result.pricing().netAmount()).isEqualByComparingTo("1000000");
+        verify(storage, times(5)).upload(argThat(bytes -> bytes.length == ReviewImageValidator.MAX_BYTES - 1), anyString());
+        assertThat(returns.myRequests(username)).hasSize(1);
+        verify(storage, never()).deleteSafely(any());
+    }
     @Test void multipartContractRequiresImagesAndRecomputesForgedMoney() throws Exception {
         var mvc=org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup(context)
                 .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity()).build();

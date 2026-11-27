@@ -49,6 +49,21 @@ export function createReturn(request: CreateReturnRequest, signal?: AbortSignal)
   return api<ReturnRequest>("/api/returns", { method: "POST", body, signal });
 }
 
+export const uncertainReturnMessage = "Chưa xác nhận được yêu cầu đã gửi hay chưa. Vui lòng kiểm tra lịch sử trước khi gửi lại; nội dung và ảnh vẫn được giữ lại.";
+
+// A gateway can lose the response after the database committed. Never retry this POST automatically.
+export function returnSubmissionFailure(error: unknown): { message: string; uncertain: boolean } {
+  if (error instanceof ApiError) {
+    // This exact structured error comes from upload cleanup, before the write transaction starts.
+    if ((error.status === 502 && error.detail === "Không thể tải ảnh. Vui lòng thử lại.")
+      || (error.status === 503 && error.detail === "Chưa cấu hình dịch vụ tải ảnh. Vui lòng liên hệ cửa hàng.")) {
+      return { message: "Chưa tải được ảnh minh chứng. Nội dung và ảnh vẫn được giữ lại; vui lòng thử lại.", uncertain: false };
+    }
+    if (error.status < 500 && error.status !== 408) return { message: returnErrorMessage(error), uncertain: false };
+  }
+  return { message: uncertainReturnMessage, uncertain: true };
+}
+
 // LocalDateTime from the shop is displayed in Vietnam time. The server always
 // makes the final eligibility decision, including the exact seven-day boundary.
 export function shopDate(value: string): Date {

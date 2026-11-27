@@ -57,6 +57,8 @@ function installMockApi() {
     if (route === "/api/orders/2") return Response.json(order(2));
     if (route === "/api/returns/my-requests") return Response.json([]);
     if (route === "/api/orders") return Response.json({ orderID: 3 });
+    if (route === "/api/checkout/options") return Response.json({ shipping: [{ code: "STANDARD", label: "Giao hàng tiêu chuẩn", description: "3–5 ngày", fee: 25000 }], payments: [{ code: "COD", label: "Thanh toán khi nhận hàng", description: "", enabled: true, demo: false }], freeShippingThreshold: 200000 });
+    if (route === "/api/checkout/preview") return Response.json({ subTotal: 20000, discountAmount: 0, shippingFee: 25000, totalAmount: 45000, shippingMethod: "STANDARD", couponCode: null });
     if (route === "/api/cart" || route === "/api/cart/items" || route === "/api/cart/merge") return Response.json(cart);
     if (route === "/api/products" || route === "/api/products/search") return Response.json({ content: [product], totalPages: 1, totalElements: 1 });
     if (/^\/api\/products\/\d+\/reviews$/.test(route)) return Response.json([]);
@@ -216,21 +218,36 @@ try {
     await evaluate("navigator.share=async()=>{throw new DOMException('Cancelled','AbortError')}");
     await clickText("Chia sẻ"); assert.equal(await count(), 0);
   });
-  await test("Checkout notices remain visible inside a native dialog and after closing it", async () => {
+  await test("Checkout notices survive navigation and preserve the current order contract", async () => {
     await evaluate("localStorage.setItem('accessToken','local-browser-test');window.dispatchEvent(new Event('auth-changed'))"); await delay(50);
-    await clickText("Mua ngay"); await until(() => evaluate("!!document.querySelector('dialog[open] form')"), "checkout");
+    await clickText("Mua ngay"); await until(() => evaluate("location.pathname==='/checkout' && !!document.querySelector('#checkout-form')"), "checkout");
     await notice("Đã thêm 1 sản phẩm", "success");
-    assert.equal(await evaluate("!!document.querySelector('dialog[open] .Toastify__toast-container')"), true);
+    assert.equal(await evaluate("!!document.querySelector('.Toastify__toast-container')"), true);
     await screenshot("toast-checkout-desktop.png"); await clear();
-    await type("dialog textarea[name=address]", "Địa chỉ kiểm thử"); await type("dialog input[name=phone]", "0900000000");
-    await evaluate("window.__failure={route:'/api/orders',status:400}; document.querySelector('dialog form').requestSubmit()");
-    await notice("Không thể kết nối cửa hàng", "error"); assert.equal(await evaluate("!!document.querySelector('dialog [role=alert]')"), true); await clear();
-    await evaluate("window.__failure=null; document.querySelector('dialog form').requestSubmit()");
-    await notice("Đặt hàng thành công", "success");
-    assert.deepEqual(await evaluate("JSON.parse(window.__requests.find(r=>r.route==='/api/orders').body)"), { shippingAddress: "Địa chỉ kiểm thử", contactPhone: "0900000000", paymentMethod: "COD" });
-    await evaluate("document.querySelector('dialog').close()");
+    await type("#checkout-form input[autocomplete='street-address']", "Địa chỉ kiểm thử");
+    await type("#checkout-form input[autocomplete='tel']", "0900000000");
+    await type("#checkout-form input[autocomplete='address-level1']", "HCM");
+    await type("#checkout-form input[autocomplete='address-level3']", "Phường kiểm thử");
+    await evaluate("window.__failure={route:'/api/orders',status:400}; document.querySelector('#checkout-form').requestSubmit()");
+    await until(() => evaluate("!!document.querySelector('#checkout-form [role=alert]') && window.__requests.some(r=>r.route==='/api/orders')"), 'checkout inline error');
+    assert.equal(await evaluate("document.querySelector('#checkout-form [role=alert]').textContent.includes('private-test-value')"), false);
+    assert.equal(await count(), 0);
+    await evaluate("window.__failure=null; document.querySelector('#checkout-form').requestSubmit()");
+    await until(() => evaluate("document.querySelector('main').textContent.includes('Đặt hàng thành công!')"), 'checkout confirmation');
+    const payload = await evaluate("JSON.parse(window.__requests.find(r=>r.route==='/api/orders').body)");
+    assert.ok(payload.shippingAddress.includes("Địa chỉ kiểm thử, Phường kiểm thử"));
+    assert.deepEqual({ ...payload, shippingAddress: undefined }, { shippingAddress: undefined, contactPhone: "0900000000", paymentMethod: "COD", shippingMethod: "STANDARD", expectedTotalAmount: 45000 });
+    await clear();
+  });
+  await test("Notices remain visible inside a native dialog and after closing it", async () => {
+    await evaluate("(() => { const dialog=document.createElement('dialog'); dialog.id='toast-test-dialog'; document.body.append(dialog); dialog.showModal(); })()");
+    await evaluate("import('/src/utils/notifications.ts').then(({notify})=>notify.success('Thông báo kiểm thử trong hộp thoại'))");
+    await notice("Thông báo kiểm thử trong hộp thoại", "success");
+    assert.equal(await evaluate("!!document.querySelector('dialog[open] .Toastify__toast-container')"), true);
+    await evaluate("document.querySelector('#toast-test-dialog').close()");
     await until(() => evaluate("!document.querySelector('dialog[open]') && !!document.querySelector('body > div .Toastify__toast-container')"), "close dialog");
-    await notice("Đặt hàng thành công", "success"); await clear();
+    await notice("Thông báo kiểm thử trong hộp thoại", "success"); await clear();
+    await evaluate("document.querySelector('#toast-test-dialog').remove()");
   });
   await test("Account update and password change retain validation and show success only after the API", async () => {
     await navigate("/my-profile", "input[autocomplete='street-address']"); assert.equal(await count(), 0);
@@ -254,7 +271,7 @@ try {
     await clickText("Hủy đơn hàng"); await notice("Đã hủy đơn hàng #ST-1", "success"); await clear();
     await clickText("Yêu cầu trả hàng");
     await until(() => evaluate("location.pathname==='/returns/new' && new URLSearchParams(location.search).get('orderId')==='2' && document.querySelector('#return-order')?.value==='2'"), "selected return order");
-    assert.equal(await count(), 0);
+    await notice("chưa có thời gian giao hàng", "warning"); await clear();
   });
   await test("Sidebar logout survives navigation", async () => {
     await navigate("/my-profile", "input[autocomplete='street-address']");

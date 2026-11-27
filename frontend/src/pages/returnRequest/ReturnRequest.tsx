@@ -8,10 +8,9 @@ import {
 import { getMyOrders, getOrder, type Order } from "../../services/orderService";
 import {
   createReturn, previewReturn, eligibilityMessage, getMyReturns, getReturnItemPresentations,
-  remainingQuantity, returnDeadline, returnErrorMessage,
+  remainingQuantity, returnDeadline, returnErrorMessage, returnSubmissionFailure,
   returnStatusLabels, shopDate, type ItemPresentation, type ReturnRequest as ReturnRecord,
 } from "../../services/returnService";
-import { ApiError } from "../../services/api";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import useSessionScope from "../../services/useSessionScope";
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -76,6 +75,9 @@ function ReturnRequestForm() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitError, setSubmitError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const attempt = useRef<{ orderID: number; reason: string; items: string; knownIDs: Set<number> } | null>(null);
   const [created, setCreated] = useState<ReturnRecord | null>(null);
   const [now, setNow] = useState(Date.now);
   const submitting = useRef(false);
@@ -102,8 +104,12 @@ function ReturnRequestForm() {
       if (controller.signal.aborted) return;
       setLoadError(""); setPresentations({});
       setOrders(myOrders); setRequests(myReturns); setOrder(selectedOrder); setNow(Date.now());
+      if (selectedOrder) {
+        const eligibility = eligibilityMessage(selectedOrder);
+        if (eligibility) notify.warning(eligibility);
+      }
       setCreated(previous => previous ? myReturns.find(request => request.returnID === previous.returnID) ?? previous : null);
-      setQuantities(previous => Object.fromEntries(Object.entries(previous)
+      if (!attempt.current) setQuantities(previous => Object.fromEntries(Object.entries(previous)
         .flatMap(([id, quantity]) => {
           const item = selectedOrder?.items.find(candidate => candidate.orderDetailID === Number(id));
           const maximum = item ? remainingQuantity(item, myReturns.filter(request => request.orderID === selectedOrder?.orderID)) : 0;
@@ -112,7 +118,10 @@ function ReturnRequestForm() {
       if (selectedOrder) void getReturnItemPresentations(selectedOrder.items, controller.signal)
         .then(data => { if (!controller.signal.aborted) setPresentations(data); });
     }).catch(error => {
-      if (!controller.signal.aborted) { setLoadError(returnErrorMessage(error)); setOrder(null); }
+      if (!controller.signal.aborted) {
+        const message = returnErrorMessage(error);
+        setLoadError(message); setOrder(null); notify.error(error, message);
+      }
     }).finally(() => { if (!controller.signal.aborted) setLoadedRequest(requestKey); });
     return () => controller.abort();
   }, [token, orderID, refresh, requestKey]);
@@ -138,7 +147,41 @@ function ReturnRequestForm() {
 
   function clearError(field: string) {
     setErrors(previous => { const next = { ...previous }; delete next[field]; return next; });
-    setSubmitError("");
+    if (!uncertain) setSubmitError("");
+  }
+
+  function itemSignature(items: { orderDetailID: number; quantity: number }[]) {
+    return JSON.stringify(items.map(item => [item.orderDetailID, item.quantity]).sort((a, b) => a[0] - b[0]));
+  }
+
+  async function checkSubmission() {
+    if (checking) return;
+    setChecking(true);
+    const controller = new AbortController();
+    submitController.current = controller;
+    try {
+      const history = await getMyReturns(controller.signal);
+      if (controller.signal.aborted || localStorage.getItem('accessToken') !== token) return;
+      setRequests(history);
+      const pending = attempt.current;
+      const matches = pending ? history.filter(request => !pending.knownIDs.has(request.returnID)
+        && request.orderID === pending.orderID && request.reason === pending.reason
+        && itemSignature(request.items) === pending.items) : [];
+      if (matches.length === 1) {
+        setCreated(matches[0]); setUncertain(false); setSubmitError(''); attempt.current = null;
+        setQuantities({}); clear(); notify.success('Đã tìm thấy yêu cầu trả hàng trong lịch sử.');
+        window.scrollTo({ top: 0 });
+        invalidateReturnQueries();
+      } else {
+        const message = 'Chưa xác định được kết quả từ lịch sử. Nội dung và ảnh vẫn được giữ lại. Vui lòng kiểm tra lại sau hoặc liên hệ CSKH trước khi gửi lại.';
+        setSubmitError(message); notify.warning(message);
+      }
+    } catch (error) { if (!controller.signal.aborted) notify.error(error, 'Chưa tải được lịch sử yêu cầu. Vui lòng thử kiểm tra lại.'); }
+    finally { if (!controller.signal.aborted) setChecking(false); }
+  }
+
+  function invalidateReturnQueries() {
+    void client.invalidateQueries({ predicate: query => query.queryKey[0] === 'session' && query.queryKey[1] === scope && ['orders', 'returns', 'returnPreview'].includes(String(query.queryKey[2])), refetchType: 'none' });
   }
 
   function selectOrder(value: string) {
@@ -159,10 +202,10 @@ function ReturnRequestForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (submitting.current || !order) return;
+    if (submitting.current || uncertain || !order) return;
     const invalid: Record<string, string> = {};
     const eligibility = eligibilityMessage(order);
-    if (eligibility) { setSubmitError(eligibility); return; }
+    if (eligibility) { setSubmitError(eligibility); notify.warning(eligibility); return; }
     if (!selectedItems.length) invalid.items = "Vui lòng chọn ít nhất một sản phẩm cần trả.";
     if (selectedItems.some(item => quantities[item.orderDetailID] > remainingQuantity(item, orderRequests))) invalid.items = "Số lượng trả vượt quá số lượng còn lại.";
     if (!reason) invalid.reason = "Vui lòng chọn lý do trả hàng.";
@@ -172,10 +215,14 @@ function ReturnRequestForm() {
     if (!confirmed) invalid.confirmed = "Vui lòng xác nhận thông tin trước khi gửi yêu cầu.";
     setErrors(invalid); setSubmitError("");
     if (Object.keys(invalid).length) {
+      notify.warning(Object.values(invalid)[0]);
       document.getElementById(`return-${Object.keys(invalid)[0]}`)?.focus();
       return;
     }
     const combinedReason = [reason, conditions.length ? `Tình trạng: ${conditions.join("; ")}` : "", description.trim()].filter(Boolean).join("\n");
+    attempt.current = { orderID: order.orderID, reason: combinedReason,
+      items: itemSignature(selectedItems.map(item => ({ orderDetailID: item.orderDetailID, quantity: quantities[item.orderDetailID] }))),
+      knownIDs: new Set(requests.map(request => request.returnID)) };
     submitting.current = true; setBusy(true);
     submitController.current = new AbortController();
     try {
@@ -185,14 +232,17 @@ function ReturnRequestForm() {
         items: selectedItems.map(item => ({ orderDetailID: item.orderDetailID, quantity: quantities[item.orderDetailID] })),
       }, submitController.current.signal);
       if (localStorage.getItem("accessToken") !== token) return;
+      attempt.current = null;
       setCreated(response); setRequests(previous => [response, ...previous]);
       setOrder(previous => previous ? { ...previous, status: "RETURN_PENDING" } : null);
       setQuantities({}); clear(); notify.success('Yêu cầu trả hàng đã được gửi.'); window.scrollTo({ top: 0 });
-      void client.invalidateQueries({ predicate: query => query.queryKey[0] === 'session' && query.queryKey[1] === scope && ['orders', 'returns', 'returnPreview'].includes(String(query.queryKey[2])), refetchType: 'none' });
+      invalidateReturnQueries();
     } catch (error) {
       if (submitController.current.signal.aborted) return;
-      setSubmitError(error instanceof ApiError ? returnErrorMessage(error)
-        : "Chưa xác nhận được yêu cầu đã gửi hay chưa. Vui lòng tải lại và kiểm tra lịch sử yêu cầu trước khi gửi lại; nội dung bạn nhập vẫn được giữ.");
+      const failure = returnSubmissionFailure(error);
+      setSubmitError(failure.message); setUncertain(failure.uncertain);
+      if (failure.uncertain) notify.warning(failure.message);
+      else { attempt.current = null; notify.error(error, failure.message); }
     } finally { submitting.current = false; setBusy(false); }
   }
 
@@ -269,8 +319,8 @@ function ReturnRequestForm() {
                   <RefundEstimate pricing={price} quantity={selectedItems.reduce((sum, item) => sum + quantities[item.orderDetailID], 0)}
                     error={preview.isError ? returnErrorMessage(preview.error) : ''} onRetry={() => void preview.refetch()} />
                   <label className={styles.confirmation}><input id="return-confirmed" type="checkbox" checked={confirmed} disabled={busy || !canRequest} onChange={event => { setConfirmed(event.target.checked); clearError("confirmed"); }} aria-invalid={Boolean(errors.confirmed)} /><span>Tôi xác nhận thông tin cung cấp và hình ảnh minh chứng là hoàn toàn trung thực; sản phẩm được giữ nguyên để phục vụ việc kiểm tra theo <Link to="/policy#returns">chính sách đổi trả 7 ngày</Link> của StationeryStore.</span></label>{errors.confirmed && <p className={styles.fieldError}>{errors.confirmed}</p>}
-                  {submitError && <div className={styles.submitError} role="alert"><CircleAlert size={18} /><span>{submitError}<button type="button" disabled={busy} onClick={() => setRefresh(value => value + 1)}>Tải lại đơn hàng & lịch sử</button></span></div>}
-                  <button className={styles.submitButton} type="submit" disabled={busy || !canRequest}>{busy ? <LoaderCircle className={styles.spinner} size={18} /> : <Send size={17} />}{busy ? "Đang gửi yêu cầu…" : "Gửi yêu cầu trả hàng"}</button><button className={styles.cancelButton} type="button" disabled={busy} onClick={() => selectOrder("")}><ArrowLeft size={14} />Hủy bỏ & Chọn đơn hàng khác</button><div className={styles.support}><span>Cần xử lý khiếu nại gấp?</span><a href="tel:19006868"><Headphones size={14} />Hotline 1900 6868 (8:00 – 21:00)</a></div>
+                  {submitError && <div className={styles.submitError} role="alert"><CircleAlert size={18} /><span>{submitError}<button type="button" disabled={busy || checking} onClick={() => uncertain ? void checkSubmission() : setRefresh(value => value + 1)}>Tải lại đơn hàng & lịch sử</button></span></div>}
+                  <button className={styles.submitButton} type="submit" disabled={busy || uncertain || !canRequest}>{busy ? <LoaderCircle className={styles.spinner} size={18} /> : <Send size={17} />}{busy ? "Đang gửi yêu cầu…" : "Gửi yêu cầu trả hàng"}</button><button className={styles.cancelButton} type="button" disabled={busy} onClick={() => selectOrder("")}><ArrowLeft size={14} />Hủy bỏ & Chọn đơn hàng khác</button><div className={styles.support}><span>Cần xử lý khiếu nại gấp?</span><a href="tel:19006868"><Headphones size={14} />Hotline 1900 6868 (8:00 – 21:00)</a></div>
                 </section>
                 <section className={styles.rights}><h3><ShieldCheck size={17} />Quyền lợi đổi trả StationeryStore</h3><p><CheckCheck size={14} />Gửi yêu cầu trong 7 ngày từ thời điểm giao hàng thành công.</p><p><PackageCheck size={14} />Theo dõi kết quả xét duyệt và ghi chú từ cửa hàng.</p><p><Mail size={14} />CSKH hỗ trợ thống nhất phương thức thu hồi và hoàn tiền sau khi chấp thuận.</p></section>
               </aside>

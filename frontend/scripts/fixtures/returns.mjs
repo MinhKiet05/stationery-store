@@ -80,12 +80,17 @@ export function installReturnMocks(fixture) {
       if (state.mode === 'conflict') return json({ detail: 'So luong tra vuot qua so luong con lai' }, 409);
       if (state.mode === 'badRequest') return json({}, 400);
       if (state.mode === 'submitError') return json({}, 503);
+      if (state.mode === 'emptyGateway') return new Response(null, { status: 502 });
+      if (state.mode === 'networkError') throw new TypeError('Failed to fetch');
+      if (state.mode === 'timeout') throw new DOMException('Timed out', 'TimeoutError');
+      if (state.mode === 'uploadError') return json({ message: 'Không thể tải ảnh. Vui lòng thử lại.' }, 502);
       const created = { returnID: 502, orderID: order.orderID, userID: 24, reason: state.payload.reason,
         evidenceUrls: [location.origin + '/src/assets/butcaocap.webp'], pricing: price(state.payload.items), status: 'PENDING', createdAt: new Date().toISOString(),
         processedAt: null, adminNote: null, items: state.payload.items.map((item, index) => ({
           ...item, returnItemID: 602 + index, variantID: order.items.find(product => product.orderDetailID === item.orderDetailID).variantID,
         })) };
       state.returns = [created, ...state.returns]; order.status = 'RETURN_PENDING';
+      if (state.mode === 'lostResponse') return new Response(null, { status: 502 });
       return json(created, 201);
     }
     if (url.pathname.startsWith('/api/product-variants/')) {

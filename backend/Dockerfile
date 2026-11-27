@@ -13,7 +13,9 @@ WORKDIR /app
 RUN groupadd --system app && useradd --system --gid app --home-dir /app app
 COPY --from=build --chown=app:app /build/target/backend-0.0.1-SNAPSHOT.jar /app/app.jar
 USER app
-# Leave room for metaspace, native memory, SDK buffers and database connections in 512 MB.
-ENV JAVA_TOOL_OPTIONS="-XX:InitialRAMPercentage=10 -XX:MaxRAMPercentage=45 -XX:MaxMetaspaceSize=128m -XX:ReservedCodeCacheSize=32m -Xss512k -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError"
+# Budget a 512 MiB instance: heap <=154 MiB, metaspace <=192 MiB, code cache <=32 MiB.
+# The remaining memory covers thread stacks, GC, SDK/native buffers and JVM overhead.
+# Render environment variables override this default; update any JAVA_TOOL_OPTIONS override too.
+ENV JAVA_TOOL_OPTIONS="-XX:InitialRAMPercentage=10 -XX:MaxRAMPercentage=30 -XX:MaxMetaspaceSize=192m -XX:ReservedCodeCacheSize=32m -Xss512k -XX:+UseSerialGC -XX:+ExitOnOutOfMemoryError"
 EXPOSE 10000
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
