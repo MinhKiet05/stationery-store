@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Check, ImagePlus, Package, Send, Star, X } from 'lucide-react';
 import type { OrderItem } from '../../services/orderService';
-import { createProductReview, purchasedReviewsOptions, validateReviewInput, type Review } from '../../services/reviewService';
+import { createProductReview, updateProductReview, purchasedReviewsOptions, validateReviewInput, type Review } from '../../services/reviewService';
 import useSessionScope from '../../services/useSessionScope';
 import { notify } from '../../utils/notifications';
 import styles from './ReviewModal.module.css';
@@ -12,16 +12,18 @@ const ratingLabels = ['Rất tệ', 'Chưa hài lòng', 'Bình thường', 'Hài
 const money = (value: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value);
 type Attachment = { id: string; url: string; name: string; file: File };
 
-export default function ReviewForm({ item, onClose, onBusyChange }: {
-  item: OrderItem; onClose: () => void; onBusyChange: (busy: boolean) => void;
+export default function ReviewForm({ item, review, onClose, onBusyChange }: {
+  item: OrderItem; review?: Review; onClose: () => void; onBusyChange: (busy: boolean) => void;
 }) {
   const client = useQueryClient();
   const scope = useSessionScope();
   const fieldID = useId();
   const suggestions = baseSuggestions.map((text, index) => index === 1 && /bút|mực/i.test(item.productTitle) ? 'Mực ra đều & êm tay' : text);
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(review?.rating ?? 5);
   const [selected, setSelected] = useState<string[]>([]);
-  const [comment, setComment] = useState('');
+  const [comment, setComment] = useState(review?.comment ?? '');
+  const [removedPositions, setRemovedPositions] = useState<number[]>([]);
+  const keptImages = (review?.images ?? []).filter(image => !removedPositions.includes(image.imagePosition));
   const [media, setMedia] = useState<Attachment[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -52,7 +54,7 @@ export default function ReviewForm({ item, onClose, onBusyChange }: {
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
         issues.push('Chỉ nhận ảnh JPG, PNG hoặc WebP.'); continue;
       }
-      if (media.length + added.length >= 5) { issues.push('Mỗi đánh giá được thêm tối đa 5 ảnh.'); continue; }
+      if (keptImages.length + media.length + added.length >= 5) { issues.push('Mỗi đánh giá được thêm tối đa 5 ảnh.'); continue; }
       if (file.size === 0 || file.size > 5 * 1024 * 1024) {
         issues.push('Mỗi ảnh phải có dung lượng từ 1 byte đến 5 MB.'); continue;
       }
@@ -78,15 +80,18 @@ export default function ReviewForm({ item, onClose, onBusyChange }: {
     const payload = { rating, comment: comment.trim(), images: media.map(attachment => attachment.file) };
     const validation = validateReviewInput(payload);
     if (validation) { setError(validation); notify.warning(validation); return; }
+    if (keptImages.length + media.length > 5) { setError('Mỗi đánh giá được thêm tối đa 5 ảnh.'); return; }
     const controller = new AbortController();
     request.current = controller;
     setBusy(true);
     onBusyChange(true);
     try {
-      const saved = await createProductReview(item.productID, payload, controller.signal);
+      const saved = review
+        ? await updateProductReview(review.reviewID, payload, removedPositions, controller.signal)
+        : await createProductReview(item.productID, payload, controller.signal);
       client.setQueryData<Review[]>(purchasedReviewsOptions(item.productID, scope).queryKey,
         current => [...(current ?? []).filter(review => review.reviewID !== saved.reviewID), saved]);
-      notify.success('Cảm ơn bạn! Đánh giá đã được gửi thành công.');
+      notify.success(review ? 'Đánh giá đã được cập nhật.' : 'Cảm ơn bạn! Đánh giá đã được gửi thành công.');
       onClose();
       void client.invalidateQueries({ queryKey: ['session', scope, 'orders'] });
       void client.invalidateQueries({
@@ -150,14 +155,19 @@ export default function ReviewForm({ item, onClose, onBusyChange }: {
           </div>
         </section>
         <section className={styles.section} aria-labelledby={fieldID + "-media"}>
-          <div className={styles.sectionHeading}><h3 id={fieldID + "-media"}>Hình ảnh thực tế</h3><span>({media.length}/5)</span></div>
+          <div className={styles.sectionHeading}><h3 id={fieldID + "-media"}>Hình ảnh thực tế</h3><span>({keptImages.length + media.length}/5)</span></div>
           <p className={styles.hint}>Tối đa 5 ảnh JPG, PNG, WebP, mỗi ảnh không quá 5 MB.</p>
           <div className={styles.mediaList}>
+            {keptImages.map(image => <div className={styles.preview} key={`existing-${image.imagePosition}`}>
+              <img src={image.imageUrl} alt={`Ảnh đánh giá ${image.imagePosition + 1}`} />
+              <button type="button" className={styles.removeMedia} aria-label={`Xóa ảnh hiện có ${image.imagePosition + 1}`}
+                onClick={() => { setRemovedPositions(current => [...current, image.imagePosition]); setError(''); setMediaError(''); }}><X size={14} aria-hidden="true" /></button>
+            </div>)}
             {media.map(attachment => <div className={styles.preview} key={attachment.id}>
               <img src={attachment.url} alt={attachment.name} />
               <button type="button" className={styles.removeMedia} aria-label={`Xóa ${attachment.name}`} onClick={() => removeMedia(attachment)}><X size={14} aria-hidden="true" /></button>
             </div>)}
-            {media.length < 5 && <button className={styles.upload} type="button" onClick={() => fileInput.current?.click()}><ImagePlus size={26} aria-hidden="true" /><span>Thêm ảnh</span></button>}
+            {keptImages.length + media.length < 5 && <button className={styles.upload} type="button" onClick={() => fileInput.current?.click()}><ImagePlus size={26} aria-hidden="true" /><span>Thêm ảnh</span></button>}
           </div>
           <input ref={fileInput} className={styles.fileInput} type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={addMedia} aria-label="Chọn ảnh đánh giá" />
           {mediaError && <p className={styles.inlineError} role="alert">{mediaError}</p>}
@@ -166,7 +176,7 @@ export default function ReviewForm({ item, onClose, onBusyChange }: {
       {error && <div ref={errorBox} className={styles.error} role="alert" tabIndex={-1}>{error}</div>}
       <div className={styles.formActions}>
         <button type="button" className={styles.secondary} disabled={busy} onClick={onClose}>Để sau</button>
-        <button className={styles.primary} type="submit" disabled={busy}><Send size={18} aria-hidden="true" />{busy ? 'Đang gửi đánh giá…' : 'Gửi đánh giá ngay'}</button>
+        <button className={styles.primary} type="submit" disabled={busy}><Send size={18} aria-hidden="true" />{busy ? 'Đang gửi đánh giá…' : review ? 'Lưu chỉnh sửa' : 'Gửi đánh giá ngay'}</button>
       </div>
   </form>;
 }

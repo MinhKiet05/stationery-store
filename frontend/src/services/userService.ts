@@ -19,6 +19,10 @@ export function getMyProfile(signal?: AbortSignal) {
   return api<UserProfile>("/api/users/me", { signal });
 }
 
+export function changeMyPassword(oldPassword: string, newPassword: string, signal?: AbortSignal) {
+  return api<void>('/api/users/me/password', { method: 'PUT', body: JSON.stringify({ oldPassword, newPassword }), signal });
+}
+
 export async function updateMyProfile(body: UpdateProfileRequest) {
   const profile = await api<UserProfile>("/api/users/me", {
     method: "PUT",

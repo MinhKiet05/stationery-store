@@ -4,6 +4,7 @@ import type { Product } from "../productCard/ProductCard";
 import { sendChat } from "../../services/aiService";
 import { notify, userMessage as getUserMessage } from "../../utils/notifications";
 import styles from "./AiChatWidget.module.css";
+import { Link } from 'react-router-dom';
 type Message = { id: number; role: "user" | "assistant"; text: string; products?: Product[] };
 const welcome: Message = { id: 0, role: "assistant", text: "Chào bạn! Mình có thể giúp bạn tìm bút, sổ và dụng cụ học tập. Bạn đang cần gì, với ngân sách bao nhiêu?" };
 const money = (value: number) => new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(value);
@@ -34,6 +35,7 @@ export default function AiChatWidget() {
       const answer: Message = { id: ++sequence.current, role: "assistant", text: data.reply, products: data.products };
       setMessages(old => [...old, answer].slice(-60));
     } catch (err) {
+      if (controller.signal.aborted) return;
       const answer: Message = { id: ++sequence.current, role: "assistant", text: getUserMessage(err, "Trợ lý đang bận. Bạn thử lại sau nhé.") };
       setMessages(old => [...old, answer].slice(-60));
       notify.error(err, "Trợ lý đang bận. Bạn thử lại sau nhé.");
@@ -50,11 +52,11 @@ export default function AiChatWidget() {
       <div className={styles.history} role="log" aria-live="polite" aria-relevant="additions text">
         {messages.map(message => <div key={message.id} className={`${styles.message} ${message.role === "user" ? styles.user : styles.assistant}`}>
           <p className="whitespace-pre-wrap break-words">{message.text}</p>
-          {message.products?.map(product => <a className={styles.product} key={product.productID}
-            href={`/products/${encodeURIComponent(product.handle || String(product.productID))}`}>
+          {message.products?.map(product => <Link className={styles.product} key={product.productID}
+            to={`/products/${encodeURIComponent(product.handle || String(product.productID))}`}>
             <div className={styles.productImage}>{product.images?.[0] ? <img src={product.images[0]} alt={product.title} loading="lazy" /> : <Sparkles aria-hidden="true" />}</div>
             <div><h3>{product.title}</h3><strong>{money(product.price)}</strong><span>Xem sản phẩm →</span></div>
-          </a>)}
+          </Link>)}
         </div>)}
         {busy && <p className={styles.thinking}><LoaderCircle size={16} className="animate-spin" aria-hidden="true" /> Đang tìm sản phẩm…</p>}
         <div ref={end} />

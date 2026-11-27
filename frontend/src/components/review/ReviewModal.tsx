@@ -74,17 +74,18 @@ function ReviewProducts({ order, reviews, busy, onBusyChange, onClose }: {
 }) {
   const reviewed = new Map(reviews.map(review => [review.productID, review]));
   const [selectedID, setSelectedID] = useState(() => (order.items.find(item => !reviewed.has(item.productID)) ?? order.items[0]).orderDetailID);
+  const [editing, setEditing] = useState(false);
   return <>
     <div className={styles.orderBar}><span className={styles.delivered}><BadgeCheck size={15} aria-hidden="true" />Giao hàng thành công</span></div>
     <label className={styles.productSelect}>Sản phẩm / Phân loại
-      <select value={selectedID} onChange={event => setSelectedID(Number(event.target.value))} disabled={busy}>
+      <select value={selectedID} onChange={event => { setSelectedID(Number(event.target.value)); setEditing(false); }} disabled={busy}>
         {order.items.map(item => <option key={item.orderDetailID} value={item.orderDetailID}>
           {item.productTitle || item.variantTitle} — {item.variantTitle}{reviewed.has(item.productID) ? ' — Đã đánh giá' : ' — Chưa đánh giá'}
         </option>)}
       </select>
     </label>
     {order.items.map(item => <div key={item.orderDetailID} hidden={selectedID !== item.orderDetailID}>
-      {reviewed.has(item.productID) ? <>
+      {reviewed.has(item.productID) && !(editing && selectedID === item.orderDetailID) ? <>
         <div className={styles.product}>
           {item.productImage ? <img className={styles.reviewedPicture} src={item.productImage} alt={item.productTitle} /> : <Package size={32} aria-hidden="true" />}
           <div className={styles.productInfo}><h3>{item.productTitle}</h3><p>{item.variantTitle}</p></div>
@@ -93,8 +94,8 @@ function ReviewProducts({ order, reviews, busy, onBusyChange, onClose }: {
         <div className={styles.reviewed} role="status"><BadgeCheck size={20} aria-hidden="true" /><strong>Sản phẩm đã được đánh giá</strong><p>Mỗi tài khoản chỉ được đánh giá một lần cho mỗi sản phẩm, kể cả khi mua nhiều phân loại.</p></div>
         <p className={styles.savedRating}><Star size={18} fill="currentColor" aria-hidden="true" />{reviewed.get(item.productID)!.rating}/5 sao</p>
         <p className={styles.savedComment}>{reviewed.get(item.productID)!.comment}</p>
-        <div className={styles.formActions}><button className={styles.secondary} type="button" onClick={onClose}>Để sau</button></div>
-      </> : <ReviewForm item={item} onClose={onClose} onBusyChange={onBusyChange} />}
+        <div className={styles.formActions}><button className={styles.primary} type="button" onClick={() => setEditing(true)}>Chỉnh sửa đánh giá</button><button className={styles.secondary} type="button" onClick={onClose}>Để sau</button></div>
+      </> : <ReviewForm key={item.orderDetailID} item={item} review={reviewed.get(item.productID)} onClose={onClose} onBusyChange={onBusyChange} />}
     </div>)}
   </>;
 }

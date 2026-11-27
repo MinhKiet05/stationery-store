@@ -6,7 +6,7 @@ import com.example.backend.services.ProductService;
 
 import lombok.RequiredArgsConstructor;
 
-import org.springframework.data.domain.Page;
+import com.example.backend.dto.PageResponse;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 
@@ -26,12 +26,12 @@ public class ProductController {
 
     // 1. Lấy danh sách sản phẩm
     @GetMapping
-    public ResponseEntity<Page<ProductResponse>> getAllProducts(
+    public ResponseEntity<PageResponse<ProductResponse>> getAllProducts(
             @PageableDefault(size = 10, sort = "productID")
             Pageable pageable
     ) {
         return ResponseEntity.ok(
-                productService.getAllProducts(pageable)
+                PageResponse.from(productService.getAllProducts(pageable))
         );
     }
 
@@ -57,7 +57,7 @@ public class ProductController {
 
     // 4. Tìm kiếm và lọc sản phẩm
     @GetMapping("/search")
-    public ResponseEntity<Page<ProductResponse>> searchProducts(
+    public ResponseEntity<PageResponse<ProductResponse>> searchProducts(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) Long productTypeID,
             @RequestParam(required = false) Long vendorID,
@@ -72,17 +72,17 @@ public class ProductController {
             @PageableDefault(size = 10, sort = "productID")
             Pageable pageable
     ) {
-        if (catalog) return ResponseEntity.ok(productService.searchCatalog(keyword, productTypeID, brands,
-                minPrice, maxPrice, rating, inStock, onSale, pageable));
+        if (catalog) return ResponseEntity.ok(PageResponse.from(productService.searchCatalog(keyword, productTypeID, brands,
+                minPrice, maxPrice, rating, inStock, onSale, pageable)));
         return ResponseEntity.ok(
-                productService.searchProducts(
+                PageResponse.from(productService.searchProducts(
                         keyword,
                         productTypeID,
                         vendorID,
                         minPrice,
                         maxPrice,
                         pageable
-                )
+                ))
         );
     }
 

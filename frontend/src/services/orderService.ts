@@ -58,6 +58,7 @@ type CreateOrderRequest = {
   shippingAddress: string;
   contactPhone: string;
   paymentMethod: "COD";
+  couponCode?: string;
 };
 
 export function createOrder(order: CreateOrderRequest) {

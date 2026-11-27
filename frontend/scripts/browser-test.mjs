@@ -38,11 +38,14 @@ export async function openTestBrowser() {
   const socket = new WebSocket(tab.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
   const exceptions = [];
+  const consoleErrors = [], failedRequests = [];
   const pending = new Map();
   let nextID = 0;
   socket.onmessage = ({ data }) => {
     const message = JSON.parse(data);
     if (message.method === 'Runtime.exceptionThrown') exceptions.push(message.params.exceptionDetails);
+    if (message.method === 'Runtime.consoleAPICalled' && message.params.type === 'error') consoleErrors.push(message.params.args.map(arg => arg.value ?? arg.description).join(' '));
+    if (message.method === 'Network.loadingFailed' && !message.params.canceled) failedRequests.push(message.params);
     if (!message.id) return;
     const entry = pending.get(message.id);
     if (!entry) return;
@@ -78,8 +81,8 @@ export async function openTestBrowser() {
     await send('Input.insertText', { text: value });
     await delay(20);
   };
-  await send('Page.enable'); await send('Runtime.enable');
-  return { send, evaluate, click, type, exceptions, close: async () => {
+  await send('Page.enable'); await send('Runtime.enable'); await send('Network.enable');
+  return { send, evaluate, click, type, exceptions, consoleErrors, failedRequests, close: async () => {
     if (socket.readyState === WebSocket.OPEN) {
       if (process) await send('Browser.close').catch(() => {});
       else await fetch(`${endpoint}/json/close/${tab.id}`).catch(() => {});

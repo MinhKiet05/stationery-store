@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
-import org.springframework.data.domain.Page;
+import com.example.backend.dto.PageResponse;
 import org.springframework.http.HttpHeaders;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -38,8 +38,8 @@ public class AdminReturnRequestController {
 
     // Pagination is opt-in, preserving the original array contract for existing clients.
     @GetMapping(params = "page")
-    public Page<AdminReturnRow> list(@ModelAttribute AdminReturnFilter filter,
-            @RequestParam int page, @RequestParam(defaultValue = "10") int size) { return queries.list(filter, page, size); }
+    public PageResponse<AdminReturnRow> list(@ModelAttribute AdminReturnFilter filter,
+            @RequestParam int page, @RequestParam(defaultValue = "10") int size) { return PageResponse.from(queries.list(filter, page, size)); }
 
     @GetMapping("/statistics")
     public ReturnStatisticsResponse statistics(@ModelAttribute AdminReturnFilter filter) { return queries.statistics(filter); }

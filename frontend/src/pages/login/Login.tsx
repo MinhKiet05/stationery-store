@@ -209,7 +209,7 @@ async function handleLogin(event: FormEvent) {
                   <button
                     type="button"
                     className={styles.eyeBtn}
-                    tabIndex={-1}
+                    aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -310,7 +310,7 @@ async function handleLogin(event: FormEvent) {
                   <button
                     type="button"
                     className={styles.eyeBtn}
-                    tabIndex={-1}
+                    aria-label={showRegPassword ? 'Ẩn mật khẩu mới' : 'Hiện mật khẩu mới'}
                     onClick={() => setShowRegPassword(!showRegPassword)}
                   >
                     {showRegPassword ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -334,7 +334,7 @@ async function handleLogin(event: FormEvent) {
                     placeholder="Nhập lại mật khẩu"
                   />
                   <button
-                    tabIndex={-1}
+                    aria-label={showConfirmPassword ? 'Ẩn mật khẩu xác nhận' : 'Hiện mật khẩu xác nhận'}
                     type="button"
                     className={styles.eyeBtn}
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
@@ -361,7 +361,7 @@ async function handleLogin(event: FormEvent) {
             <span>HOẶC TIẾP TỤC VỚI</span>
           </div>
           <div className={styles.socialLogins}>
-            <button type="button" className={styles.socialBtn}>
+            <button type="button" className={styles.socialBtn} disabled>
               {/* SVG Logo Google chuẩn 4 màu */}
               <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path
@@ -381,23 +381,23 @@ async function handleLogin(event: FormEvent) {
                   fill="#EA4335"
                 />
               </svg>
-              Google
+              Google (chưa khả dụng)
             </button>
 
-            <button type="button" className={styles.socialBtn}>
+            <button type="button" className={styles.socialBtn} disabled>
               {/* SVG Logo Facebook chuẩn */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2" xmlns="http://www.w3.org/2000/svg">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
               </svg>
-              Facebook
+              Facebook (chưa khả dụng)
             </button>
           </div>
 
           <div className={styles.footerLink}>
             {activeTab === "login" ? "Chưa có tài khoản StationeryStore? " : "Đã có tài khoản? "}
-            <span onClick={() => changeTab(activeTab === "login" ? "register" : "login")}>
+            <button type="button" disabled={busy} onClick={() => changeTab(activeTab === "login" ? "register" : "login")}>
               {activeTab === "login" ? "Đăng ký ngay" : "Đăng nhập ngay"}
-            </span>
+            </button>
           </div>
         </div>
       </div>

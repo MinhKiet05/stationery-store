@@ -2,7 +2,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { queryKeys, cacheTimes } from '../../../services/queryCache';
 import useSessionScope from '../../../services/useSessionScope';
 import { useState, type FormEvent, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, Package, Truck, CheckCircle, XCircle, CreditCard, ChevronLeft, ChevronRight, X, CalendarDays } from 'lucide-react';
 import { getMyOrderHistory, cancelOrder, type OrderStatus, type Order } from '../../../services/orderService';
 import { purchasedReviewsOptions } from '../../../services/reviewService';
@@ -28,10 +28,23 @@ export default function OrderHistoryTab() {
   const navigate = useNavigate();
   const { refreshOrders } = useProfile();
   const scope = useSessionScope();
-  const [status, setStatus] = useState<OrderStatus | 'ALL'>('ALL');
-  const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');
-  const [page, setPage] = useState(1);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const rawStatus = searchParams.get('status');
+  const status: OrderStatus | 'ALL' = orderStatuses.find(item => item === rawStatus) ?? 'ALL';
+  const query = searchParams.get('search') ?? '';
+  const rawPage = Number(searchParams.get('page'));
+  const page = Number.isSafeInteger(rawPage) && rawPage > 0 ? rawPage : 1;
+  const [search, setSearch] = useState(query);
+  const [previousQuery, setPreviousQuery] = useState(query);
+  if (previousQuery !== query) { setPreviousQuery(query); setSearch(query); }
+  const updateParameters = (values: Record<string, string | null>) => setSearchParams(current => {
+    const next = new URLSearchParams(current);
+    for (const [name, value] of Object.entries(values)) { if (value) next.set(name, value); else next.delete(name); }
+    return next;
+  });
+  const setStatus = (value: OrderStatus | 'ALL') => updateParameters({ status: value === 'ALL' ? null : value, page: null });
+  const setQuery = (value: string) => updateParameters({ search: value || null, page: null });
+  const setPage = (value: number) => updateParameters({ page: value === 1 ? null : String(value) });
   const [cancelling, setCancelling] = useState<number | null>(null);
 
   // State cho Modal
@@ -65,7 +78,6 @@ export default function OrderHistoryTab() {
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setQuery(search.trim());
-    setPage(1);
   }
 
   async function handleCancel(orderID: number) {
@@ -103,7 +115,7 @@ export default function OrderHistoryTab() {
 
       <div className={styles.filterTabs} aria-label="Lọc theo trạng thái">
         {(['ALL', ...orderStatuses] as const).map((value) => (
-          <button key={value} aria-pressed={status === value} className={[styles.filterTab, status === value ? styles.active : ''].join(' ')} onClick={() => { setStatus(value); setPage(1); }}>
+          <button key={value} aria-pressed={status === value} className={[styles.filterTab, status === value ? styles.active : ''].join(' ')} onClick={() => setStatus(value)}>
             {value === 'ALL' ? 'Tất cả' : orderStatusLabel[value]}
             {!ordersLoading && !ordersError && <span className={styles.count}>{value === 'ALL' ? Object.values(counts).reduce((sum, n) => sum + n, 0) : counts[value] ?? 0}</span>}
           </button>
@@ -121,7 +133,7 @@ export default function OrderHistoryTab() {
         <div className={styles.empty} role="status">
           <div className={styles.emptyIcon}><Package size={36} /></div>
           <h3>{query || status !== 'ALL' ? 'Không tìm thấy đơn hàng phù hợp' : 'Bạn chưa có đơn hàng nào'}</h3>
-          {query || status !== 'ALL' ? <button className={styles.btnOutline} onClick={() => { setSearch(''); setQuery(''); setStatus('ALL'); setPage(1); }}>Xóa bộ lọc</button> : <Link className={styles.btnPrimary} to="/search">Khám phá sản phẩm</Link>}
+          {query || status !== 'ALL' ? <button className={styles.btnOutline} onClick={() => { setSearch(''); updateParameters({ search: null, status: null, page: null }); }}>Xóa bộ lọc</button> : <Link className={styles.btnPrimary} to="/search">Khám phá sản phẩm</Link>}
         </div>
       ) : (
         <>
@@ -181,9 +193,8 @@ export default function OrderHistoryTab() {
                       )}
                       {order.status === 'DELIVERED' && order.items.length > 0 && (
                         <button className={[styles.btn, styles.btnReview].join(' ')}
-                          disabled={order.items.every(item => reviewedIDs.has(item.productID))}
                           onClick={() => setReviewingOrderID(order.orderID)}>
-                          {order.items.every(item => reviewedIDs.has(item.productID)) ? 'Đã đánh giá' : 'Đánh giá'}
+                          {order.items.every(item => reviewedIDs.has(item.productID)) ? 'Xem đánh giá' : 'Đánh giá'}
                         </button>
                       )}
                       <button className={[styles.btn, styles.btnPrimary].join(' ')} onClick={() => setViewingOrder(order)}>

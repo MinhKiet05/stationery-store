@@ -1,6 +1,5 @@
 package com.example.backend.services.impl;
 
-import com.example.backend.dto.cart.AddCartItemRequest;
 import com.example.backend.dto.cart.CartResponse;
 import com.example.backend.dto.cart.MergeCartRequest;
 import com.example.backend.services.CartMergeService;
@@ -23,12 +22,7 @@ public class CartMergeServiceImpl implements CartMergeService {
             String username,
             MergeCartRequest request
     ) {
-        CartResponse result = null;
-
-        for (AddCartItemRequest item : request.items()) {
-            result = cartService.addItem(username, item);
-        }
-
-        return result;
+        // Lock once and hydrate the complete response after every validated item is saved.
+        return cartService.mergeItems(username, request.items());
     }
 }

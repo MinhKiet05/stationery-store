@@ -1,4 +1,5 @@
 import { MapPin, Phone, Mail } from "lucide-react";
+import { Link } from "react-router-dom";
 import styles from "./Footer.module.css";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";
 
@@ -26,11 +27,11 @@ export default function Footer() {
               </div>
               <div className={styles.contactItem}>
                 <Phone size={18} className={styles.icon} />
-                <span>Hotline: 1900 6868</span>
+                <a href="tel:19006868">Hotline: 1900 6868</a>
               </div>
               <div className={styles.contactItem}>
                 <Mail size={18} className={styles.icon} />
-                <span>cskh@stationerystore.vn</span>
+                <a href="mailto:cskh@stationerystore.vn">cskh@stationerystore.vn</a>
               </div>
             </div>
           </div>
@@ -39,12 +40,12 @@ export default function Footer() {
           <div className={styles.column}>
             <h3 className={styles.title}>HỖ TRỢ KHÁCH HÀNG</h3>
             <ul className={styles.linkList}>
-              <li><a href="#" className={styles.link}>Hướng dẫn mua hàng</a></li>
-              <li><a href="/policy#shipping" className={styles.link}>Chính sách giao hàng & kiểm hàng</a></li>
-              <li><a href="/policy#returns" className={styles.link}>Chính sách đổi trả 7 ngày</a></li>
-              <li><a href="/returns/new" className={styles.link}>Yêu cầu trả hàng & hoàn tiền</a></li>
-              <li><a href="#" className={styles.link}>Hướng dẫn thanh toán an toàn</a></li>
-              <li><a href="/about#faq" className={styles.link}>Câu hỏi thường gặp FAQ</a></li>
+              <li><Link to="/about#faq" className={styles.link}>Hướng dẫn mua hàng</Link></li>
+              <li><Link to="/policy#shipping" className={styles.link}>Chính sách giao hàng & kiểm hàng</Link></li>
+              <li><Link to="/policy#returns" className={styles.link}>Chính sách đổi trả 7 ngày</Link></li>
+              <li><Link to="/returns/new" className={styles.link}>Yêu cầu trả hàng & hoàn tiền</Link></li>
+              <li><Link to="/policy#terms" className={styles.link}>Hướng dẫn thanh toán an toàn</Link></li>
+              <li><Link to="/about#faq" className={styles.link}>Câu hỏi thường gặp FAQ</Link></li>
           </ul>
           </div>
 
@@ -52,13 +53,13 @@ export default function Footer() {
           <div className={styles.column}>
             <h3 className={styles.title}>VỀ CHÚNG TÔI</h3>
             <ul className={styles.linkList}>
-              <li><a href="/about" className={styles.link}>Giới thiệu StationeryStore</a></li>
-              <li><a href="/about#stores" className={styles.link}>Hệ thống cửa hàng</a></li>
-              <li><a href="/about#contact" className={styles.link}>Liên hệ & Hợp tác</a></li>
-              <li><a href="#" className={styles.link}>Tuyển dụng</a></li>
-              <li><a href="/policy#terms" className={styles.link}>Điều khoản dịch vụ</a></li>
-              <li><a href="/policy#privacy" className={styles.link}>Chính sách bảo mật thông tin</a></li>
-              <li><a href="/policy#warranty" className={styles.link}>Bảo hành & Khiếu nại</a></li>
+              <li><Link to="/about" className={styles.link}>Giới thiệu StationeryStore</Link></li>
+              <li><Link to="/about#stores" className={styles.link}>Hệ thống cửa hàng</Link></li>
+              <li><Link to="/about#contact" className={styles.link}>Liên hệ & Hợp tác</Link></li>
+              <li><Link to="/about#contact" className={styles.link}>Liên hệ tuyển dụng</Link></li>
+              <li><Link to="/policy#terms" className={styles.link}>Điều khoản dịch vụ</Link></li>
+              <li><Link to="/policy#privacy" className={styles.link}>Chính sách bảo mật thông tin</Link></li>
+              <li><Link to="/policy#warranty" className={styles.link}>Bảo hành & Khiếu nại</Link></li>
             </ul>
           </div>
 
@@ -66,19 +67,9 @@ export default function Footer() {
           <div className={styles.column}>
             <h3 className={styles.title}>ĐĂNG KÝ NHẬN ƯU ĐÃI</h3>
             <p className={styles.newsletterText}>
-              Nhận ngay voucher giảm 10% cho đơn hàng đầu tiên.
+              Liên hệ cửa hàng để tìm hiểu các ưu đãi hiện có.
             </p>
-            <form className={styles.subscribeForm} onSubmit={(e) => e.preventDefault()}>
-              <input 
-                type="email" 
-                placeholder="Nhập email của bạn..." 
-                className={styles.input}
-                required
-              />
-              <button type="submit" className={styles.subscribeBtn}>
-                Đăng ký
-              </button>
-            </form>
+            <Link to="/about#contact" className={styles.subscribeBtn}>Liên hệ nhận thông tin ưu đãi</Link>
             
             <h4 className={styles.paymentTitle}>THANH TOÁN AN TOÀN</h4>
             <div className={styles.paymentMethods}>

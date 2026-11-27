@@ -6,10 +6,14 @@ export type Cart = {
     items: {
         cartItemID: number;
         variantID?: number;
+        productID?: number;
         productTitle: string;
         variantTitle: string;
         quantity: number;
         lineTotal: number;
+        unitPrice?: number;
+        stockQuantity?: number;
+        available?: boolean;
     }[];
     subtotal: number;
 };

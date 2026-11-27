@@ -43,6 +43,7 @@ import {
   toggleFavoriteProduct,
 } from "../../utils/favoriteStorage";
 import styles from "./ProductDetail.module.css";
+import { errorStatus } from '../../services/apiError';
 
 type Tab = "specs" | "description" | "reviews";
 const money = (price: number) =>
@@ -92,6 +93,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
   const [quantity, setQuantity] = useState(1);
   const loading = productQuery.isPending || !!product && variantsQuery.isPending;
   const error = productQuery.isError && !product || variantsQuery.isError && !variantsQuery.data ? userMessage(productQuery.error || variantsQuery.error, 'Không tải được sản phẩm. Vui lòng thử lại.') : '';
+  const notFound = !product && errorStatus(productQuery.error) === 404;
   const [adding, setAdding] = useState(false);
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<Tab>(() => window.location.hash === "#reviews" ? "reviews" : "specs");
@@ -109,6 +111,11 @@ function ProductDetailContent({ handle }: { handle: string }) {
   const busy = useRef(false);
 
   const productID = product?.productID;
+  useEffect(() => {
+    const previous = document.title;
+    document.title = `${notFound ? 'Không tìm thấy sản phẩm' : product?.title || 'Chi tiết sản phẩm'} | StationeryStore`;
+    return () => { document.title = previous; };
+  }, [product?.title, notFound]);
   const [favoriteProductID, setFavoriteProductID] = useState(productID);
   if (favoriteProductID !== productID) {
     setFavoriteProductID(productID);
@@ -269,10 +276,10 @@ function ProductDetailContent({ handle }: { handle: string }) {
     <main className={styles.page}>
       <div className={styles.container}>
         <nav className={styles.breadcrumb} aria-label="Đường dẫn">
-          <a href="/">
+          <Link to="/">
             <Home size={13} />
             Trang chủ
-          </a>
+          </Link>
           <ChevronRight size={12} />
           <span>{product?.productTypeName || "Sản phẩm"}</span>
           <ChevronRight size={12} />
@@ -292,15 +299,15 @@ function ProductDetailContent({ handle }: { handle: string }) {
         ) : error ? (
           <section className={styles.empty} role="alert">
             <ImageOff size={36} />
-            <h1>Chưa thể tải sản phẩm</h1>
-            <p>{error}</p>
-            <button
+            <h1>{notFound ? 'Không tìm thấy sản phẩm' : 'Chưa thể tải sản phẩm'}</h1>
+            <p>{notFound ? 'Sản phẩm này không còn tồn tại hoặc đã ngừng hiển thị.' : error}</p>
+            {!notFound && <button
               className={styles.primary}
-              onClick={() => window.location.reload()}
+              onClick={() => { void productQuery.refetch(); if (product) void variantsQuery.refetch(); }}
             >
               Thử lại
-            </button>
-            <a href="/">Về trang chủ</a>
+            </button>}
+            <Link to="/">Về trang chủ</Link>
           </section>
         ) : (
           product && (
@@ -703,9 +710,9 @@ function ProductDetailContent({ handle }: { handle: string }) {
                         của bạn.
                       </p>
                     </div>
-                    <a href="/">
+                    <Link to="/">
                       Khám phá thêm <ArrowRight size={15} />
-                    </a>
+                    </Link>
                   </div>
                   <div className={styles.products}>
                     {related.map((item) => (
@@ -770,9 +777,9 @@ function ProductDetailContent({ handle }: { handle: string }) {
                     Sản phẩm đã được lưu trong giỏ hàng của bạn. Vui lòng đăng
                     nhập để tiếp tục đặt hàng.
                   </p>
-                  <a className={styles.primary} href="/login">
+                  <Link className={styles.primary} to="/login" state={{ from: "/cart" }}>
                     Đăng nhập để thanh toán <ArrowRight size={16} />
-                  </a>
+                  </Link>
                 </>
               ) : (
                 <form onSubmit={(e) => void placeOrder(e)}>
@@ -825,7 +832,7 @@ function ProductDetailContent({ handle }: { handle: string }) {
                       {checkoutError}
                     </p>
                   )}
-                  {orderUncertain && <a href="/my-profile/orders">Kiểm tra lịch sử đơn hàng</a>}
+                  {orderUncertain && <Link to="/my-profile/orders">Kiểm tra lịch sử đơn hàng</Link>}
                   <button className={styles.primary} disabled={ordering || orderUncertain}>
                     {ordering ? "Đang đặt hàng…" : "Xác nhận đặt hàng"}
                   </button>

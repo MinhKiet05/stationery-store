@@ -2,6 +2,7 @@ import { Suspense, useEffect, useRef, useState } from 'react';
 import { Outlet, useLocation, useOutletContext } from 'react-router-dom';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
 import DashboardSidebar from '../components/dashboard/DashboardSidebar';
+import RouteErrorBoundary from '../components/RouteErrorBoundary';
 import '../pages/dashboard/Dashboard.css';
 
 export default function DashboardLayout() {
@@ -47,7 +48,7 @@ export default function DashboardLayout() {
       <div className="dashboard-workspace" inert={mobileOpen}>
         <DashboardHeader admin={context.admin} toggle={toggle} toggleRef={toggleRef} expanded={isMobile ? mobileOpen : !collapsed} />
         <main id="dashboard-content" className="dashboard-content" tabIndex={-1}>
-          <Suspense fallback={<div className="dashboard-loading" role="status">Đang tải trang quản trị…</div>}><Outlet context={context} /></Suspense>
+          <RouteErrorBoundary><Suspense fallback={<div className="dashboard-loading" role="status">Đang tải trang quản trị…</div>}><Outlet context={context} /></Suspense></RouteErrorBoundary>
         </main>
         <footer className="dashboard-footer"><span>© {new Date().getFullYear()} StationeryStore</span><span>Không gian quản trị</span></footer>
       </div>

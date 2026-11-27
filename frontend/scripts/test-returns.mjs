@@ -4,10 +4,16 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openTestBrowser, until, delay } from './browser-test.mjs';
 import { returnFixture, installReturnMocks } from './fixtures/returns.mjs';
+import { createServer } from 'vite';
 
 // All API responses are mocked in this isolated browser context. No real return
 // request is created and no database, customer account, or payment is changed.
-const baseUrl = process.env.TEST_BASE_URL || 'http://127.0.0.1:5173';
+let baseUrl = process.env.TEST_BASE_URL;
+let vite;
+if (!baseUrl) {
+  vite = await createServer({ server: { host: '127.0.0.1', port: 0, open: false } });
+  await vite.listen(); baseUrl = `http://127.0.0.1:${vite.httpServer.address().port}`;
+}
 const workspace = fileURLToPath(new URL('../../', import.meta.url));
 assert.equal((await fetch(`${baseUrl}/returns/new`)).status, 200, 'Start Vite first');
 const browser = await openTestBrowser();
@@ -313,4 +319,4 @@ try {
   await fs.writeFile(path.join(workspace, '.cache/returns-test-results.json'), JSON.stringify(report, null, 2));
   console.log(`\n${report.passed} passed, ${report.failed} failed (mocked API; no real refund or return created)`);
   process.exitCode = report.failed ? 1 : 0;
-} finally { await browser.close(); }
+} finally { await browser.close(); await vite?.close(); }

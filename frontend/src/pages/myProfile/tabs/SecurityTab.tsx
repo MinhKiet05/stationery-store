@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Lock, Eye, EyeOff, ShieldCheck, KeyRound } from "lucide-react";
 import styles from "./SecurityTab.module.css";
-import { API_BASE } from "../../../services/api";
-import { notify, userMessage } from "../../../utils/notifications";
+import { changeMyPassword } from '../../../services/userService';
+import { notify } from "../../../utils/notifications";
 
 export default function SecurityTab() {
   const [oldPassword, setOldPassword] = useState("");
@@ -15,10 +15,12 @@ export default function SecurityTab() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const request = useRef<AbortController | null>(null);
+  useEffect(() => () => request.current?.abort(), []);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || request.current) return;
 
     setError("");
 
@@ -42,28 +44,9 @@ export default function SecurityTab() {
     }
 
     setBusy(true);
+    const controller = new AbortController(); request.current = controller;
     try {
-      const token = localStorage.getItem("accessToken");
-      const response = await fetch(`${API_BASE}/api/users/me/password`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          oldPassword,
-          newPassword,
-        }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        // Hiển thị thông báo tiếng Việt thân thiện nếu backend trả về "Mat khau cu khong dung"
-        if (data?.message === "Mat khau cu khong dung") {
-          throw new Error("Mật khẩu hiện tại không chính xác.");
-        }
-        throw new Error(userMessage(data, "Đổi mật khẩu thất bại. Vui lòng thử lại."));
-      }
+      await changeMyPassword(oldPassword, newPassword, controller.signal);
 
       // Endpoint trả về 204 No Content khi thành công
       notify.success("Đổi mật khẩu thành công! Mật khẩu mới của bạn đã được áp dụng.");
@@ -71,8 +54,10 @@ export default function SecurityTab() {
       setNewPassword("");
       setConfirmPassword("");
     } catch (err) {
+      if (controller.signal.aborted || err instanceof DOMException && err.name === 'AbortError') return;
       notify.error(err, "Đổi mật khẩu thất bại. Vui lòng thử lại.");
     } finally {
+      request.current = null;
       setBusy(false);
     }
   }
@@ -110,7 +95,6 @@ export default function SecurityTab() {
             />
             <button
               type="button"
-              tabIndex={-1}
               className={styles.eyeBtn}
               onClick={() => setShowOld(!showOld)}
               aria-label="Ẩn/hiện mật khẩu hiện tại"
@@ -139,7 +123,6 @@ export default function SecurityTab() {
             />
             <button
               type="button"
-              tabIndex={-1}
               className={styles.eyeBtn}
               onClick={() => setShowNew(!showNew)}
               aria-label="Ẩn/hiện mật khẩu mới"
@@ -168,7 +151,6 @@ export default function SecurityTab() {
             />
             <button
               type="button"
-              tabIndex={-1}
               className={styles.eyeBtn}
               onClick={() => setShowConfirm(!showConfirm)}
               aria-label="Ẩn/hiện xác nhận mật khẩu"

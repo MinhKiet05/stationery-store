@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, ApiError } from "./api";
 import { mergeGuestCart } from "./cartService";
 import { clearGuestCart } from "../utils/guestCart";
 import { notify } from "../utils/notifications";
@@ -68,7 +68,7 @@ export async function getCurrentUser(
   const response = await fetch(`${apiBaseUrl.replace(/\/$/, "")}/api/auth/me`, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
-    signal,
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(65000)]) : AbortSignal.timeout(65000),
   });
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {
@@ -79,7 +79,8 @@ export async function getCurrentUser(
         notify.sessionExpired();
       }
     }
-    return null;
+    if (response.status === 401 || response.status === 403) return null;
+    throw new ApiError('Chưa thể tải thông tin tài khoản. Vui lòng thử lại.', response.status);
   }
   const data = await response.json() as UserInfoResponse;
   if (scope !== sessionScope()) throw new DOMException('Session changed', 'AbortError');

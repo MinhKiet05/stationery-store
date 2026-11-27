@@ -8,7 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.data.domain.Page;
+import com.example.backend.dto.PageResponse;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.List;
@@ -22,8 +22,8 @@ public class AdminOrderController {
     private final AdminOrderService queries;
     private final OrderExcelExporter exporter;
     @GetMapping(params = "page")
-    public Page<AdminOrderRow> list(@ModelAttribute AdminOrderFilter filter,
-            @RequestParam int page, @RequestParam(defaultValue = "10") int size) { return queries.list(filter, page, size); }
+    public PageResponse<AdminOrderRow> list(@ModelAttribute AdminOrderFilter filter,
+            @RequestParam int page, @RequestParam(defaultValue = "10") int size) { return PageResponse.from(queries.list(filter, page, size)); }
     @GetMapping("/statistics")
     public OrderStatisticsResponse statistics(@ModelAttribute AdminOrderFilter filter) { return queries.statistics(filter); }
     @GetMapping("/export")

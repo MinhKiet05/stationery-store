@@ -1,0 +1,14 @@
+.page { display: grid; place-items: center; min-height: 60vh; padding: 56px 20px; background: #fafbfe; color: #202b3c; font: 15px/1.7 system-ui, sans-serif; }
+.card { width: min(100%, 640px); text-align: center; }
+.icon { color: #FD761A; margin: 0 auto; }
+.code { color: #FD761A; font-size: clamp(80px, 18vw, 136px); font-weight: 800; line-height: 1.1; letter-spacing: -.05em; margin: 12px 0; }
+.card h1 { font-size: clamp(23px, 4vw, 32px); font-weight: 700; margin: 12px 0; }
+.card > p:last-of-type { color: #64748b; max-width: 480px; margin: 0 auto; }
+.actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.actions a { display: inline-flex; justify-content: center; align-items: center; gap: 8px; border-radius: 8px; padding: 12px 18px; font-weight: 600; text-decoration: none; }
+.primary { background: #FD761A; color: #172033; }
+.primary:hover { background: #fda35f; }
+.secondary { border: 1px solid #dbe1ea; color: #334155; background: #fff; }
+.secondary:hover { background: #f1f5f9; }
+.actions a:focus-visible { outline: 3px solid #9a3412; outline-offset: 4px; }
+@media (max-width: 390px) { .actions { flex-direction: column; } .page { padding: 40px 16px; } }

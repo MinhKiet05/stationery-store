@@ -2,6 +2,11 @@ import { useCurrentUser, useCart } from "../../services/storeQueries";
 import { getGuestCart } from "../../utils/guestCart";
 import { API_BASE } from "../../services/api";
 import React, { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { getProductTypes } from '../../services/productTypeService';
+import { cacheTimes, queryKeys, schedulePrefetch, cancelPrefetch } from '../../services/queryCache';
+import { catalogOptions } from '../../services/catalogService';
 import styles from "./Header.module.css";
 import UserAccountDropdown from "../userAccountDropdown/UserAccountDropdown";
 import stationeryStoreLogo from "../../assets/StationeryStoreLogo.webp";
@@ -28,16 +33,6 @@ type HeaderProps = {
   onLogout?: () => void;
 };
 
-const navigation = [
-  { label: "Trang chủ", href: "/" },
-  { label: "Bút & Mực", href: "/products?category=but-muc" },
-  { label: "Sổ & Giấy", href: "/products?category=so-giay" },
-  { label: "Dụng cụ văn phòng", href: "/products?category=dung-cu-van-phong" },
-  { label: "Quà tặng & Phụ kiện", href: "/products?category=qua-tang-phu-kien" },
-  { label: "Khuyến mãi", href: "/promotions", promotion: true },
-  { label: "Về chúng tôi", href: "/about-us" },
-];
-
 const TOKEN_KEY = "accessToken";
 
 export default function Header({
@@ -46,11 +41,20 @@ export default function Header({
   cartHref = "/cart",
   profileHref = "/my-profile",
   ordersHref = "/my-profile/orders",
-  notificationsHref = "/notifications",
+  notificationsHref,
   cartCount: suppliedCartCount,
   onSearch,
   onLogout,
 }: HeaderProps) {
+  const location = useLocation(), navigate = useNavigate();
+  const categories = useQuery({ queryKey: queryKeys.public('categories'), queryFn: ({ signal }) => getProductTypes(signal), staleTime: cacheTimes.categories });
+  const navigation = [
+    { label: 'Trang chủ', href: '/' },
+    ...(categories.data ?? []).filter(type => type.isActive).slice(0, 4).map(type => ({ label: type.name, href: `/search?category=${type.productTypeID}`, category: String(type.productTypeID) })),
+    { label: 'Tất cả sản phẩm', href: '/search' },
+    { label: 'Khuyến mãi', href: '/search?onSale=true', promotion: true },
+    { label: 'Về chúng tôi', href: '/about-us' },
+  ];
   const identity = useCurrentUser(apiBaseUrl);
   const cartQuery = useCart();
   const [guestCount, setGuestCount] = useState(() => getGuestCart().reduce((sum, item) => sum + item.quantity, 0));
@@ -62,17 +66,20 @@ export default function Header({
   const cartCount = suppliedCartCount ?? (localStorage.getItem(TOKEN_KEY) ? cartQuery.data?.items?.reduce((sum, item) => sum + item.quantity, 0) ?? 0 : guestCount);
   const user = localStorage.getItem(TOKEN_KEY) ? identity.data : null;
   const loading = !!localStorage.getItem(TOKEN_KEY) && identity.isPending;
-  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get("search") ?? "");
+  const searchQuery = new URLSearchParams(location.search).get('search') ?? '';
+  const [search, setSearch] = useState(searchQuery);
+  const [previousSearch, setPreviousSearch] = useState(searchQuery);
+  if (previousSearch !== searchQuery) { setPreviousSearch(searchQuery); setSearch(searchQuery); }
   function submitSearch(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const query = search.trim();
     if (!query) return;
     if (onSearch) onSearch(query);
-    else window.location.href = `/search?search=${encodeURIComponent(query)}`;
+    else navigate(`/search?search=${encodeURIComponent(query)}`);
   }
 
   return (
-    <header className={styles.header}>
+    <header className={styles.header} data-store-header>
       {/* Top info bar */}
       <div className={styles.topBar}>
         <div className={styles.topBarContent}>
@@ -88,23 +95,23 @@ export default function Header({
             </span>
           </div>
           <div className={styles.topBarRight}>
-            <a href={ordersHref} className={`${styles.topBarItem} ${styles.trackOrder}`}>
+            <Link to={ordersHref} className={`${styles.topBarItem} ${styles.trackOrder}`}>
               <Truck size={14} /> Tra cứu đơn hàng
-            </a>
+            </Link>
           </div>
         </div>
       </div>
 
       {/* Main header */}
       <div className={styles.mainHeader}>
-        <a href="/" className={styles.logo} aria-label="Stationery Store - Trang chủ">
+        <Link to="/" className={styles.logo} aria-label="Stationery Store - Trang chủ">
           <img
             src={stationeryStoreLogo}
             alt="StationeryStore"
             className={styles.logoImg}
           />
           <span className={styles.logoText}>StationeryStore</span>
-        </a>
+        </Link>
 
         <div className={styles.searchSection}>
           <form onSubmit={submitSearch} className={styles.searchForm}>
@@ -124,24 +131,24 @@ export default function Header({
         </div>
 
         <div className={styles.actions}>
-          <a href={notificationsHref} aria-label="Thông báo" className={styles.actionIconBtn}>
+          {notificationsHref && <Link to={notificationsHref} aria-label="Thông báo" className={styles.actionIconBtn}>
             <Bell size={24} />
-            <span className={styles.redDot} />
-          </a>
+          </Link>}
 
-          <a href={cartHref} aria-label={`Giỏ hàng (${cartCount} sản phẩm)`} className={styles.actionIconBtn}>
+          <Link to={cartHref} aria-label={`Giỏ hàng (${cartCount} sản phẩm)`} className={styles.actionIconBtn}>
             <ShoppingBag size={24} />
             {cartCount > 0 && (
               <span className={styles.badge}>
                 {cartCount > 99 ? "99+" : cartCount}
               </span>
             )}
-          </a>
+          </Link>
 
           {loading ? (
             <div style={{ height: 40, width: 120, backgroundColor: '#f1f5f9', borderRadius: 8 }} />
-          ) : user ? <UserAccountDropdown user={user} profileHref={profileHref} onLogout={onLogout} /> : (
-            <div className={styles.profileContainer}><a href={loginHref} className={styles.loginBtn}><LogIn size={18} /> Đăng nhập</a></div>
+          ) : identity.isError && localStorage.getItem(TOKEN_KEY) ? <button type="button" className={styles.loginBtn} onClick={() => void identity.refetch()}>Thử lại tài khoản</button>
+          : user ? <UserAccountDropdown user={user} profileHref={profileHref} onLogout={onLogout} /> : (
+            <div className={styles.profileContainer}><Link to={loginHref} state={{ from: location }} className={styles.loginBtn}><LogIn size={18} /> Đăng nhập</Link></div>
           )}
         </div>
       </div>
@@ -151,16 +158,20 @@ export default function Header({
         <div className={styles.navContent}>
           <div className={styles.navLinks}>
             {navigation.map((item) => (
-              <a
+              <Link
                 key={item.href}
-                href={item.href}
-                aria-current={item.href === window.location.pathname + window.location.search || (item.href === "/" && window.location.pathname === "/") ? "page" : undefined}
-                className={`${styles.navLink} ${item.href === window.location.pathname + window.location.search || (item.href === "/" && window.location.pathname === "/") ? styles.navLinkActive : ""} ${item.promotion ? styles.navLinkHot : ""}`}
+                to={item.href}
+                onFocus={() => { if ('category' in item) schedulePrefetch(catalogOptions({ productTypeID: item.category })); }}
+                onMouseEnter={() => { if ('category' in item) schedulePrefetch(catalogOptions({ productTypeID: item.category })); }}
+                onMouseLeave={cancelPrefetch}
+                onBlur={cancelPrefetch}
+                aria-current={item.href === location.pathname + location.search ? "page" : undefined}
+                className={`${styles.navLink} ${item.href === location.pathname + location.search ? styles.navLinkActive : ""} ${'promotion' in item && item.promotion ? styles.navLinkHot : ""}`}
               >
-                {item.promotion && <Flame size={16} style={{ marginRight: '4px' }} />}
+                {'promotion' in item && item.promotion && <Flame size={16} style={{ marginRight: '4px' }} />}
                 {item.label}
-                {item.promotion && <span className={styles.hotBadge}>HOT</span>}
-              </a>
+                {'promotion' in item && item.promotion && <span className={styles.hotBadge}>HOT</span>}
+              </Link>
             ))}
           </div>
           <div className={styles.guarantee}>

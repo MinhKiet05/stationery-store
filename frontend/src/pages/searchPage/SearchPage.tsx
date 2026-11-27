@@ -70,6 +70,11 @@ export default function SearchPage() {
   const [maxPrice, setMaxPrice] = useState(price.max);
   const setPrice = (value: typeof price) => updateParameters({ minPrice: value.min || null, maxPrice: value.max || null });
   const [priceError, setPriceError] = useState("");
+  const priceKey = `${price.min}:${price.max}`;
+  const [previousPrice, setPreviousPrice] = useState(priceKey);
+  if (previousPrice !== priceKey) {
+    setPreviousPrice(priceKey); setMinPrice(price.min); setMaxPrice(price.max); setPriceError('');
+  }
   const rating = [3, 4, 5].includes(Number(searchParams.get('rating'))) ? Number(searchParams.get('rating')) : 0;
   const setRating = (value: number) => updateParameter('rating', value ? String(value) : null);
   const inStock = searchParams.get('inStock') === 'true', onSale = searchParams.get('onSale') === 'true', express = searchParams.get('express') === 'true';
