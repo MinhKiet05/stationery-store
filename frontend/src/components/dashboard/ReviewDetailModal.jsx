@@ -31,7 +31,7 @@ export default function ReviewDetailModal({ reviewID, onClose, onChanged, onAcce
       if (!detail.alive.current) return;
       if (failure.status === 401 || failure.status === 403) { onAccessDenied(); return; }
       const message = adminErrorMessage(failure);
-      setError(message); setStale(true); setConfirm(false); notify.error(message, message);
+      setError(message); setStale(true); setConfirm(false); notify.error(message, message, failure);
     } finally { detail.mutation.current = false; if (detail.alive.current) setBusy(false); }
   }
   return <>

@@ -34,9 +34,10 @@ import { getProduct } from "../../services/productService";
 import { queryKeys, sessionScope } from "../../services/queryCache";
 import useSessionScope from "../../services/useSessionScope";
 import { getGuestCart } from "../../utils/guestCart";
-import { userMessage } from "../../utils/notifications";
+import { notify, userMessage } from "../../utils/notifications";
+import { errorName, errorStatus } from '../../services/apiError';
 import type { Order, PaymentMethod, ShippingMethod } from '../../services/orderService';
-import { useCheckout } from '../../hooks/useCheckout';
+import { useCouponCheckout } from '../../hooks/useCouponCheckout';
 import SectionTitle from './CheckoutSection';
 import { ShippingMethods, PaymentMethods } from './CheckoutMethods';
 import { money } from './checkoutUtils';
@@ -88,8 +89,6 @@ function CheckoutContent({ initialCoupon }: { initialCoupon: string }) {
   const cartWrite = useCartMutation();
   const client = useQueryClient();
   const [editing, setEditing] = useState(false);
-  const [coupon, setCoupon] = useState(initialCoupon);
-  const [couponCode, setCouponCode] = useState(initialCoupon);
   const [error, setError] = useState("");
   const [uncertain, setUncertain] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
@@ -102,7 +101,7 @@ function CheckoutContent({ initialCoupon }: { initialCoupon: string }) {
   const items = cartQuery.data?.items ?? [];
   const quantity = items.reduce((sum, item) => sum + item.quantity, 0);
   const orderWrite = useMutation({ mutationFn: createOrder });
-  const { options, quote } = useCheckout({ items, couponCode, shippingMethod, enabled: !orderId });
+  const { options, quote, data: quoteData, coupon, setCoupon, couponCode, couponError, checking, hasCoupon, applyCoupon, removeCoupon, ready } = useCouponCheckout(items, shippingMethod, initialCoupon, !orderId && !cartWrite.isPending);
 
   const [profileDefaults, setProfileDefaults] = useState(userQuery.data);
   if (profileDefaults !== userQuery.data) {
@@ -134,19 +133,20 @@ function CheckoutContent({ initialCoupon }: { initialCoupon: string }) {
           ? { kind: "remove", itemID }
           : { kind: "quantity", itemID, quantity: next },
       );
+      if (requestScope === sessionScope()) notify.success(next === undefined ? 'Đã xóa sản phẩm khỏi giỏ hàng.' : 'Đã cập nhật số lượng sản phẩm.');
       if (requestScope === sessionScope())
         window.dispatchEvent(new Event("cart-changed"));
     } catch (reason) {
-      if (requestScope === sessionScope())
-        setError(
-          userMessage(reason, "Không thể cập nhật giỏ hàng. Vui lòng thử lại."),
-        );
+      if (requestScope === sessionScope()) {
+        const message = userMessage(reason, "Không thể cập nhật giỏ hàng. Vui lòng thử lại.");
+        setError(message); notify.error(reason, message);
+      }
     }
   }
 
   async function placeOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy.current || cartWrite.isPending || uncertain || !items.length || !quote.data || quote.isFetching || quote.isError || options.isError)
+    if (busy.current || cartWrite.isPending || uncertain || !items.length || !ready || !quoteData || options.isError || options.isPending || !options.data?.payments.some(method => method.code === paymentMethod && method.enabled))
       return;
     busy.current = true;
     setError("");
@@ -176,13 +176,14 @@ function CheckoutContent({ initialCoupon }: { initialCoupon: string }) {
           .filter(Boolean)
           .join(", ")}`,
         contactPhone: fields.phone.trim(),
-        paymentMethod, shippingMethod, expectedTotalAmount: quote.data.totalAmount,
+        paymentMethod, shippingMethod, expectedTotalAmount: quoteData.totalAmount,
         ...(couponCode ? { couponCode } : {}),
       });
       if (requestScope !== sessionScope()) return;
       setOrderId(result.orderID);
       // The order is committed first; payment retries must never submit this cart again.
       setSavedOrder(result);
+      notify.success('Đặt hàng thành công.');
       if (result.paymentMode === 'DEMO' && !result.isPaid) setPaymentOpen(true);
       window.dispatchEvent(new Event("cart-changed"));
       void client.invalidateQueries({
@@ -193,20 +194,19 @@ function CheckoutContent({ initialCoupon }: { initialCoupon: string }) {
       });
     } catch (reason) {
       if (requestScope !== sessionScope()) return;
-      const status = (reason as { status?: number }).status;
+      if (errorName(reason) === 'AbortError') return;
+      const status = errorStatus(reason);
       if (status === 409) void quote.refetch();
-      if (!status || status >= 500) {
+      if (!status || status >= 500 || status === 408) {
         setUncertain(true);
         setError(
           "Chưa xác định được kết quả đặt hàng. Vui lòng kiểm tra lịch sử đơn hàng trước khi đặt lại.",
         );
-      } else
-        setError(
-          userMessage(
-            reason,
-            "Không thể đặt hàng. Vui lòng kiểm tra và thử lại.",
-          ),
-        );
+        notify.warning('Chưa xác định được kết quả đặt hàng. Vui lòng kiểm tra lịch sử đơn hàng trước khi đặt lại.');
+      } else {
+        const message = userMessage(reason, 'Không thể đặt hàng. Vui lòng kiểm tra và thử lại.');
+        setError(message); notify.error(reason, message);
+      }
     } finally {
       busy.current = false;
     }
@@ -486,7 +486,7 @@ function CheckoutContent({ initialCoupon }: { initialCoupon: string }) {
                   </span>
                 </div>
               </section>
-              <ShippingMethods options={options.data} quote={quote.data} value={shippingMethod} disabled={disabled} onChange={setShippingMethod} loading={options.isPending} failed={options.isError} onRetry={() => void options.refetch()} />
+              <ShippingMethods options={options.data} quote={quoteData} value={shippingMethod} disabled={disabled} onChange={setShippingMethod} loading={options.isPending} failed={options.isError} onRetry={() => void options.refetch()} />
               <PaymentMethods options={options.data} value={paymentMethod} disabled={disabled} onChange={setPaymentMethod} />
               <div className="flex items-center gap-3 rounded-md bg-[#edf2ff] p-4 text-xs text-slate-500 [&>svg]:shrink-0 [&>svg]:text-orange-500 [&_a]:underline!">
                 <LockKeyhole size={22} />
@@ -609,28 +609,26 @@ function CheckoutContent({ initialCoupon }: { initialCoupon: string }) {
                   />
                   <button
                     type="button"
-                    disabled={!coupon.trim() || disabled}
-                    onClick={() => setCouponCode(coupon.trim().toUpperCase())}
+                    disabled={!coupon.trim() || disabled || checking}
+                    onClick={() => void applyCoupon()}
                   >
-                    Sử dụng
+                    {checking ? 'Đang kiểm tra…' : 'Sử dụng'}
                   </button>
                 </div>
-                {couponCode && (
+                {hasCoupon && (
                   <div className="mt-3 text-xs text-slate-500 [&>span]:rounded [&>span]:bg-orange-50 [&>span]:px-2 [&>span]:py-1 [&>span]:text-orange-600 [&>button]:ml-2 [&>button]:border-0 [&>button]:bg-transparent [&>button]:underline [&>p]:mt-2">
-                    <span>{couponCode}</span>
+                    {couponCode && <span>{couponCode}</span>}
                     <button
                       type="button"
                       disabled={disabled}
-                      onClick={() => {
-                        setCouponCode("");
-                        setCoupon("");
-                      }}
+                      onClick={removeCoupon}
                     >
                       Xóa mã
                     </button>
-                    <p>Mã được kiểm tra trực tiếp và tính vào tổng thanh toán.</p>
+                    {couponCode && <p>Mã đã được xác nhận và tính vào tổng thanh toán.</p>}
                   </div>
                 )}
+                {couponError && <p className="mt-2 text-xs text-red-600" role="alert">{couponError}</p>}
                 <dl className="mt-5 grid gap-2 border-t border-dashed border-slate-200 pt-4 text-sm [&>div]:flex [&>div]:justify-between [&>div]:gap-3 [&_dt]:text-slate-500 [&_dd]:text-right [&_dd]:font-medium [&_dd]:wrap-anywhere">
                   <div>
                     <dt>Tạm tính tiền hàng ({quantity} sản phẩm)</dt>
@@ -638,7 +636,7 @@ function CheckoutContent({ initialCoupon }: { initialCoupon: string }) {
                   </div>
                   <div>
                     <dt>Phí giao hàng</dt>
-                    <dd>{quote.data ? quote.data.shippingFee === 0 ? "Miễn phí" : money(quote.data.shippingFee) : "Đang tính…"}</dd>
+                    <dd>{quoteData ? quoteData.shippingFee === 0 ? "Miễn phí" : money(quoteData.shippingFee) : quote.isFetching ? "Đang tính…" : quote.isError ? "Chưa tính được" : "Chưa có ước tính"}</dd>
                   </div>
                   {couponCode && (
                     <div>
@@ -654,11 +652,11 @@ function CheckoutContent({ initialCoupon }: { initialCoupon: string }) {
                     </h3>
                     <small>{paymentMethod === "COD" ? "Thanh toán khi nhận hàng" : "Thanh toán trực tuyến"}</small>
                   </div>
-                  <strong>{quote.data ? money(quote.data.totalAmount) : "Đang tính…"}</strong>
+                  <strong>{quoteData ? money(quoteData.totalAmount) : quote.isFetching ? "Đang tính…" : quote.isError ? "Chưa tính được" : "Chưa có ước tính"}</strong>
                 </div>
                 {quote.isFetching && <p role="status" className="mb-3 text-xs text-slate-500">Đang cập nhật phí và ưu đãi…</p>}
                 {quote.isError && <p role="alert" className="mb-3 rounded bg-red-50 p-3 text-sm text-red-600">{userMessage(quote.error, 'Không tính được tổng đơn.')} <button type="button" onClick={() => void quote.refetch()} className="underline">Thử lại</button></p>}
-                {quote.data && quote.data.discountAmount > 0 && <p className="mb-3 text-sm text-emerald-600">Giảm giá: -{money(quote.data.discountAmount)}</p>}
+                {quoteData && quoteData.discountAmount > 0 && <p className="mb-3 text-sm text-emerald-600">Giảm giá: -{money(quoteData.discountAmount)}</p>}
                 {error && (
                   <p
                     role="alert"
@@ -687,7 +685,7 @@ function CheckoutContent({ initialCoupon }: { initialCoupon: string }) {
                 <button
                   className="flex w-full items-center justify-center gap-2 rounded-md border-0 bg-[#ff791c] px-5 py-3.5 text-base font-semibold text-white! transition-colors hover:enabled:bg-orange-600"
                   type="submit"
-                  disabled={disabled || uncertain || unavailable || quote.isFetching || !quote.data || quote.isError || options.isError || options.isPending || !options.data?.payments.some(method => method.code === paymentMethod && method.enabled)}
+                  disabled={disabled || uncertain || unavailable || !ready || options.isError || options.isPending || !options.data?.payments.some(method => method.code === paymentMethod && method.enabled)}
                 >
 
                   {orderWrite.isPending

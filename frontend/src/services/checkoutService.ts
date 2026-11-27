@@ -16,6 +16,14 @@ export function getCheckoutOptions(signal?: AbortSignal) {
 export function previewCheckout(shippingMethod: ShippingMethod, couponCode: string, signal?: AbortSignal) {
   return api<CheckoutQuote>('/api/checkout/preview', {
     method: 'POST', body: JSON.stringify({ shippingMethod, couponCode: couponCode || null }), signal,
+  }).then(quote => {
+    if (!quote || !['subTotal', 'discountAmount', 'shippingFee', 'totalAmount'].every(key => {
+      const value = quote[key as keyof CheckoutQuote];
+      return typeof value === 'number' && Number.isFinite(value) && value >= 0;
+    }) || !['STANDARD', 'EXPRESS'].includes(quote.shippingMethod)
+      || !(quote.couponCode === null || typeof quote.couponCode === 'string'))
+      throw new Error('Chưa nhận được ước tính hợp lệ. Vui lòng thử lại.');
+    return quote;
   });
 }
 export function completeDemoPayment(orderID: number) {

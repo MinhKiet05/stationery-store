@@ -84,14 +84,17 @@ public class CheckoutPolicy {
     public BigDecimal discount(Coupon coupon, BigDecimal subtotal) {
         // Preview and order placement share the same rule; only order placement consumes usage.
         LocalDate today = LocalDate.now();
-        if (!Boolean.TRUE.equals(coupon.getIsActive())
-                || (coupon.getStartDate() != null && today.isBefore(coupon.getStartDate()))
-                || (coupon.getEndDate() != null && today.isAfter(coupon.getEndDate()))
-                || (coupon.getMinOrderValue() != null && subtotal.compareTo(coupon.getMinOrderValue()) < 0))
-            throw bad("Mã giảm giá không áp dụng được");
+        if (!Boolean.TRUE.equals(coupon.getIsActive()))
+            throw new CheckoutFailure(HttpStatus.BAD_REQUEST, "COUPON_INACTIVE", "Mã giảm giá đã ngừng áp dụng.");
+        if (coupon.getStartDate() != null && today.isBefore(coupon.getStartDate()))
+            throw new CheckoutFailure(HttpStatus.BAD_REQUEST, "COUPON_NOT_STARTED", "Mã giảm giá chưa đến thời gian áp dụng.");
+        if (coupon.getEndDate() != null && today.isAfter(coupon.getEndDate()))
+            throw new CheckoutFailure(HttpStatus.BAD_REQUEST, "COUPON_EXPIRED", "Mã giảm giá đã hết hạn.");
+        if (coupon.getMinOrderValue() != null && subtotal.compareTo(coupon.getMinOrderValue()) < 0)
+            throw new CheckoutFailure(HttpStatus.BAD_REQUEST, "COUPON_MINIMUM_NOT_MET", "Đơn hàng chưa đạt giá trị tối thiểu để sử dụng mã này.");
         int used = coupon.getUsedCount() == null ? 0 : coupon.getUsedCount();
         if (coupon.getUsageLimit() != null && used >= coupon.getUsageLimit())
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Mã giảm giá đã hết lượt");
+            throw new CheckoutFailure(HttpStatus.CONFLICT, "COUPON_EXHAUSTED", "Mã giảm giá đã hết lượt sử dụng.");
         BigDecimal value = coupon.getDiscountValue();
         if (value == null || value.signum() < 0)
             throw bad("Giá trị giảm giá không hợp lệ");

@@ -30,7 +30,7 @@ export default function ReturnDetailModal({ returnID, onClose, onChanged, onAcce
     } catch (failure) {
       if (!detail.alive.current) return;
       if (failure.status === 401 || failure.status === 403) { onAccessDenied(); return; }
-      const message = adminErrorMessage(failure); setError(message); setStale(true); setConfirm(null); notify.error(message, message);
+      const message = adminErrorMessage(failure); setError(message); setStale(true); setConfirm(null); notify.error(message, message, failure);
       if (failure.status === 409) { setStale(false); detail.reload(); onChanged(); }
     } finally { detail.mutation.current = false; if (detail.alive.current) setBusy(false); }
   }

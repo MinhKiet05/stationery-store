@@ -38,7 +38,7 @@ export default function ProductFormModal({ data, productID, variant, variantMode
       if (!alive.current) return;
       if (failure.status === 401 || failure.status === 403) { onAccessDenied(); return; }
       const message = failure.status === 409 ? 'Dữ liệu đã thay đổi hoặc mã bị trùng. Hãy tải lại để kiểm tra.' : failure.status === 400 ? 'Dữ liệu không hợp lệ. Kiểm tra tên, giá, SKU, danh mục và ảnh.' : 'Không thể lưu dữ liệu. Hãy tải lại để kiểm tra kết quả trước khi thử lại.';
-      setError(message); setConfirm(false); setStale(![400].includes(failure.status)); notify.error(message, message);
+      setError(message); setConfirm(false); setStale(![400].includes(failure.status)); notify.error(message, message, failure);
     } finally { mutation.current = false; if (alive.current) { setBusy(false); onBusy(false); } }
   }
   const field = (key, label, extra = {}) => <label>{label}<input aria-label={label} value={form[key]} onChange={event => change(key, event.target.value)} {...extra} /></label>;

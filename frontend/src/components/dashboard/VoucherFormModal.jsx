@@ -34,7 +34,7 @@ export default function VoucherFormModal({ voucher, onClose, onSaved, onAccessDe
       if (!alive.current) return;
       if (failure.status === 401 || failure.status === 403) { onAccessDenied(); return; }
       const message = failure.status === 409 ? (voucher ? 'Dữ liệu đã thay đổi, mã bị trùng hoặc giới hạn lượt dùng không còn hợp lệ. Đóng form và tải lại chi tiết trước khi sửa.' : 'Mã giảm giá đã tồn tại. Vui lòng chọn mã khác.') : adminErrorMessage(failure);
-      setError(message); setConfirm(false); if (voucher && failure.status !== 400) setStale(true); notify.error(message, message);
+      setError(message); setConfirm(false); if (voucher && failure.status !== 400) setStale(true); notify.error(message, message, failure);
     } finally { mutation.current = false; if (alive.current) setBusy(false); }
   }
   return <>

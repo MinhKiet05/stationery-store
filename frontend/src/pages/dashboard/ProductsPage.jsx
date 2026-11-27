@@ -44,7 +44,7 @@ export default function ProductsPage() {
       if (controller.signal.aborted) return;
       if (failure.status === 401 || failure.status === 403) { onAccessDenied(); return; }
       const message = failure.status === 404 ? 'Không có sản phẩm phù hợp để xuất.' : failure.status === 413 ? 'Có quá nhiều sản phẩm. Hãy thu hẹp bộ lọc trước khi xuất.' : 'Không thể xuất Excel. Vui lòng thử lại.';
-      notify.error(message, message);
+      notify.error(message, message, failure);
     } finally { if (!controller.signal.aborted) setExporting(false); exportRef.current = null; }
   }
   const summary = stats.data;

@@ -38,7 +38,7 @@ export default function ReturnInventoryModal({ mode, data, onClose, onSaved, onC
     } catch (failure) {
       if (!alive.current) return;
       if (failure.status === 401 || failure.status === 403) { onAccessDenied(); return; }
-      const message = adminErrorMessage(failure); notify.error(message, message); setConfirm(false);
+      const message = adminErrorMessage(failure); notify.error(message, message, failure); setConfirm(false);
       if (failure.status === 409) { onConflict(message); return; }
       setError(message); if (failure.status !== 400) setUncertain(true);
     } finally { mutation.current = false; if (alive.current) setBusy(false); }

@@ -22,7 +22,7 @@ function installApi() {
     if(route==='/api/auth/me')return Response.json({userID:1,username:'test',fullName:'Test',email:'test@example.test',role:'CUSTOMER'});
     if(route==='/api/cart')return Response.json(token==='Bearer test-B'?{items:[],subtotal:0}:window.__cart);
     if(route==='/api/checkout/options')return Response.json({shipping:[{code:'STANDARD',label:'Standard',description:'3-5 days',fee:25000}],payments:[{code:'COD',label:'COD',description:'Pay on delivery',enabled:true,demo:false}],freeShippingThreshold:200000});
-    if(route==='/api/checkout/preview')return Response.json({subTotal:window.__cart.subtotal,discountAmount:0,shippingFee:25000,totalAmount:window.__cart.subtotal+25000,shippingMethod:'STANDARD'});
+    if(route==='/api/checkout/preview')return Response.json({subTotal:window.__cart.subtotal,discountAmount:0,shippingFee:25000,totalAmount:window.__cart.subtotal+25000,shippingMethod:'STANDARD',couponCode:null});
     if(route==='/api/orders')return Response.json({}, {status:500});
     if(route==='/api/cart/items'){
       const failure=window.__failCart;

@@ -40,9 +40,9 @@ export default function UsersPage() {
       notify.success('Xuất danh sách người dùng thành công.');
     } catch (failure) {
       if (controller.signal.aborted) return;
-      if (failure.status === 401 || failure.status === 403) onAccessDenied();
+      if (failure.status === 401 || failure.status === 403) { onAccessDenied(); return; }
       const message = failure.status === 404 ? 'Không có người dùng phù hợp để xuất.' : failure.status === 413 ? 'Hãy thu hẹp bộ lọc trước khi xuất Excel.' : 'Không thể xuất Excel. Vui lòng thử lại.';
-      notify.error(message, message);
+      notify.error(message, message, failure);
     } finally { if (!controller.signal.aborted) setExporting(false); exportRef.current = null; }
   }
   const summary = stats.data;
